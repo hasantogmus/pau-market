@@ -27,7 +27,7 @@ public class ListingService(PauMarketDbContext context) : IListingService
         return MapToResponseDto(listing);
     }
 
-    public async Task<ListingResponseDto> CreateListingAsync(CreateListingDto dto)
+    public async Task<ListingResponseDto> CreateListingAsync(CreateListingDto dto, string imageUrl)
     {
         var listing = new Listing
         {
@@ -37,6 +37,7 @@ public class ListingService(PauMarketDbContext context) : IListingService
             Price = dto.Price,
             Category = dto.Category,
             Condition = dto.Condition,
+            ImageUrl = imageUrl,
             IsActive = true,
             CreatedAt = DateTime.UtcNow
         };
@@ -88,6 +89,7 @@ public class ListingService(PauMarketDbContext context) : IListingService
             Price = listing.Price,
             Category = listing.Category,
             Condition = listing.Condition,
+            ImageUrl = listing.ImageUrl,
             IsActive = listing.IsActive,
             CreatedAt = listing.CreatedAt
         };

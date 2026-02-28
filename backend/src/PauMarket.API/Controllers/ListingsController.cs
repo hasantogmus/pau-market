@@ -6,7 +6,7 @@ namespace PauMarket.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class ListingsController(IListingService listingService) : ControllerBase
+public class ListingsController(IListingService listingService, IPhotoService photoService) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<IEnumerable<ListingResponseDto>>> GetAll()
@@ -27,12 +27,18 @@ public class ListingsController(IListingService listingService) : ControllerBase
     }
 
     [HttpPost]
-    public async Task<ActionResult<ListingResponseDto>> Create(CreateListingDto dto)
+    public async Task<ActionResult<ListingResponseDto>> Create([FromForm] CreateListingDto dto)
     {
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
 
-        var createdListing = await listingService.CreateListingAsync(dto);
+        // Upload photo to Cloudinary
+        var imageUrl = await photoService.AddPhotoAsync(dto.Image);
+        
+        if (string.IsNullOrEmpty(imageUrl))
+            return BadRequest(new { message = "Fotoğraf yüklenemedi." });
+
+        var createdListing = await listingService.CreateListingAsync(dto, imageUrl);
         return CreatedAtAction(nameof(GetById), new { id = createdListing.Id }, createdListing);
     }
 
