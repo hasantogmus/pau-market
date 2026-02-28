@@ -40,6 +40,15 @@ public class User
     /// <summary>BCrypt ile hashlenmiş şifre. AuthService tarafından yönetilir.</summary>
     public string PasswordHash { get; set; } = string.Empty;
 
+    /// <summary>Kullanıcının e-posta adresi doğrulandı mı? Varsayılan: false.</summary>
+    public bool IsEmailVerified { get; set; } = false;
+
+    /// <summary>
+    /// E-posta doğrulama için üretilen 6 haneli kod.
+    /// Doğrulama tamamlandığında null'a çekilir.
+    /// </summary>
+    public string? EmailVerificationToken { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     // Navigation properties

@@ -28,6 +28,15 @@ public class RegisterDto
     [MinLength(6, ErrorMessage = "Şifre en az 6 karakter olmalıdır.")]
     public required string Password { get; set; }
 
+    /// <summary>
+    /// Öğrenci numarası. İlk 2 hanesi e-postadaki giriş yılı rakamlarıyla eşleşmelidir.
+    /// Örnek: 21123456789 → "21" = e-postadaki "21"
+    /// </summary>
+    [Required(ErrorMessage = "Öğrenci numarası zorunludur.")]
+    [MinLength(9, ErrorMessage = "Öğrenci numarası en az 9 karakter olmalıdır.")]
+    [MaxLength(20)]
+    public required string StudentNumber { get; set; }
+
     [MaxLength(100)]
     public string? Department { get; set; }
 
