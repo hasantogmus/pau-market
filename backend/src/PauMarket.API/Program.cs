@@ -97,6 +97,9 @@ builder.Services.AddCors(options =>
 // ─── Health Checks ───────────────────────────────────────────────────────────
 builder.Services.AddHealthChecks();
 
+// ─── Application Services ────────────────────────────────────────────────────
+builder.Services.AddScoped<IListingService, ListingService>();
+
 var app = builder.Build();
 
 // ─── Middleware Pipeline ─────────────────────────────────────────────────────
