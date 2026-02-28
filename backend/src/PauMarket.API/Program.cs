@@ -1,5 +1,9 @@
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using PauMarket.API.Data;
+using PauMarket.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,6 +16,33 @@ builder.Services.AddDbContext<PauMarketDbContext>(options =>
             maxRetryDelay: TimeSpan.FromSeconds(5),
             errorNumbersToAdd: null)));
 
+// ─── JWT Authentication ───────────────────────────────────────────────────────
+var jwtConfig = builder.Configuration.GetSection("Jwt");
+var keyBytes  = Encoding.UTF8.GetBytes(jwtConfig["Key"]!);
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme    = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer           = true,
+        ValidateAudience         = true,
+        ValidateLifetime         = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer              = jwtConfig["Issuer"],
+        ValidAudience            = jwtConfig["Audience"],
+        IssuerSigningKey         = new SymmetricSecurityKey(keyBytes),
+        ClockSkew                = TimeSpan.Zero   // Token süresini tam tutuyoruz
+    };
+});
+
+// ─── Servisler (DI) ──────────────────────────────────────────────────────────
+builder.Services.AddScoped<IAuthService, AuthService>();
+
 // ─── HTTP + Swagger ───────────────────────────────────────────────────────────
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -19,9 +50,35 @@ builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new()
     {
-        Title = "PauMarket API",
-        Version = "v1",
+        Title       = "PauMarket API",
+        Version     = "v1",
         Description = "PAÜ öğrencilerine özel C2C pazaryeri — sadece @posta.pau.edu.tr e-postaları kabul edilir."
+    });
+
+    // Swagger UI üzerinden JWT ile test edebilmek için Bearer tanımı
+    options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+    {
+        Name         = "Authorization",
+        Type         = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+        Scheme       = "Bearer",
+        BearerFormat = "JWT",
+        In           = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Description  = "JWT token girin. Örnek: eyJhbGci..."
+    });
+
+    options.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+    {
+        {
+            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            {
+                Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                {
+                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                    Id   = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
     });
 });
 
@@ -56,8 +113,10 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("AllowFrontend");
+app.UseAuthentication();   // JWT doğrulama — UseAuthorization'dan önce olmalı
 app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");
 
 await app.RunAsync();
+

@@ -37,6 +37,9 @@ public class User
     [Range(1, 4, ErrorMessage = "Sınıf 1 ile 4 arasında olmalıdır.")]
     public int? Grade { get; set; }
 
+    /// <summary>BCrypt ile hashlenmiş şifre. AuthService tarafından yönetilir.</summary>
+    public string PasswordHash { get; set; } = string.Empty;
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     // Navigation properties
