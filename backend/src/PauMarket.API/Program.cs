@@ -99,6 +99,7 @@ builder.Services.AddHealthChecks();
 
 // ─── Application Services ────────────────────────────────────────────────────
 builder.Services.AddScoped<IListingService, ListingService>();
+builder.Services.AddScoped<IInteractionService, InteractionService>();
 
 var app = builder.Build();
 
