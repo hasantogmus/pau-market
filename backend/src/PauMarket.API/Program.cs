@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using PauMarket.API.Data;
+using PauMarket.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -39,6 +40,9 @@ builder.Services.AddCors(options =>
 
 // ─── Health Checks ───────────────────────────────────────────────────────────
 builder.Services.AddHealthChecks();
+
+// ─── Application Services ────────────────────────────────────────────────────
+builder.Services.AddScoped<IListingService, ListingService>();
 
 var app = builder.Build();
 
