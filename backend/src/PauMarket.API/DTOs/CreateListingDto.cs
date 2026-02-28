@@ -2,11 +2,13 @@ using System.ComponentModel.DataAnnotations;
 
 namespace PauMarket.API.DTOs;
 
+/// <summary>
+/// Yeni ilan oluşturma isteği için DTO.
+/// UserId artık request body'den alınmıyor — JWT token'dan enjekte ediliyor.
+/// Bu, başkası adına ilan açmayı önler.
+/// </summary>
 public class CreateListingDto
 {
-    [Required(ErrorMessage = "Satıcı (UserId) zorunludur.")]
-    public int UserId { get; set; }
-
     [Required(ErrorMessage = "Başlık zorunludur.")]
     [MaxLength(200)]
     public required string Title { get; set; }
