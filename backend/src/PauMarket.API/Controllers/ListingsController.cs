@@ -16,7 +16,7 @@ namespace PauMarket.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
-public class ListingsController(IListingService listingService, PauMarketDbContext db) : ControllerBase
+public class ListingsController(IListingService listingService, IPhotoService photoService, PauMarketDbContext db) : ControllerBase
 {
     // ── Herkese açık ──────────────────────────────────────────────────────────
 
@@ -40,28 +40,28 @@ public class ListingsController(IListingService listingService, PauMarketDbConte
         return Ok(listing);
     }
 
-    // ── Kimlik doğrulaması gerekli ────────────────────────────────────────────
+    // ── Kimlik doğrulaması ve Yetki gerekli ────────────────────────────────────────────
 
     /// <summary>
     /// Yeni ilan ekler.
-    /// Kural: giriş yapan kullanıcının e-postası doğrulanmış olmalı.
+    /// Kural: giriş yapan kullanıcının e-postası doğrulanmış olmalı ve fotoğraf yüklenmeli.
     /// </summary>
     [HttpPost]
     [Authorize]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<ActionResult<ListingResponseDto>> Create([FromBody] CreateListingDto dto)
+    public async Task<ActionResult<ListingResponseDto>> Create([FromForm] CreateListingDto dto)
     {
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
 
-        // Token'dan kullanıcı ID'sini al
+        // 1. Token'dan kullanıcı ID'sini al (Hasan'ın Güvenlik Katmanı)
         int? callerId = User.GetUserId();
         if (callerId is null)
             return Unauthorized(new { error = "Geçersiz token." });
 
-        // E-posta onay kontrolü
+        // 2. E-posta onay kontrolü (Hasan'ın Güvenlik Katmanı)
         var user = await db.Users.FindAsync(callerId.Value);
         if (user is null)
             return Unauthorized(new { error = "Kullanıcı bulunamadı." });
@@ -70,7 +70,15 @@ public class ListingsController(IListingService listingService, PauMarketDbConte
             return StatusCode(StatusCodes.Status403Forbidden,
                 new { error = "Lütfen önce e-posta adresinizi onaylayın." });
 
-        var createdListing = await listingService.CreateListingAsync(dto, callerId.Value);
+        // 3. Fotoğrafı buluta yükle (Berke'nin Fotoğraf Katmanı)
+        var imageUrl = await photoService.AddPhotoAsync(dto.Image);
+        
+        if (string.IsNullOrEmpty(imageUrl))
+            return BadRequest(new { message = "Fotoğraf yüklenemedi." });
+
+        // 4. İlanı hem sahip ID'si hem de resim URL'i ile oluştur (Birleştirilmiş Mantık)
+        var createdListing = await listingService.CreateListingAsync(dto, callerId.Value, imageUrl);
+        
         return CreatedAtAction(nameof(GetById), new { id = createdListing.Id }, createdListing);
     }
 
@@ -94,6 +102,7 @@ public class ListingsController(IListingService listingService, PauMarketDbConte
 
         try
         {
+            // Sahiplik kontrolü Service içinde yapılıyor
             var updatedListing = await listingService.UpdateListingAsync(id, dto, callerId.Value);
 
             if (updatedListing is null)
@@ -124,6 +133,7 @@ public class ListingsController(IListingService listingService, PauMarketDbConte
 
         try
         {
+            // Sahiplik kontrolü Service içinde yapılıyor
             bool result = await listingService.DeleteListingAsync(id, callerId.Value);
 
             if (!result)

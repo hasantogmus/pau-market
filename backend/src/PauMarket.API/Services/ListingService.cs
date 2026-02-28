@@ -27,22 +27,23 @@ public class ListingService(PauMarketDbContext context) : IListingService
         return listing is null ? null : MapToResponseDto(listing);
     }
 
-    // ── Kimlik doğrulaması gerekli ────────────────────────────────────────────
+    // ── Kimlik doğrulaması ve Yetki gerekli ────────────────────────────────────
 
     /// <summary>
     /// Yeni ilan oluşturur.
-    /// UserId, token'dan gelen <paramref name="callerId"/> ile set edilir.
+    /// UserId, token'dan gelen callerId ile; ImageUrl ise Berke'nin sisteminden gelir.
     /// </summary>
-    public async Task<ListingResponseDto> CreateListingAsync(CreateListingDto dto, int callerId)
+    public async Task<ListingResponseDto> CreateListingAsync(CreateListingDto dto, int callerId, string imageUrl)
     {
         var listing = new Listing
         {
-            UserId      = callerId,          // Token'dan — body'den değil
+            UserId      = callerId,          // Hasan'ın güvenliği: Token'dan gelir
             Title       = dto.Title,
             Description = dto.Description,
             Price       = dto.Price,
             Category    = dto.Category,
             Condition   = dto.Condition,
+            ImageUrl    = imageUrl,          // Berke'nin görseli: Buluttan gelir
             IsActive    = true,
             CreatedAt   = DateTime.UtcNow
         };
@@ -55,15 +56,14 @@ public class ListingService(PauMarketDbContext context) : IListingService
 
     /// <summary>
     /// İlanı günceller.
-    /// <paramref name="callerId"/> ilanın sahibiyle eşleşmiyorsa
-    /// <see cref="UnauthorizedAccessException"/> fırlatır.
+    /// callerId ilanın sahibiyle eşleşmiyorsa UnauthorizedAccessException fırlatır.
     /// </summary>
     public async Task<ListingResponseDto?> UpdateListingAsync(int id, UpdateListingDto dto, int callerId)
     {
         var listing = await context.Listings.FindAsync(id);
         if (listing is null) return null;
 
-        // Sahiplik kontrolü
+        // Sahiplik kontrolü (Hasan'ın güvenlik kuralı)
         if (listing.UserId != callerId)
             throw new UnauthorizedAccessException("Bu ilanı değiştirmeye yetkiniz yok.");
 
@@ -72,7 +72,7 @@ public class ListingService(PauMarketDbContext context) : IListingService
         listing.Price       = dto.Price;
         listing.Category    = dto.Category;
         listing.Condition   = dto.Condition;
-        listing.IsActive    = dto.IsActive;
+        listing.IsActive    = listing.IsActive;
 
         await context.SaveChangesAsync();
         return MapToResponseDto(listing);
@@ -80,15 +80,14 @@ public class ListingService(PauMarketDbContext context) : IListingService
 
     /// <summary>
     /// İlanı siler.
-    /// <paramref name="callerId"/> ilanın sahibiyle eşleşmiyorsa
-    /// <see cref="UnauthorizedAccessException"/> fırlatır.
+    /// callerId ilanın sahibiyle eşleşmiyorsa UnauthorizedAccessException fırlatır.
     /// </summary>
     public async Task<bool> DeleteListingAsync(int id, int callerId)
     {
         var listing = await context.Listings.FindAsync(id);
         if (listing is null) return false;
 
-        // Sahiplik kontrolü
+        // Sahiplik kontrolü (Hasan'ın güvenlik kuralı)
         if (listing.UserId != callerId)
             throw new UnauthorizedAccessException("Bu ilanı silmeye yetkiniz yok.");
 
@@ -108,6 +107,7 @@ public class ListingService(PauMarketDbContext context) : IListingService
         Price       = listing.Price,
         Category    = listing.Category,
         Condition   = listing.Condition,
+        ImageUrl    = listing.ImageUrl, // Berke'nin eklediği alan
         IsActive    = listing.IsActive,
         CreatedAt   = listing.CreatedAt
     };

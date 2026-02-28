@@ -9,6 +9,7 @@ public class ListingResponseDto
     public decimal Price { get; set; }
     public string Category { get; set; } = null!;
     public string Condition { get; set; } = null!;
+    public string? ImageUrl { get; set; }
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }
 }

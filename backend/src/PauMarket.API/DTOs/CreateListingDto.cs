@@ -27,4 +27,7 @@ public class CreateListingDto
     [Required(ErrorMessage = "Durum zorunludur.")]
     [MaxLength(50)]
     public required string Condition { get; set; }
+
+    [Required(ErrorMessage = "Fotoğraf zorunludur.")]
+    public required IFormFile Image { get; set; }
 }

@@ -35,6 +35,9 @@ public class Listing
     [MaxLength(50)]
     public required string Condition { get; set; }
 
+    /// <summary>Cloudinary fotoğraf URL'si.</summary>
+    public string? ImageUrl { get; set; }
+
     public bool IsActive { get; set; } = true;
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

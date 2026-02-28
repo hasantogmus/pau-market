@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using PauMarket.API.Data;
 using PauMarket.API.Services;
+using PauMarket.API.Settings;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -98,6 +99,8 @@ builder.Services.AddCors(options =>
 builder.Services.AddHealthChecks();
 
 // ─── Application Services ────────────────────────────────────────────────────
+builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection("CloudinarySettings"));
+builder.Services.AddScoped<IPhotoService, PhotoService>();
 builder.Services.AddScoped<IListingService, ListingService>();
 builder.Services.AddScoped<IInteractionService, InteractionService>();
 
