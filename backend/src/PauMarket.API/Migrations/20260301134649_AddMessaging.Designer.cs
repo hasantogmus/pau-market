@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PauMarket.API.Data;
 
@@ -11,9 +12,11 @@ using PauMarket.API.Data;
 namespace PauMarket.API.Migrations
 {
     [DbContext(typeof(PauMarketDbContext))]
-    partial class PauMarketDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260301134649_AddMessaging")]
+    partial class AddMessaging
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -214,39 +217,6 @@ namespace PauMarket.API.Migrations
                         });
                 });
 
-            modelBuilder.Entity("PauMarket.API.Models.UserView", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("ListingId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("ViewedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ListingId");
-
-                    b.HasIndex("UserId", "ListingId")
-                        .IsUnique()
-                        .HasDatabaseName("UX_UserViews_UserId_ListingId");
-
-                    b.HasIndex("UserId", "ViewedAt")
-                        .HasDatabaseName("IX_UserViews_UserId_ViewedAt");
-
-                    b.ToTable("UserViews", (string)null);
-                });
-
             modelBuilder.Entity("PauMarket.API.Models.Interaction", b =>
                 {
                     b.HasOne("PauMarket.API.Models.Listing", "Listing")
@@ -308,27 +278,6 @@ namespace PauMarket.API.Migrations
                     b.Navigation("Receiver");
 
                     b.Navigation("Sender");
-                });
-
-            modelBuilder.Entity("PauMarket.API.Models.UserView", b =>
-                {
-                    b.HasOne("PauMarket.API.Models.Listing", "Listing")
-                        .WithMany()
-                        .HasForeignKey("ListingId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK_UserViews_Listings_ListingId");
-
-                    b.HasOne("PauMarket.API.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK_UserViews_Users_UserId");
-
-                    b.Navigation("Listing");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("PauMarket.API.Models.Listing", b =>
