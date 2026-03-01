@@ -1,17 +1,35 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using PauMarket.API.Data;
 using PauMarket.API.DTOs;
 using PauMarket.API.Models;
 
 namespace PauMarket.API.Services;
 
-public class ListingService(PauMarketDbContext context) : IListingService
+public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IListingService
 {
     // ── GET (herkese açık) ────────────────────────────────────────────────────
 
     public async Task<PagedResult<ListingResponseDto>> GetAllListingsAsync(ListingQueryParameters parameters)
     {
-        var query = context.Listings.AsNoTracking().AsQueryable();
+        // 1. "AllListings" adında bir Cache Key ile RAM'de veri var mı kontrol et
+        if (!cache.TryGetValue("AllListings", out List<Listing>? allListings))
+        {
+            // 2. RAM'de yoksa veritabanından çek
+            allListings = await context.Listings.AsNoTracking().ToListAsync();
+
+            // 3. 5 dakikalık AbsoluteExpiration (kesin ömür) belirle
+            var cacheOptions = new MemoryCacheEntryOptions
+            {
+                AbsoluteExpiration = DateTimeOffset.UtcNow.AddMinutes(5)
+            };
+
+            // 4. Veriyi RAM'e kaydet
+            cache.Set("AllListings", allListings, cacheOptions);
+        }
+
+        // Filtreleme ve sayfalamayı RAM'e aldığımız liste üzerinden (in-memory) yapıyoruz
+        var query = allListings!.AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(parameters.SearchTerm))
         {
@@ -32,12 +50,12 @@ public class ListingService(PauMarketDbContext context) : IListingService
         if (parameters.MaxPrice.HasValue)
             query = query.Where(l => l.Price <= parameters.MaxPrice.Value);
 
-        var totalCount = await query.CountAsync();
-        var items = await query
+        var totalCount = query.Count();
+        var items = query
             .OrderByDescending(l => l.CreatedAt)
             .Skip((parameters.PageNumber - 1) * parameters.PageSize)
             .Take(parameters.PageSize)
-            .ToListAsync();
+            .ToList();
 
         return new PagedResult<ListingResponseDto>
         {
@@ -81,6 +99,9 @@ public class ListingService(PauMarketDbContext context) : IListingService
         context.Listings.Add(listing);
         await context.SaveChangesAsync();
 
+        // Cache Invalidation: Yeni ilan eklendi, eski önbelleği temizle
+        cache.Remove("AllListings");
+
         return MapToResponseDto(listing);
     }
 
@@ -105,6 +126,10 @@ public class ListingService(PauMarketDbContext context) : IListingService
         listing.IsActive    = listing.IsActive;
 
         await context.SaveChangesAsync();
+
+        // Cache Invalidation: İlan güncellendi, eski önbelleği temizle
+        cache.Remove("AllListings");
+
         return MapToResponseDto(listing);
     }
 
@@ -123,6 +148,10 @@ public class ListingService(PauMarketDbContext context) : IListingService
 
         context.Listings.Remove(listing);
         await context.SaveChangesAsync();
+
+        // Cache Invalidation: İlan silindi, eski önbelleği temizle
+        cache.Remove("AllListings");
+
         return true;
     }
 
