@@ -22,10 +22,10 @@ public class ListingsController(IListingService listingService, IPhotoService ph
 
     [HttpGet]
     [AllowAnonymous]
-    public async Task<ActionResult<IEnumerable<ListingResponseDto>>> GetAll()
+    public async Task<ActionResult<PagedResult<ListingResponseDto>>> GetAll([FromQuery] ListingQueryParameters parameters)
     {
-        var listings = await listingService.GetAllListingsAsync();
-        return Ok(listings);
+        var result = await listingService.GetAllListingsAsync(parameters);
+        return Ok(result);
     }
 
     [HttpGet("{id}")]
@@ -39,8 +39,6 @@ public class ListingsController(IListingService listingService, IPhotoService ph
 
         return Ok(listing);
     }
-
-    // ── Kimlik doğrulaması ve Yetki gerekli ────────────────────────────────────────────
 
     /// <summary>
     /// Yeni ilan ekler.
