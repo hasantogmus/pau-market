@@ -13,6 +13,7 @@ public class PauMarketDbContext(DbContextOptions<PauMarketDbContext> options) : 
     public DbSet<Listing> Listings => Set<Listing>();
     public DbSet<Interaction> Interactions => Set<Interaction>();
     public DbSet<UserView> UserViews => Set<UserView>();
+    public DbSet<Review> Reviews => Set<Review>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -153,5 +154,47 @@ public class PauMarketDbContext(DbContextOptions<PauMarketDbContext> options) : 
                   .OnDelete(DeleteBehavior.Cascade)
                   .HasConstraintName("FK_UserViews_Listings_ListingId");
         });
+
+        // ═══════════════════════════════════════════════════════════
+        // REVIEW (Değerlendirme Sistemi)
+        // ═══════════════════════════════════════════════════════════
+        modelBuilder.Entity<Review>(entity =>
+        {
+            entity.ToTable("Reviews");
+            entity.HasKey(r => r.Id);
+
+            entity.Property(r => r.Rating).IsRequired();
+            entity.Property(r => r.Comment).HasMaxLength(1000);
+            entity.Property(r => r.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+
+            // Review → TargetUser (Satıcı)
+            // SQL Server'da multiple cascade paths (döngü) hatasını önlemek için NoAction.
+            entity.HasOne(r => r.TargetUser)
+                  .WithMany()
+                  .HasForeignKey(r => r.TargetUserId)
+                  .OnDelete(DeleteBehavior.NoAction)
+                  .HasConstraintName("FK_Reviews_Users_TargetUserId");
+
+            // Review → Reviewer (Yorum Yapan)
+            entity.HasOne(r => r.Reviewer)
+                  .WithMany()
+                  .HasForeignKey(r => r.ReviewerId)
+                  .OnDelete(DeleteBehavior.NoAction)
+                  .HasConstraintName("FK_Reviews_Users_ReviewerId");
+
+            // Review → Listing (Opsiyonel)
+            entity.HasOne(r => r.Listing)
+                  .WithMany()
+                  .HasForeignKey(r => r.ListingId)
+                  .OnDelete(DeleteBehavior.SetNull)
+                  .HasConstraintName("FK_Reviews_Listings_ListingId");
+
+            // Bir kullanıcı aynı ilandan dolayı aynı satıcıya 1'den fazla yorum yapamaz
+            entity.HasIndex(r => new { r.ReviewerId, r.TargetUserId, r.ListingId })
+                  .IsUnique()
+                  .HasDatabaseName("UX_Reviews_Reviewer_Target_Listing")
+                  .HasFilter("[ListingId] IS NOT NULL"); // ListingId null değilse benzersiz olsun
+        });
     }
 }
+
