@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PauMarket.API.Data;
 
@@ -11,9 +12,11 @@ using PauMarket.API.Data;
 namespace PauMarket.API.Migrations
 {
     [DbContext(typeof(PauMarketDbContext))]
-    partial class PauMarketDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260301133301_AddUserViewsTable")]
+    partial class AddUserViewsTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -111,50 +114,6 @@ namespace PauMarket.API.Migrations
                         .HasDatabaseName("IX_Listings_IsActive_Category");
 
                     b.ToTable("Listings", (string)null);
-                });
-
-            modelBuilder.Entity("PauMarket.API.Models.Message", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
-
-                    b.Property<bool>("IsRead")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
-
-                    b.Property<int>("ListingId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ReceiverId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("SenderId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("SentAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ReceiverId");
-
-                    b.HasIndex("SenderId");
-
-                    b.HasIndex("ListingId", "SenderId", "ReceiverId")
-                        .HasDatabaseName("IX_Messages_ListingId_SenderId_ReceiverId");
-
-                    b.ToTable("Messages", (string)null);
                 });
 
             modelBuilder.Entity("PauMarket.API.Models.User", b =>
@@ -280,36 +239,6 @@ namespace PauMarket.API.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("PauMarket.API.Models.Message", b =>
-                {
-                    b.HasOne("PauMarket.API.Models.Listing", "Listing")
-                        .WithMany("Messages")
-                        .HasForeignKey("ListingId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("FK_Messages_Listings_ListingId");
-
-                    b.HasOne("PauMarket.API.Models.User", "Receiver")
-                        .WithMany()
-                        .HasForeignKey("ReceiverId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("FK_Messages_Users_ReceiverId");
-
-                    b.HasOne("PauMarket.API.Models.User", "Sender")
-                        .WithMany()
-                        .HasForeignKey("SenderId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("FK_Messages_Users_SenderId");
-
-                    b.Navigation("Listing");
-
-                    b.Navigation("Receiver");
-
-                    b.Navigation("Sender");
-                });
-
             modelBuilder.Entity("PauMarket.API.Models.UserView", b =>
                 {
                     b.HasOne("PauMarket.API.Models.Listing", "Listing")
@@ -334,8 +263,6 @@ namespace PauMarket.API.Migrations
             modelBuilder.Entity("PauMarket.API.Models.Listing", b =>
                 {
                     b.Navigation("Interactions");
-
-                    b.Navigation("Messages");
                 });
 
             modelBuilder.Entity("PauMarket.API.Models.User", b =>

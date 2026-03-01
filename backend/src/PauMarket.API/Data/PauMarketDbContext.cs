@@ -13,6 +13,7 @@ public class PauMarketDbContext(DbContextOptions<PauMarketDbContext> options) : 
     public DbSet<Listing> Listings => Set<Listing>();
     public DbSet<Interaction> Interactions => Set<Interaction>();
     public DbSet<Message> Messages => Set<Message>();
+    public DbSet<UserView> UserViews => Set<UserView>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -156,6 +157,40 @@ public class PauMarketDbContext(DbContextOptions<PauMarketDbContext> options) : 
             // Konusma sorguları için index
             entity.HasIndex(m => new { m.ListingId, m.SenderId, m.ReceiverId })
                   .HasDatabaseName("IX_Messages_ListingId_SenderId_ReceiverId");
+        });
+
+        // ═══════════════════════════════════════════════════════════
+        // USER_VIEW  (Görüntüleme Geçmişi)
+        // ═══════════════════════════════════════════════════════════
+        modelBuilder.Entity<UserView>(entity =>
+        {
+            entity.ToTable("UserViews");
+            entity.HasKey(v => v.Id);
+
+            entity.Property(v => v.ViewedAt).HasDefaultValueSql("GETUTCDATE()");
+
+            // Her kullanıcı–ilan çifti için tek kayıt: tekrar ziyarette ViewedAt güncellenir
+            entity.HasIndex(v => new { v.UserId, v.ListingId })
+                  .IsUnique()
+                  .HasDatabaseName("UX_UserViews_UserId_ListingId");
+
+            // 'Son gezilenler' sorgusu için index
+            entity.HasIndex(v => new { v.UserId, v.ViewedAt })
+                  .HasDatabaseName("IX_UserViews_UserId_ViewedAt");
+
+            // UserView → User (N:1)
+            entity.HasOne(v => v.User)
+                  .WithMany()
+                  .HasForeignKey(v => v.UserId)
+                  .OnDelete(DeleteBehavior.Cascade)
+                  .HasConstraintName("FK_UserViews_Users_UserId");
+
+            // UserView → Listing (N:1)
+            entity.HasOne(v => v.Listing)
+                  .WithMany()
+                  .HasForeignKey(v => v.ListingId)
+                  .OnDelete(DeleteBehavior.Cascade)
+                  .HasConstraintName("FK_UserViews_Listings_ListingId");
         });
     }
 }
