@@ -84,16 +84,13 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-// ─── CORS (Next.js frontend için) ───────────────────────────────────────────
+// ─── CORS (Frontend React Uygulaması için) ────────────────────────────────────
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowFrontend", policy =>
-        policy.WithOrigins(
-                "http://localhost:3000",
-                "https://localhost:3000")
-              .AllowAnyHeader()
+    options.AddPolicy("AllowReactApp", policy =>
+        policy.AllowAnyOrigin()
               .AllowAnyMethod()
-              .AllowCredentials());
+              .AllowAnyHeader());
 });
 
 // ─── Health Checks ───────────────────────────────────────────────────────────
@@ -124,7 +121,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseCors("AllowFrontend");
+app.UseCors("AllowReactApp");
 app.UseAuthentication();   // JWT doğrulama — UseAuthorization'dan önce olmalı
 app.UseAuthorization();
 app.MapControllers();
