@@ -16,7 +16,11 @@ namespace PauMarket.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
-public class ListingsController(IListingService listingService, IPhotoService photoService, PauMarketDbContext db) : ControllerBase
+public class ListingsController(
+    IListingService listingService,
+    IPhotoService photoService,
+    IRecommendationService recommendationService,
+    PauMarketDbContext db) : ControllerBase
 {
     // ── Herkese açık ──────────────────────────────────────────────────────────
 
@@ -36,6 +40,13 @@ public class ListingsController(IListingService listingService, IPhotoService ph
 
         if (listing is null)
             return NotFound(new { error = "İlan bulunamadı." });
+
+        // Giriş yapmış kullanıcı ise görüntüleme geçmişine kaydet
+        int? callerId = User.GetUserId();
+        if (callerId is not null)
+        {
+            await recommendationService.TrackViewAsync(callerId.Value, id);
+        }
 
         return Ok(listing);
     }
