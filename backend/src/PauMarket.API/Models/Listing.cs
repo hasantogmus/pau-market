@@ -47,4 +47,5 @@ public class Listing
     public User User { get; set; } = null!;
 
     public ICollection<Interaction> Interactions { get; set; } = [];
+    public ICollection<Message> Messages { get; set; } = [];
 }

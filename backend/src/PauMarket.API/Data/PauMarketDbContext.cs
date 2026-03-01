@@ -12,6 +12,7 @@ public class PauMarketDbContext(DbContextOptions<PauMarketDbContext> options) : 
     public DbSet<User> Users => Set<User>();
     public DbSet<Listing> Listings => Set<Listing>();
     public DbSet<Interaction> Interactions => Set<Interaction>();
+    public DbSet<Message> Messages => Set<Message>();
     public DbSet<UserView> UserViews => Set<UserView>();
     public DbSet<Review> Reviews => Set<Review>();
 
@@ -119,6 +120,44 @@ public class PauMarketDbContext(DbContextOptions<PauMarketDbContext> options) : 
             // RS için tüm etkileşimleri kullanıcı bazlı çekmek için
             entity.HasIndex(i => i.UserId)
                   .HasDatabaseName("IX_Interactions_UserId");
+        });
+
+        // ═══════════════════════════════════════════════════════════
+        // MESSAGE
+        // ═══════════════════════════════════════════════════════════
+        modelBuilder.Entity<Message>(entity =>
+        {
+            entity.ToTable("Messages");
+            entity.HasKey(m => m.Id);
+
+            entity.Property(m => m.Content).IsRequired().HasMaxLength(2000);
+            entity.Property(m => m.IsRead).HasDefaultValue(false);
+            entity.Property(m => m.SentAt).HasDefaultValueSql("GETUTCDATE()");
+
+            // Message → Sender (Restrict: cascade çakışmasını önler)
+            entity.HasOne(m => m.Sender)
+                  .WithMany()
+                  .HasForeignKey(m => m.SenderId)
+                  .OnDelete(DeleteBehavior.Restrict)
+                  .HasConstraintName("FK_Messages_Users_SenderId");
+
+            // Message → Receiver (Restrict: cascade çakışmasını önler)
+            entity.HasOne(m => m.Receiver)
+                  .WithMany()
+                  .HasForeignKey(m => m.ReceiverId)
+                  .OnDelete(DeleteBehavior.Restrict)
+                  .HasConstraintName("FK_Messages_Users_ReceiverId");
+
+            // Message → Listing (Restrict: ilan silinince mesajlar korunsun)
+            entity.HasOne(m => m.Listing)
+                  .WithMany(l => l.Messages)
+                  .HasForeignKey(m => m.ListingId)
+                  .OnDelete(DeleteBehavior.Restrict)
+                  .HasConstraintName("FK_Messages_Listings_ListingId");
+
+            // Konusma sorguları için index
+            entity.HasIndex(m => new { m.ListingId, m.SenderId, m.ReceiverId })
+                  .HasDatabaseName("IX_Messages_ListingId_SenderId_ReceiverId");
         });
 
         // ═══════════════════════════════════════════════════════════
