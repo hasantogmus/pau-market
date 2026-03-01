@@ -4,8 +4,8 @@ namespace PauMarket.API.DTOs;
 
 /// <summary>
 /// Kullanıcı kayıt isteği için veri transfer nesnesi.
-/// E-posta yalnızca ^[a-z]+\d{2}@posta\.pau\.edu\.tr$ formatını kabul eder.
-/// Örnek: htogmus21@posta.pau.edu.tr
+/// E-posta @posta.pau.edu.tr uzantısıyla bitmelidir.
+/// Öğrenci numarası tam 8 rakamdan oluşmalıdır.
 /// </summary>
 public class RegisterDto
 {
@@ -29,12 +29,11 @@ public class RegisterDto
     public required string Password { get; set; }
 
     /// <summary>
-    /// Öğrenci numarası. İlk 2 hanesi e-postadaki giriş yılı rakamlarıyla eşleşmelidir.
-    /// Örnek: 21123456789 → "21" = e-postadaki "21"
+    /// PAÜ öğrenci numarası — tam olarak 8 rakam.
     /// </summary>
     [Required(ErrorMessage = "Öğrenci numarası zorunludur.")]
-    [MinLength(9, ErrorMessage = "Öğrenci numarası en az 9 karakter olmalıdır.")]
-    [MaxLength(20)]
+    [RegularExpression(@"^[0-9]{8}$",
+        ErrorMessage = "Öğrenci numarası tam 8 haneli olmalıdır.")]
     public required string StudentNumber { get; set; }
 
     [MaxLength(100)]
