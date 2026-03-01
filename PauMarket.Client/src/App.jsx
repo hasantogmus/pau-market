@@ -4,6 +4,7 @@ import MainLayout from './layouts/MainLayout';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import NewListing from './pages/NewListing';
 import { AuthProvider } from './context/AuthContext';
 
 function App() {
@@ -32,6 +33,14 @@ function App() {
             element={
               <MainLayout>
                 <Register />
+              </MainLayout>
+            }
+          />
+          <Route
+            path="/listings/new"
+            element={
+              <MainLayout>
+                <NewListing />
               </MainLayout>
             }
           />
