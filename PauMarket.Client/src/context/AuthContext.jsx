@@ -12,6 +12,24 @@ export const AuthProvider = ({ children }) => {
     const [isLoading, setIsLoading] = useState(true);
     const navigate = useNavigate();
 
+    // Yardımcı fonksiyon: .NET claim'lerini çözümlemek için
+    const parseUserFromToken = (decodedToken) => {
+        // İsim ve Soyisimi birleştirerek tam isim oluşturalım (örn: Hasan Yılmaz)
+        let fullName = decodedToken.name || decodedToken.unique_name || decodedToken['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'];
+        if (!fullName && decodedToken.given_name) {
+            fullName = decodedToken.family_name
+                ? `${decodedToken.given_name} ${decodedToken.family_name}`
+                : decodedToken.given_name;
+        }
+
+        return {
+            id: decodedToken.nameid || decodedToken.sub || decodedToken['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'],
+            email: decodedToken.email || decodedToken['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'],
+            name: fullName || 'Kullanıcı',
+            role: decodedToken.role || decodedToken['http://schemas.microsoft.com/ws/2008/06/identity/claims/role']
+        };
+    };
+
     useEffect(() => {
         const token = localStorage.getItem('token');
         if (token) {
@@ -21,13 +39,7 @@ export const AuthProvider = ({ children }) => {
                 if (decodedToken.exp * 1000 < Date.now()) {
                     logout();
                 } else {
-                    // Backend'den gelen JWT payload yapısına göre bu alanları güncelleyebilirsiniz
-                    setUser({
-                        id: decodedToken.nameid || decodedToken.sub,
-                        email: decodedToken.email,
-                        name: decodedToken.unique_name || decodedToken.name,
-                        role: decodedToken.role
-                    });
+                    setUser(parseUserFromToken(decodedToken));
                     setIsAuthenticated(true);
                 }
             } catch (error) {
@@ -41,12 +53,7 @@ export const AuthProvider = ({ children }) => {
     const login = (token) => {
         localStorage.setItem('token', token);
         const decodedToken = jwtDecode(token);
-        setUser({
-            id: decodedToken.nameid || decodedToken.sub,
-            email: decodedToken.email,
-            name: decodedToken.unique_name || decodedToken.name,
-            role: decodedToken.role
-        });
+        setUser(parseUserFromToken(decodedToken));
         setIsAuthenticated(true);
         navigate('/');
     };
