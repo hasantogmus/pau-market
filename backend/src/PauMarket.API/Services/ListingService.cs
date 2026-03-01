@@ -9,13 +9,43 @@ public class ListingService(PauMarketDbContext context) : IListingService
 {
     // ── GET (herkese açık) ────────────────────────────────────────────────────
 
-    public async Task<IEnumerable<ListingResponseDto>> GetAllListingsAsync()
+    public async Task<PagedResult<ListingResponseDto>> GetAllListingsAsync(ListingQueryParameters parameters)
     {
-        var listings = await context.Listings
-            .AsNoTracking()
+        var query = context.Listings.AsNoTracking().AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(parameters.SearchTerm))
+        {
+            var searchTerm = parameters.SearchTerm.ToLower();
+            query = query.Where(l => l.Title.ToLower().Contains(searchTerm) || 
+                                     l.Description.ToLower().Contains(searchTerm));
+        }
+
+        if (!string.IsNullOrWhiteSpace(parameters.Category))
+        {
+            var category = parameters.Category.ToLower();
+            query = query.Where(l => l.Category.ToLower() == category);
+        }
+
+        if (parameters.MinPrice.HasValue)
+            query = query.Where(l => l.Price >= parameters.MinPrice.Value);
+
+        if (parameters.MaxPrice.HasValue)
+            query = query.Where(l => l.Price <= parameters.MaxPrice.Value);
+
+        var totalCount = await query.CountAsync();
+        var items = await query
+            .OrderByDescending(l => l.CreatedAt)
+            .Skip((parameters.PageNumber - 1) * parameters.PageSize)
+            .Take(parameters.PageSize)
             .ToListAsync();
 
-        return listings.Select(MapToResponseDto);
+        return new PagedResult<ListingResponseDto>
+        {
+            Items = items.Select(MapToResponseDto),
+            TotalCount = totalCount,
+            PageNumber = parameters.PageNumber,
+            PageSize = parameters.PageSize
+        };
     }
 
     public async Task<ListingResponseDto?> GetListingByIdAsync(int id)

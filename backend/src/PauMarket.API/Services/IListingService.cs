@@ -5,7 +5,7 @@ namespace PauMarket.API.Services;
 public interface IListingService
 {
     // ── Herkese açık ──────────────────────────────────────────────────────────
-    Task<IEnumerable<ListingResponseDto>> GetAllListingsAsync();
+    Task<PagedResult<ListingResponseDto>> GetAllListingsAsync(ListingQueryParameters parameters);
     Task<ListingResponseDto?> GetListingByIdAsync(int id);
 
     // ── Kimlik doğrulaması ve Yetki gerekli ────────────────────────────────────
