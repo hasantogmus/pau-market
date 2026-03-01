@@ -49,6 +49,10 @@ public class User
     /// </summary>
     public string? EmailVerificationToken { get; set; }
 
+    /// <summary>Kullanıcının rolü. Varsayılan: "User". Adminler için "Admin" atanır.</summary>
+    [MaxLength(20)]
+    public string Role { get; set; } = "User";
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     // Navigation properties
