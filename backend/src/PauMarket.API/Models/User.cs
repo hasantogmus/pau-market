@@ -37,6 +37,14 @@ public class User
     [Range(1, 4, ErrorMessage = "Sınıf 1 ile 4 arasında olmalıdır.")]
     public int? Grade { get; set; }
 
+    /// <summary>Kullanıcının tercih ettiği soğuk başlangıç kategorileri (Örn: "Elektronik,Kitap")</summary>
+    [MaxLength(200)]
+    public string? PreferredCategories { get; set; }
+
+    /// <summary>İkinci elde tercih edilen ürün durumu (Örn: "Yeni,Az Kullanılmış")</summary>
+    [MaxLength(100)]
+    public string? PreferredCondition { get; set; }
+
     /// <summary>BCrypt ile hashlenmiş şifre. AuthService tarafından yönetilir.</summary>
     public string PasswordHash { get; set; } = string.Empty;
 

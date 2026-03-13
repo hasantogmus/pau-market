@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Link, useNavigate } from 'react-router-dom';
-import { LogIn, AlertCircle, Loader2 } from 'lucide-react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { LogIn, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
 import AuthSplitLayout from '../layouts/AuthSplitLayout';
 import authService from '../services/authService';
+import { useAuth } from '../context/AuthContext';
 
 const Login = () => {
     const [email, setEmail] = useState('');
@@ -11,6 +12,11 @@ const Login = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
     const navigate = useNavigate();
+    const location = useLocation();
+    const { login } = useAuth();
+
+    // Kayıt sonrası mı geliniyoruz?
+    const justRegistered = new URLSearchParams(location.search).get('registered') === 'true';
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -20,9 +26,13 @@ const Login = () => {
         try {
             const data = await authService.login(email, password);
             if (data.token) {
-                localStorage.setItem('token', data.token);
-                // Başarılı giriş sonrası ana sayfaya yönlendir
-                navigate('/');
+                // AuthContext login fonksiyonu: token'i kaydet, user state'i set et
+                login(data.token);
+                // Kayıt sonrasıysa onboarding'e, değilse ana sayfaya
+                if (justRegistered) {
+                    navigate('/onboarding');
+                }
+                // Aksi hâlde AuthContext.login kendi içinde '/'je navigate ediyor
             } else {
                 setError('Giriş başarısız. Lütfen bilgilerinizi kontrol edin.');
             }
@@ -52,6 +62,20 @@ const Login = () => {
                 <h2 className="text-3xl font-extrabold text-center text-gray-900 mb-6">
                     Giriş Yap
                 </h2>
+
+                {/* Kayıt sonrası hoş geldin notu */}
+                {justRegistered && (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl flex items-start gap-3 shadow-sm"
+                    >
+                        <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5 shrink-0" />
+                        <p className="text-sm text-green-800 font-medium">
+                            Hesabın oluşturuldu! 🎉 Lütfen e-postana gönderilen doğrulama kodunu kullanarak hesabını aktif et, ardından giriş yap.
+                        </p>
+                    </motion.div>
+                )}
 
                 {error && (
                     <motion.div

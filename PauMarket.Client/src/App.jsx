@@ -5,6 +5,7 @@ import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import NewListing from './pages/NewListing';
+import Onboarding from './pages/Onboarding';
 import { AuthProvider } from './context/AuthContext';
 
 function App() {
@@ -44,6 +45,8 @@ function App() {
               </MainLayout>
             }
           />
+          {/* Onboarding: kendi full-screen layout'u var, MainLayout'suz */}
+          <Route path="/onboarding" element={<Onboarding />} />
           {/* İleride eklenecek sayfalar için yer tutucu alan */}
           {/* <Route path="/listings" element={<MainLayout><Listings /></MainLayout>} /> */}
         </Routes>
