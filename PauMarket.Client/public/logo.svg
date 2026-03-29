@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- Full white canvas fill -->
+  <rect width="48" height="48" fill="#ffffff"/>
+  <!-- Rounded square frame -->
+  <rect x="2" y="2" width="44" height="44" rx="10" ry="10" fill="#ffffff"/>
+  <!-- P: clean geometric sans  |  M: elegant serif, pulled left with dx to close gap -->
+  <text x="24" y="33" text-anchor="middle">
+    <tspan
+      font-family="'Segoe UI', 'Inter', Arial, sans-serif"
+      font-size="27"
+      font-weight="800"
+      fill="#2563eb"
+    >P</tspan><tspan
+      font-family="'Palatino Linotype', 'Palatino', 'Book Antiqua', Georgia, serif"
+      font-size="27"
+      font-weight="700"
+      font-style="italic"
+      fill="#111827"
+      dx="-3"
+    >M</tspan>
+  </text>
+</svg>
