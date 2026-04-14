@@ -1,2 +1,9 @@
 *.csv
 __pycache__/
+
+# Makineye özel / gizli config dosyaları — her geliştirici kendi ayarını yapar
+appsettings.json
+appsettings.Development.json
+
+# Büyük ML model dosyaları — Git LFS kullanılmıyorsa repoya ekleme
+*.pkl
