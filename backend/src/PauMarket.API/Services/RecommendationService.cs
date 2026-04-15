@@ -97,6 +97,7 @@ public class RecommendationService(PauMarketDbContext db) : IRecommendationServi
     /// <inheritdoc/>
     public async Task TrackViewAsync(int userId, int listingId)
     {
+        // ── UserViews tablosu ("Son İncelediklerin" bölümü için) ──────────────
         var existingView = await db.UserViews
             .FirstOrDefaultAsync(v => v.UserId == userId && v.ListingId == listingId);
 
@@ -113,6 +114,25 @@ public class RecommendationService(PauMarketDbContext db) : IRecommendationServi
                 UserId    = userId,
                 ListingId = listingId,
                 ViewedAt  = DateTime.UtcNow
+            });
+        }
+
+        // ── Interactions tablosu (RS model eğitimi için View sinyali) ─────────
+        // Aynı kullanıcı aynı ilanı daha önce view'lamışsa tekrar ekleme;
+        // model eğitiminde mükerrer sinyal gürültü yaratır.
+        var existingInteraction = await db.Interactions
+            .AnyAsync(i => i.UserId == userId
+                        && i.ListingId == listingId
+                        && i.InteractionType == InteractionType.View);
+
+        if (!existingInteraction)
+        {
+            db.Interactions.Add(new Interaction
+            {
+                UserId          = userId,
+                ListingId       = listingId,
+                InteractionType = InteractionType.View,
+                Timestamp       = DateTime.UtcNow
             });
         }
 
@@ -227,7 +247,8 @@ public class RecommendationService(PauMarketDbContext db) : IRecommendationServi
 
     /// <summary>
     /// Adım C — Cold Start:
-    /// Kullanıcının hiç etkileşimi yoksa en yeni aktif ilanları getirir.
+    /// Kullanıcının hiç etkileşimi yoksa önce onboarding'de seçtiği
+    /// PreferredCategories'e göre filtreler; kategori yoksa en yeni aktif ilanları getirir.
     /// Kendi ilanlarını hariç tutar.
     /// </summary>
     private async Task<List<ListingResponseDto>> GetColdStartRecommendationsAsync(
@@ -235,13 +256,48 @@ public class RecommendationService(PauMarketDbContext db) : IRecommendationServi
     {
         alreadyIncludedIds ??= [];
 
-        var listings = await db.Listings
+        // Kullanıcının kayıt sırasında seçtiği tercih kategorilerini al
+        // Örn: "Elektronik,Kitap" → ["Elektronik", "Kitap"]
+        var user = await db.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == userId);
+
+        var preferredCategories = user?.PreferredCategories
+            ?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            ?? [];
+
+        var query = db.Listings
             .Where(l => l.IsActive
                      && l.UserId != userId
-                     && !alreadyIncludedIds.Contains(l.Id))
+                     && !alreadyIncludedIds.Contains(l.Id));
+
+        // Tercih kategorisi varsa filtrele; yoksa tüm aktif ilanlardan getir
+        if (preferredCategories.Length > 0)
+        {
+            query = query.Where(l => preferredCategories.Contains(l.Category));
+        }
+
+        var listings = await query
             .OrderByDescending(l => l.CreatedAt)
             .Take(count)
             .ToListAsync();
+
+        // Tercih kategorisindeki ilan sayısı yetersizse kalan slotları genel ilanlarla doldur
+        if (listings.Count < count && preferredCategories.Length > 0)
+        {
+            var fillerIds = listings.Select(l => l.Id).ToHashSet();
+            fillerIds.UnionWith(alreadyIncludedIds);
+
+            var fillers = await db.Listings
+                .Where(l => l.IsActive
+                         && l.UserId != userId
+                         && !fillerIds.Contains(l.Id))
+                .OrderByDescending(l => l.CreatedAt)
+                .Take(count - listings.Count)
+                .ToListAsync();
+
+            listings.AddRange(fillers);
+        }
 
         return listings.Select(MapToDto).ToList();
     }
