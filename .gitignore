@@ -2,7 +2,7 @@
 __pycache__/
 
 # Makineye özel / gizli config dosyaları — her geliştirici kendi ayarını yapar
-appsettings.json
+# appsettings.json → Git'te paylaşılıyor (Trusted_Connection, herkes için geçerli)
 appsettings.Development.json
 
 # Büyük ML model dosyaları — Git LFS kullanılmıyorsa repoya ekleme
