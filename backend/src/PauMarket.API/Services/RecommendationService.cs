@@ -190,7 +190,7 @@ public class RecommendationService(
                             .Where(l => aiItemIds.Contains(l.Id) && l.IsActive)
                             .ToListAsync();
 
-                        return listings.Select(MapToDto).ToList();
+                        return listings.Select(l => MapToDto(l, "Sizinle benzer zevklere sahip kullanıcılar bu ilanı beğendi.")).ToList();
                     }
                 }
             }
@@ -232,7 +232,7 @@ public class RecommendationService(
             .Where(l => listingsResult.Contains(l.Id) && l.IsActive)
             .ToListAsync();
 
-        return activeListings.Select(MapToDto).ToList();
+        return activeListings.Select(l => MapToDto(l, "Benzer zevklere sahip kullanıcıların popüler tercihleri.")).ToList();
     }
 
     /// <summary>
@@ -285,7 +285,7 @@ public class RecommendationService(
             .Take(count)
             .ToListAsync();
 
-        return listings.Select(MapToDto).ToList();
+        return listings.Select(l => MapToDto(l, $"İlginizi çeken '{l.Category}' kategorisindeki yeni ilan.")).ToList();
     }
 
     /// <summary>
@@ -325,10 +325,16 @@ public class RecommendationService(
             .Take(count)
             .ToListAsync();
 
+        // Sonuçları sebepleriyle eşle (öncelik PreferredCategories)
+        var results = listings.Select(l => MapToDto(l, 
+            preferredCategories.Contains(l.Category) 
+                ? $"İlgi alanınız olan '{l.Category}' kategorisinden popüler ürün."
+                : "Kampüs genelindeki en yeni ve popüler ürün.")).ToList();
+
         // Tercih kategorisindeki ilan sayısı yetersizse kalan slotları genel ilanlarla doldur
-        if (listings.Count < count && preferredCategories.Length > 0)
+        if (results.Count < count && preferredCategories.Length > 0)
         {
-            var fillerIds = listings.Select(l => l.Id).ToHashSet();
+            var fillerIds = results.Select(l => l.Id).ToHashSet();
             fillerIds.UnionWith(alreadyIncludedIds);
 
             var fillers = await db.Listings
@@ -336,31 +342,32 @@ public class RecommendationService(
                          && l.UserId != userId
                          && !fillerIds.Contains(l.Id))
                 .OrderByDescending(l => l.CreatedAt)
-                .Take(count - listings.Count)
+                .Take(count - results.Count)
                 .ToListAsync();
 
-            listings.AddRange(fillers);
+            results.AddRange(fillers.Select(l => MapToDto(l, "Kampüs genelindeki en yeni ve popüler ürün.")));
         }
 
-        return listings.Select(MapToDto).ToList();
+        return results;
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
     //  PRIVATE — DTO Mapping
     // ═══════════════════════════════════════════════════════════════════════════
 
-    private static ListingResponseDto MapToDto(Listing listing) => new()
+    private static ListingResponseDto MapToDto(Listing listing, string? reason = null) => new()
     {
-        Id          = listing.Id,
-        UserId      = listing.UserId,
-        Title       = listing.Title,
-        Description = listing.Description,
-        Price       = listing.Price,
-        Category    = listing.Category,
-        Condition   = listing.Condition,
-        ImageUrl    = listing.ImageUrl,
-        IsActive    = listing.IsActive,
-        CreatedAt   = listing.CreatedAt
+        Id                   = listing.Id,
+        UserId               = listing.UserId,
+        Title                = listing.Title,
+        Description          = listing.Description,
+        Price                = listing.Price,
+        Category             = listing.Category,
+        Condition            = listing.Condition,
+        ImageUrl             = listing.ImageUrl,
+        IsActive             = listing.IsActive,
+        CreatedAt            = listing.CreatedAt,
+        RecommendationReason = reason
     };
 
     // ─── AI Response DTOs ────────────────────────────────────────────────────

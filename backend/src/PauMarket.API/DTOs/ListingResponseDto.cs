@@ -12,4 +12,10 @@ public class ListingResponseDto
     public string? ImageUrl { get; set; }
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }
+
+    /// <summary>
+    /// Bu ilan kullanıcıya NEDEN önerildi? (XAI - Explainability)
+    /// Örn: "Daha önce incelediğiniz Kitap kategorisinden."
+    /// </summary>
+    public string? RecommendationReason { get; set; }
 }
