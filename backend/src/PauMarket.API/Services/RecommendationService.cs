@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using PauMarket.API.Data;
 using PauMarket.API.DTOs;
 using PauMarket.API.Models;
+using System.Net.Http.Json;
 
 namespace PauMarket.API.Services;
 
@@ -23,7 +24,10 @@ namespace PauMarket.API.Services;
 ///
 /// Sonuçlar birleştirilip tekil hale getirilir ve count kadar döner.
 /// </summary>
-public class RecommendationService(PauMarketDbContext db) : IRecommendationService
+public class RecommendationService(
+    PauMarketDbContext db, 
+    IHttpClientFactory httpClientFactory, 
+    IConfiguration configuration) : IRecommendationService
 {
     // ─── Public — Hibrit Öneri ────────────────────────────────────────────────
 
@@ -157,6 +161,47 @@ public class RecommendationService(PauMarketDbContext db) : IRecommendationServi
     private async Task<List<ListingResponseDto>> GetCollaborativeRecommendationsAsync(
         int userId, List<int> userFavoriteListingIds, HashSet<int> excludeIds, int count)
     {
+        // ── Adım 1: Python AI API'ye bağlanmayı dene (LightFM) ────────────────
+        try
+        {
+            var aiApiUrl = configuration["AiApiUrl"] ?? "http://localhost:8000";
+            var client = httpClientFactory.CreateClient();
+            client.Timeout = TimeSpan.FromSeconds(3); // Hızlı yanıt bekliyoruz
+
+            var response = await client.GetAsync($"{aiApiUrl}/oneri-getir/{userId}");
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var aiResult = await response.Content.ReadFromJsonAsync<AiRecommendationResponse>();
+                
+                if (aiResult != null && aiResult.Durum == "AI_Aktif" && aiResult.OnerilenUrunler.Any())
+                {
+                    // AI'dan gelen ID'leri al (exclude listesindekileri filtrele)
+                    var aiItemIds = aiResult.OnerilenUrunler
+                        .Select(x => x.Id)
+                        .Where(id => !excludeIds.Contains(id))
+                        .Take(count)
+                        .ToList();
+
+                    if (aiItemIds.Any())
+                    {
+                        // Veritabanından en güncel hallerini çek (IsActive kontrolü için)
+                        var listings = await db.Listings
+                            .Where(l => aiItemIds.Contains(l.Id) && l.IsActive)
+                            .ToListAsync();
+
+                        return listings.Select(MapToDto).ToList();
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // Loglama yapılabilir: "AI API connection failed, falling back to LINQ logic."
+            Console.WriteLine($"AI API hatası: {ex.Message}");
+        }
+
+        // ── Adım 2: Fallback — Geleneksel LINQ tabanlı mantık (Model yoksa) ──
         if (userFavoriteListingIds.Count == 0)
             return [];
 
@@ -173,8 +218,7 @@ public class RecommendationService(PauMarketDbContext db) : IRecommendationServi
             return [];
 
         // Adım A.2 — O kullanıcıların favorilediği, bizim kullanıcının görmediği ilanlar
-        //             Popülerlik sırası: kaç benzer kullanıcı favorilemiş?
-        var listings = await db.Interactions
+        var listingsResult = await db.Interactions
             .Where(i => similarUserIds.Contains(i.UserId)
                      && i.InteractionType == InteractionType.Favorite
                      && !excludeIds.Contains(i.ListingId))
@@ -184,9 +228,8 @@ public class RecommendationService(PauMarketDbContext db) : IRecommendationServi
             .Take(count)
             .ToListAsync();
 
-        // ID'leri listing'lere çevir (aktif olanlara filtrele)
         var activeListings = await db.Listings
-            .Where(l => listings.Contains(l.Id) && l.IsActive)
+            .Where(l => listingsResult.Contains(l.Id) && l.IsActive)
             .ToListAsync();
 
         return activeListings.Select(MapToDto).ToList();
@@ -319,4 +362,19 @@ public class RecommendationService(PauMarketDbContext db) : IRecommendationServi
         IsActive    = listing.IsActive,
         CreatedAt   = listing.CreatedAt
     };
+
+    // ─── AI Response DTOs ────────────────────────────────────────────────────
+    
+    private class AiRecommendationResponse
+    {
+        public int KullaniciId { get; set; }
+        public string Durum { get; set; } = string.Empty;
+        public List<AiProductDto> OnerilenUrunler { get; set; } = [];
+    }
+
+    private class AiProductDto
+    {
+        public int Id { get; set; }
+        // Diğer alanlar DB'den çekildiği için sadece Id yeterli
+    }
 }
