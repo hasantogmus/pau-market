@@ -8,7 +8,7 @@ from lightfm import LightFM
 from lightfm.data import Dataset
 
 # 1. Ayarlar
-CONN_STR = r'Driver={ODBC Driver 17 for SQL Server};Server=localhost\SQLEXPRESS;Database=PauMarketDb;Trusted_Connection=yes;'
+CONN_STR = r'Driver={ODBC Driver 17 for SQL Server};Server=127.0.0.1,1433;Database=PauMarketDb;Trusted_Connection=yes;'
 MODEL_FILE = "yapay_zeka_modeli.pkl"
 DATASET_FILE = "veri_haritasi.pkl"
 
@@ -37,10 +37,20 @@ def train_model():
         df_interactions = pd.read_sql(query, conn)
         
         # Tüm mevcut Kullanıcı ve İlan ID'lerini çek (Mapping için)
-        users_query = "SELECT Id FROM dbo.Users"
-        items_query = "SELECT Id FROM dbo.Listings"
-        all_user_ids = pd.read_sql(users_query, conn)['Id'].unique()
-        all_item_ids = pd.read_sql(items_query, conn)['Id'].unique()
+        # Verileri çek ve KESİN olarak standart Python int tipine zorla
+        users_in_db = pd.read_sql("SELECT Id FROM dbo.Users", conn)['Id'].dropna().unique().astype(int).tolist()
+        items_in_db = pd.read_sql("SELECT Id FROM dbo.Listings", conn)['Id'].dropna().unique().astype(int).tolist()
+        
+        # Etkileşimlerden gelenleri de temizle ve int yap
+        df_interactions.columns = [c.lower() for c in df_interactions.columns]
+        users_in_int = df_interactions['userid'].dropna().unique().astype(int).tolist()
+        items_in_int = df_interactions['listingid'].dropna().unique().astype(int).tolist()
+        
+        # KESİN BİRLEŞİM: Tüm ID'leri topla, set ile tekleştir ve tekrar listeye çevir
+        all_user_ids = sorted(list(set(users_in_db + users_in_int)))
+        all_item_ids = sorted(list(set(items_in_db + items_in_int)))
+        
+        print(f"Toplam {len(all_user_ids)} kullanıcı ve {len(all_item_ids)} ürün haritalandı.")
         
         conn.close()
         
@@ -61,8 +71,8 @@ def train_model():
         # build_interactions list of (user_id, item_id, weight) bekler
         interactions_list = []
         for _, row in df_interactions.iterrows():
-            # InteractionType değerini ağırlık (rating) olarak kullanıyoruz
-            interactions_list.append((row['UserId'], row['ListingId'], row['InteractionType']))
+            # interactiontype değerini ağırlık (rating) olarak kullanıyoruz
+            interactions_list.append((int(row['userid']), int(row['listingid']), int(row['interactiontype'])))
 
         (interactions, weights) = dataset.build_interactions(interactions_list)
         print(f"Etkileşim matrisi oluşturuldu. Şekil: {interactions.shape}")
