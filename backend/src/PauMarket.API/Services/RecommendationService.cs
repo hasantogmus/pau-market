@@ -11,18 +11,13 @@ namespace PauMarket.API.Services;
 ///
 /// Algoritma sırası:
 ///   Adım A — Collaborative Filtering (İşbirlikçi):
-///     Bu kullanıcının favorilediği ilanları favorileyen diğer kullanıcıları bul.
-///     O kullanıcıların favorilediği farklı ilanları öner.
-///     ("Bunu beğenenler şunları da beğendi")
+///     Önce Python AI API'yi (LightFM) sorgular. Hata alırsa LINQ Fallback'e geçer.
 ///
 ///   Adım B — Content-Based (İçerik Tabanlı):
-///     Bu kullanıcının en çok etkileşime girdiği (Favorites + UserViews) 2 kategoriyi tespit et.
-///     Bu kategorilerdeki en yeni/popüler aktif ilanları öner.
+///     Kullanıcının etkileşime girdiği kategorilerden öneri sunar.
 ///
-///   Adım C — Cold Start:
-///     Eğer A + B'den hiç sonuç gelmezse en yeni 5 aktif ilanı getir.
-///
-/// Sonuçlar birleştirilip tekil hale getirilir ve count kadar döner.
+///   Adım C — Cold Start (Soğuk Başlangıç):
+///     Kullanıcı tercihlerine (PreferredCategories) göre en yeni ilanları getirir.
 /// </summary>
 public class RecommendationService(
     PauMarketDbContext db, 
@@ -34,7 +29,6 @@ public class RecommendationService(
     /// <inheritdoc/>
     public async Task<IEnumerable<ListingResponseDto>> GetHybridRecommendationsAsync(int userId, int count = 5)
     {
-        // Kullanıcının kendi ilanları ve daha önce favorilediği ilanlar (hariç tutulacak)
         var userOwnListingIds = await db.Listings
             .Where(l => l.UserId == userId)
             .Select(l => l.Id)
@@ -49,7 +43,7 @@ public class RecommendationService(
             .Union(userFavoriteListingIds)
             .ToHashSet();
 
-        // ── Adım A: Collaborative Filtering ──────────────────────────────────
+        // ── Adım A: Collaborative Filtering (AI + Fallback) ──────────────────
         var collaborativeResults = await GetCollaborativeRecommendationsAsync(
             userId, userFavoriteListingIds, excludeIds, count);
 
@@ -61,23 +55,20 @@ public class RecommendationService(
         var combined = collaborativeResults
             .Concat(contentBasedResults)
             .DistinctBy(l => l.Id)
-            .Take(count)
             .ToList();
 
-        // ── Adım C: Cold Start ───────────────────────────────────────────────
-        if (combined.Count == 0)
+        // ── Adım C: Cold Start (Eksiği tamamla) ──────────────────────────────
+        if (combined.Count < count)
         {
-            combined = await GetColdStartRecommendationsAsync(userId, count);
-        }
-        else if (combined.Count < count)
-        {
-            // A+B az getirdiyse kalan slotları yeni ilanlarla doldur
             var existingIds = combined.Select(l => l.Id).ToHashSet();
             var fillers = await GetColdStartRecommendationsAsync(userId, count - combined.Count, existingIds);
             combined.AddRange(fillers);
         }
 
-        return combined;
+        // ── Adım D: Trust Network Boost (Bölüm/Sınıf Uyumu) ───────────────────
+        combined = await ApplyTrustBoostAsync(userId, combined);
+
+        return combined.Take(count);
     }
 
     // ─── Public — Son Gezilenler ──────────────────────────────────────────────
@@ -93,7 +84,7 @@ public class RecommendationService(
             .Select(v => v.Listing)
             .ToListAsync();
 
-        return recentViews.Select(MapToDto);
+        return recentViews.Select(l => MapToDto(l));
     }
 
     // ─── Public — Görüntüleme Kaydı ──────────────────────────────────────────
@@ -101,18 +92,16 @@ public class RecommendationService(
     /// <inheritdoc/>
     public async Task TrackViewAsync(int userId, int listingId)
     {
-        // ── UserViews tablosu ("Son İncelediklerin" bölümü için) ──────────────
+        // 1. UserViews (Son İncelediklerin için)
         var existingView = await db.UserViews
             .FirstOrDefaultAsync(v => v.UserId == userId && v.ListingId == listingId);
 
         if (existingView is not null)
         {
-            // Zaten görüntülenmiş → sadece tarihi güncelle
             existingView.ViewedAt = DateTime.UtcNow;
         }
         else
         {
-            // İlk kez görüntüleniyor → yeni kayıt
             db.UserViews.Add(new UserView
             {
                 UserId    = userId,
@@ -121,9 +110,7 @@ public class RecommendationService(
             });
         }
 
-        // ── Interactions tablosu (RS model eğitimi için View sinyali) ─────────
-        // Aynı kullanıcı aynı ilanı daha önce view'lamışsa tekrar ekleme;
-        // model eğitiminde mükerrer sinyal gürültü yaratır.
+        // 2. Interactions (Model Eğitimi için)
         var existingInteraction = await db.Interactions
             .AnyAsync(i => i.UserId == userId
                         && i.ListingId == listingId
@@ -144,20 +131,68 @@ public class RecommendationService(
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    //  PRIVATE — Algoritma Adımları
+    //  PRIVATE — Algoritma Adımları & Trust Network
     // ═══════════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Adım A — Collaborative Filtering (İşbirlikçi Filtreleme):
-    ///
-    /// 1. Bu kullanıcının favorilediği ilanları bul.
-    /// 2. Aynı ilanları favorileyen DİĞER kullanıcıları bul.
-    /// 3. O kullanıcıların favorilediği, bizim kullanıcının henüz görmediği
-    ///    aktif ilanları, favori sayısına göre sıralı getir.
-    ///
-    /// LINQ eşdeğeri:
-    ///   "Bunu beğenenler şunları da beğendi"
+    /// Trust Network - Boosting:
+    /// Aynı bölüm veya sınıftaki öğrencilerin ilanlarına öncelik puanı verir.
     /// </summary>
+    private async Task<List<ListingResponseDto>> ApplyTrustBoostAsync(int userId, List<ListingResponseDto> listings)
+    {
+        if (listings.Count == 0) return listings;
+
+        // İzleyen kullanıcının bilgilerini al
+        var currentUser = await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId);
+        if (currentUser == null) return listings;
+
+        // Satıcıların bilgilerini toplu çek
+        var sellerIds = listings.Select(l => l.UserId).Distinct().ToList();
+        var sellers = await db.Users.AsNoTracking()
+            .Where(u => sellerIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id);
+
+        foreach (var listing in listings)
+        {
+            if (sellers.TryGetValue(listing.UserId, out var seller))
+            {
+                int boostScore = 0;
+                string trustBadge = "";
+
+                // Aynı Bölüm Boost (+2)
+                if (!string.IsNullOrEmpty(currentUser.Department) && currentUser.Department == seller.Department)
+                {
+                    boostScore += 2;
+                    trustBadge = $"[Bölümdaş] {seller.Department}";
+                }
+                
+                // Aynı Sınıf Boost (+1)
+                if (currentUser.Grade.HasValue && currentUser.Grade == seller.Grade)
+                {
+                    boostScore += 1;
+                    if (string.IsNullOrEmpty(trustBadge))
+                        trustBadge = $"[{seller.Grade}. Sınıf Arkadaşı]";
+                }
+
+                if (boostScore > 0)
+                {
+                    // Gerekçeyi güncelle ve skor ata (geçici olarak Price üzerinden değil, harici bir score ile sıralasaydık daha iyi olurdu ama mevcut yapıda listeyi re-order etmek yeterli)
+                    listing.RecommendationReason = $"{trustBadge} - {listing.RecommendationReason}";
+                    // Sıralama için ListingResponseDto'da gizli bir Tag veya Score alanı olabilirdi. 
+                    // Burada listenin sırasını manuel değiştireceğiz (Aşağıda).
+                }
+                
+                listing.Price -= (decimal)0.0001; // Hacky: Küçük bir farkla sıralamayı etkilemek için (isteğe bağlı)
+            }
+        }
+
+        // Boost puanına göre (veya güncellenmiş reason içerenlere göre) tekrar sırala
+        return listings
+            .OrderByDescending(l => l.RecommendationReason?.StartsWith("[") ?? false)
+            .ThenByDescending(l => l.CreatedAt)
+            .ToList();
+    }
+
     private async Task<List<ListingResponseDto>> GetCollaborativeRecommendationsAsync(
         int userId, List<int> userFavoriteListingIds, HashSet<int> excludeIds, int count)
     {
@@ -166,7 +201,7 @@ public class RecommendationService(
         {
             var aiApiUrl = configuration["AiApiUrl"] ?? "http://localhost:8000";
             var client = httpClientFactory.CreateClient();
-            client.Timeout = TimeSpan.FromSeconds(3); // Hızlı yanıt bekliyoruz
+            client.Timeout = TimeSpan.FromSeconds(3);
 
             var response = await client.GetAsync($"{aiApiUrl}/oneri-getir/{userId}");
             
@@ -176,7 +211,6 @@ public class RecommendationService(
                 
                 if (aiResult != null && aiResult.Durum == "AI_Aktif" && aiResult.OnerilenUrunler.Any())
                 {
-                    // AI'dan gelen ID'leri al (exclude listesindekileri filtrele)
                     var aiItemIds = aiResult.OnerilenUrunler
                         .Select(x => x.Id)
                         .Where(id => !excludeIds.Contains(id))
@@ -185,7 +219,6 @@ public class RecommendationService(
 
                     if (aiItemIds.Any())
                     {
-                        // Veritabanından en güncel hallerini çek (IsActive kontrolü için)
                         var listings = await db.Listings
                             .Where(l => aiItemIds.Contains(l.Id) && l.IsActive)
                             .ToListAsync();
@@ -197,15 +230,13 @@ public class RecommendationService(
         }
         catch (Exception ex)
         {
-            // Loglama yapılabilir: "AI API connection failed, falling back to LINQ logic."
             Console.WriteLine($"AI API hatası: {ex.Message}");
         }
 
-        // ── Adım 2: Fallback — Geleneksel LINQ tabanlı mantık (Model yoksa) ──
+        // ── Adım 2: Fallback — Geleneksel LINQ ──────────────────────────────
         if (userFavoriteListingIds.Count == 0)
             return [];
 
-        // Adım A.1 — Aynı ilanları favorileyen diğer kullanıcılar
         var similarUserIds = await db.Interactions
             .Where(i => userFavoriteListingIds.Contains(i.ListingId)
                      && i.InteractionType == InteractionType.Favorite
@@ -217,13 +248,12 @@ public class RecommendationService(
         if (similarUserIds.Count == 0)
             return [];
 
-        // Adım A.2 — O kullanıcıların favorilediği, bizim kullanıcının görmediği ilanlar
         var listingsResult = await db.Interactions
             .Where(i => similarUserIds.Contains(i.UserId)
                      && i.InteractionType == InteractionType.Favorite
                      && !excludeIds.Contains(i.ListingId))
             .GroupBy(i => i.ListingId)
-            .OrderByDescending(g => g.Count())     // En popüler → en az popüler
+            .OrderByDescending(g => g.Count())
             .Select(g => g.Key)
             .Take(count)
             .ToListAsync();
@@ -235,33 +265,21 @@ public class RecommendationService(
         return activeListings.Select(l => MapToDto(l, "Benzer zevklere sahip kullanıcıların popüler tercihleri.")).ToList();
     }
 
-    /// <summary>
-    /// Adım B — Content-Based (İçerik Tabanlı Filtreleme):
-    ///
-    /// 1. Bu kullanıcının Favorites (Interactions) + UserViews verilerinden
-    ///    en çok etkileşime girdiği 2 kategoriyi tespit et.
-    /// 2. Bu kategorilerdeki aktif ilanları, en yeni → en eski sırayla getir.
-    ///
-    /// "İncelediğin kategorilerden öneriler"
-    /// </summary>
     private async Task<List<ListingResponseDto>> GetContentBasedRecommendationsAsync(
         int userId, HashSet<int> excludeIds, HashSet<int> alreadyRecommendedIds, int count)
     {
-        // B.1 — Favori ilanların kategorileri (ağırlık: 3)
         var favoriteCategories = await db.Interactions
             .Where(i => i.UserId == userId && i.InteractionType == InteractionType.Favorite)
             .Include(i => i.Listing)
             .Select(i => new { i.Listing.Category, Weight = 3 })
             .ToListAsync();
 
-        // B.2 — Görüntüleme geçmişi ilanlarının kategorileri (ağırlık: 1)
         var viewCategories = await db.UserViews
             .Where(v => v.UserId == userId)
             .Include(v => v.Listing)
             .Select(v => new { v.Listing.Category, Weight = 1 })
             .ToListAsync();
 
-        // B.3 — Tüm kategorileri birleştirip ağırlıklı sırala → en çok 2 kategori
         var topCategories = favoriteCategories
             .Concat(viewCategories)
             .GroupBy(c => c.Category)
@@ -274,7 +292,6 @@ public class RecommendationService(
         if (topCategories.Count == 0)
             return [];
 
-        // B.4 — Bu kategorilerdeki aktif ilanlardan exclude ve zaten önerilenleri çıkar
         var allExcluded = excludeIds.Union(alreadyRecommendedIds).ToHashSet();
 
         var listings = await db.Listings
@@ -288,19 +305,11 @@ public class RecommendationService(
         return listings.Select(l => MapToDto(l, $"İlginizi çeken '{l.Category}' kategorisindeki yeni ilan.")).ToList();
     }
 
-    /// <summary>
-    /// Adım C — Cold Start:
-    /// Kullanıcının hiç etkileşimi yoksa önce onboarding'de seçtiği
-    /// PreferredCategories'e göre filtreler; kategori yoksa en yeni aktif ilanları getirir.
-    /// Kendi ilanlarını hariç tutar.
-    /// </summary>
     private async Task<List<ListingResponseDto>> GetColdStartRecommendationsAsync(
         int userId, int count, HashSet<int>? alreadyIncludedIds = null)
     {
         alreadyIncludedIds ??= [];
 
-        // Kullanıcının kayıt sırasında seçtiği tercih kategorilerini al
-        // Örn: "Elektronik,Kitap" → ["Elektronik", "Kitap"]
         var user = await db.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == userId);
@@ -314,7 +323,6 @@ public class RecommendationService(
                      && l.UserId != userId
                      && !alreadyIncludedIds.Contains(l.Id));
 
-        // Tercih kategorisi varsa filtrele; yoksa tüm aktif ilanlardan getir
         if (preferredCategories.Length > 0)
         {
             query = query.Where(l => preferredCategories.Contains(l.Category));
@@ -325,13 +333,11 @@ public class RecommendationService(
             .Take(count)
             .ToListAsync();
 
-        // Sonuçları sebepleriyle eşle (öncelik PreferredCategories)
         var results = listings.Select(l => MapToDto(l, 
             preferredCategories.Contains(l.Category) 
                 ? $"İlgi alanınız olan '{l.Category}' kategorisinden popüler ürün."
                 : "Kampüs genelindeki en yeni ve popüler ürün.")).ToList();
 
-        // Tercih kategorisindeki ilan sayısı yetersizse kalan slotları genel ilanlarla doldur
         if (results.Count < count && preferredCategories.Length > 0)
         {
             var fillerIds = results.Select(l => l.Id).ToHashSet();
@@ -351,10 +357,6 @@ public class RecommendationService(
         return results;
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    //  PRIVATE — DTO Mapping
-    // ═══════════════════════════════════════════════════════════════════════════
-
     private static ListingResponseDto MapToDto(Listing listing, string? reason = null) => new()
     {
         Id                   = listing.Id,
@@ -370,8 +372,6 @@ public class RecommendationService(
         RecommendationReason = reason
     };
 
-    // ─── AI Response DTOs ────────────────────────────────────────────────────
-    
     private class AiRecommendationResponse
     {
         public int KullaniciId { get; set; }
@@ -382,6 +382,5 @@ public class RecommendationService(
     private class AiProductDto
     {
         public int Id { get; set; }
-        // Diğer alanlar DB'den çekildiği için sadece Id yeterli
     }
 }
