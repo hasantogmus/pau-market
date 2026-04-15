@@ -90,9 +90,14 @@ def main():
             # Fiyat 100 ile 500 arasında rastgele bir değer olsun
             price = random.randint(100, 500)
             
-            # Sistemde 2 numaralı admin kullanıcısı var sayılıyor
-            user_id = 2
-            category_val = "Yapay Zeka Testi"
+            # Ürünleri aktif kullanıcılara rastgele dağıt
+            user_id = random.choice([2, 3, 4, 5])
+            
+            # Kategoriyi CSV'den al (c1_name -> c0_name -> Varsayılan)
+            category_val = str(row['c1_name']) if pd.notna(row['c1_name']) else str(row['c0_name'])
+            if category_val.strip() == '' or category_val.lower() == 'nan':
+                category_val = "Diğer"
+                
             is_active = 1
             created_at = datetime.now()
             
@@ -101,9 +106,37 @@ def main():
         print(f"Toplam {len(data_to_insert)} adet benzersiz ürün toplu olarak ekleniyor...")
         cursor.executemany(insert_query, data_to_insert)
         
+        # 4. Sahte Etkileşimler (Interactions) Ekle
+        print("Sahte etkileşim verileri üretiliyor...")
+        active_users = [2, 3, 4, 5]
+        # Veritabanındaki tüm ilan ID'lerini al
+        all_item_ids = [int(x[0]) for x in data_to_insert]
+        
+        interaction_query = """
+            INSERT INTO dbo.Interactions (UserId, ListingId, InteractionType, Timestamp)
+            VALUES (?, ?, ?, ?)
+        """
+        
+        interactions_to_insert = []
+        
+        # Her kullanıcı için rastgele etkileşimler üret
+        for user_id in active_users:
+            # Her kullanıcı 20-40 arası ürün görsün (InteractionType = 1)
+            viewed_items = random.sample(all_item_ids, random.randint(20, 40))
+            for item_id in viewed_items:
+                interactions_to_insert.append((user_id, item_id, 1, datetime.now()))
+                
+            # Gördüğü ürünlerin %20'sini favorilesin (InteractionType = 3)
+            favorited_items = random.sample(viewed_items, int(len(viewed_items) * 0.2))
+            for item_id in favorited_items:
+                interactions_to_insert.append((user_id, item_id, 3, datetime.now()))
+
+        print(f"Toplam {len(interactions_to_insert)} adet etkileşim kaydı ekleniyor...")
+        cursor.executemany(interaction_query, interactions_to_insert)
+        
         # Değişiklikleri kaydet
         conn.commit()
-        print(f"İşlem tamamlandı! {len(data_to_insert)} adet kayıt başarıyla veritabanına eklendi.")
+        print(f"İşlem tamamlandı! {len(data_to_insert)} ürün ve {len(interactions_to_insert)} etkileşim başarıyla eklendi.")
         
     except Exception as e:
         print(f"Beklenmeyen bir hata oluştu: {e}")
