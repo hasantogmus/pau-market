@@ -42,6 +42,11 @@ const listingService = {
     getListingById: async (id) => {
         const response = await api.get(`/listings/${id}`);
         return response.data;
+    },
+
+    getRecommendations: async () => {
+        const response = await api.get('/recommendations/hybrid?count=4');
+        return response.data;
     }
 };
 

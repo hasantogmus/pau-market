@@ -50,12 +50,14 @@ export const AuthProvider = ({ children }) => {
         setIsLoading(false);
     }, []);
 
-    const login = (token) => {
+    const login = (token, redirectPath = '/') => {
         localStorage.setItem('token', token);
         const decodedToken = jwtDecode(token);
         setUser(parseUserFromToken(decodedToken));
         setIsAuthenticated(true);
-        navigate('/');
+        if (redirectPath) {
+            navigate(redirectPath);
+        }
     };
 
     const logout = () => {

@@ -67,7 +67,7 @@ public class AuthService : IAuthService
             PasswordHash           = passwordHash,
             Department             = dto.Department,
             Grade                  = dto.Grade,
-            IsEmailVerified        = false,
+            IsEmailVerified        = true, // Geliştirme aşaması için e-posta direkt onaylı geldi
             EmailVerificationToken = verificationToken
         };
 
@@ -77,7 +77,7 @@ public class AuthService : IAuthService
         // ── Adım 6: E-posta simülasyonu (konsola yaz) ────────────────────────
         SimulateSendVerificationEmail(user.Email, verificationToken);
 
-        return "Kayıt başarılı. Lütfen e-posta adresinize gönderilen 6 haneli kodu girerek hesabınızı doğrulayın.";
+        return "Kayıt başarılı. Geliştirme aşamasında olduğumuz için hesabınız otomatik olarak onaylanmıştır, giriş yapabilirsiniz.";
     }
 
     /// <inheritdoc/>
@@ -90,9 +90,6 @@ public class AuthService : IAuthService
 
         bool passwordValid = BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash);
         if (!passwordValid) return null;
-
-        if (!user.IsEmailVerified)
-            throw new InvalidOperationException("Lütfen önce e-posta adresinizi onaylayın.");
 
         return GenerateJwtToken(user);
     }

@@ -248,6 +248,7 @@ const Hero = ({ listings, isLoading }) => {
 const Home = () => {
     /* ── State ── */
     const [listings, setListings] = useState([]);
+    const [aiRecommendations, setAiRecommendations] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
 
@@ -268,7 +269,14 @@ const Home = () => {
             try {
                 const data = await listingService.getAllListings();
                 setListings(Array.isArray(data) ? data : []);
-            } catch {
+
+                // Token (kullanıcı girişi) varsa özel önerileri çek
+                if (localStorage.getItem('token')) {
+                    const recData = await listingService.getRecommendations();
+                    setAiRecommendations(Array.isArray(recData) ? recData : []);
+                }
+            } catch (err) {
+                console.error("Öneriler veya ilanlar alınamadı:", err);
                 setError('İlanlar yüklenirken sunucu ile iletişim kurulamadı.');
             } finally {
                 setIsLoading(false);
@@ -343,7 +351,7 @@ const Home = () => {
                         <span className="ml-1 px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[11px] font-bold rounded-full">AI Picks</span>
                     </div>
                     <div className="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-hide">
-                        {AI_PICKS.map((item, i) => (
+                        {(aiRecommendations.length > 0 ? aiRecommendations : AI_PICKS).map((item, i) => (
                             <div key={item.id} className="snap-start">
                                 <ProductCard item={item} index={i} compact />
                             </div>

@@ -26,13 +26,12 @@ const Login = () => {
         try {
             const data = await authService.login(email, password);
             if (data.token) {
-                // AuthContext login fonksiyonu: token'i kaydet, user state'i set et
-                login(data.token);
-                // Kayıt sonrasıysa onboarding'e, değilse ana sayfaya
+                // Kayıt sonrasıysa onboarding'e yönlendirilecek
                 if (justRegistered) {
-                    navigate('/onboarding');
+                    login(data.token, '/onboarding');
+                } else {
+                    login(data.token, '/');
                 }
-                // Aksi hâlde AuthContext.login kendi içinde '/'je navigate ediyor
             } else {
                 setError('Giriş başarısız. Lütfen bilgilerinizi kontrol edin.');
             }
