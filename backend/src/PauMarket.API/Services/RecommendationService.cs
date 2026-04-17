@@ -322,32 +322,43 @@ public class RecommendationService(
             ?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             ?? [];
 
-        // --- TURKISH TO ENGLISH MAPPING START ---
         var mappedCategories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var cat in preferredCategories)
         {
-            switch (cat)
+            switch (NormalizePreferenceValue(cat))
             {
-                case "Elektronik":
+                case "elektronik":
                     mappedCategories.UnionWith(["Electronics", "Computers & Laptops", "Home Audio", "Tablets & E-readers", "Cell phones & accessories", "TV & Video", "Headphones & MP3 Players", "Smart Home & Security", "Video games & consoles", "Cameras & photo"]);
                     break;
-                case "Ders Kitabı":
-                    mappedCategories.UnionWith(["Books", "Other Books", "Nonfiction Books", "Fiction Books", "Books and zines", "Textbooks"]);
+                case "ders kitabi":
+                    mappedCategories.UnionWith(["Books", "Other Books", "Nonfiction Books", "Fiction Books", "Books and zines", "Reference Books", "Textbooks"]);
                     break;
-                case "Giyim":
-                    mappedCategories.UnionWith(["Men", "Women", "Clothing", "Shoes", "Tops & blouses", "Sweaters", "Jeans", "Pants", "Shorts", "Dresses", "Skirts", "Athletic apparel", "Coats & jackets", "Swimwear", "Underwear", "Accessories", "Jewelry"]);
+                case "giyim":
+                    mappedCategories.UnionWith(["Men", "Women", "Clothing", "Shoes", "Tops & blouses", "Sweaters", "Jeans", "Pants", "Shorts", "Dresses", "Skirts", "Athletic apparel", "Coats & jackets", "Swimwear", "Underwear", "Accessories", "Jewelry", "Women's accessories", "Men's accessories"]);
                     break;
-                case "Ev Eşyası":
+                case "ev esyasi":
                     mappedCategories.UnionWith(["Furniture", "Housewares", "Kitchen Dining & Bar", "Bedding", "Home appliances", "Home decor", "Living Room Furniture", "Bedroom Furniture", "Kitchen Furniture", "Bathroom Furniture", "Home Office Furniture", "Kitchen & Table Linens"]);
                     break;
-                case "Not/Özet":
+                case "not ozet":
+                case "not/ozet":
                     mappedCategories.UnionWith(["Notebooks & Writing Pads", "Paper goods", "Folders & Filing", "Paper", "Books", "Office Supplies"]);
                     break;
-                case "Hobi":
+                case "hobi":
+                case "hobi oyun":
                     mappedCategories.UnionWith(["Hobbies", "Collectibles & Hobbies", "Games & Puzzles", "Toys & Games", "Arts & Crafts", "Musical instruments", "Action Figures & Accessories", "Board Games", "Dolls & Accessories", "Remote Control Toys & Vehicles", "Stuffed Animals & Plush"]);
                     break;
-                case "Spor":
+                case "spor":
                     mappedCategories.UnionWith(["Sports & Outdoors", "Exercise & Fitness", "Outdoors", "Camping Equipment", "Golf", "Bicycles", "Basketball Equipment", "Football Equipment", "Baseball Equipment", "Sports Trading Cards", "Snowboarding Gear", "Ski Gear"]);
+                    break;
+                case "muzik aletleri":
+                    mappedCategories.UnionWith(["Musical instruments", "Music"]);
+                    break;
+                case "bisiklet ulasim":
+                case "bisiklet/ulasim":
+                    mappedCategories.UnionWith(["Bicycles", "Scooters", "Skateboarding", "Outdoors"]);
+                    break;
+                case "diger":
+                    mappedCategories.Add("Other");
                     break;
                 default:
                     mappedCategories.Add(cat);
@@ -375,13 +386,11 @@ public class RecommendationService(
             {
                 mappedConditions.UnionWith(["Good", "Fair", "Poor"]);
             }
-            else
+            else if (!cleanedCond.Equals("Fark Etmez", StringComparison.OrdinalIgnoreCase))
             {
                 mappedConditions.Add(cleanedCond);
             }
         }
-        // --- TURKISH TO ENGLISH MAPPING END ---
-
         var query = db.Listings
             .Where(l => l.IsActive
                      && l.UserId != userId
@@ -405,12 +414,13 @@ public class RecommendationService(
             .Take(count)
             .ToListAsync();
 
+        var hasExplicitPreferences = mappedCategories.Count > 0 || mappedConditions.Count > 0;
         var results = listings.Select(l => MapToDto(l, 
-            preferredCategories.Contains(l.Category) 
+            mappedCategories.Contains(l.Category) 
                 ? $"İlgi alanınız olan '{l.Category}' kategorisinden popüler ürün."
                 : "Kampüs genelindeki en yeni ve popüler ürün.")).ToList();
 
-        if (results.Count < count && preferredCategories.Length > 0)
+        if (results.Count < count && !hasExplicitPreferences)
         {
             var fillerIds = results.Select(l => l.Id).ToHashSet();
             fillerIds.UnionWith(alreadyIncludedIds);
@@ -427,6 +437,26 @@ public class RecommendationService(
         }
 
         return results;
+    }
+
+    private static string NormalizePreferenceValue(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return string.Empty;
+
+        return value
+            .Trim()
+            .ToLowerInvariant()
+            .Replace('ı', 'i')
+            .Replace('İ', 'i')
+            .Replace('ş', 's')
+            .Replace('Ş', 's')
+            .Replace('ğ', 'g')
+            .Replace('Ğ', 'g')
+            .Replace('ü', 'u')
+            .Replace('Ü', 'u')
+            .Replace('ö', 'o')
+            .Replace('Ö', 'o');
     }
 
     private static ListingResponseDto MapToDto(Listing listing, string? reason = null) => new()
