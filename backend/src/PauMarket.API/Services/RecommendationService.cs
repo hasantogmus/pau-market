@@ -318,14 +318,86 @@ public class RecommendationService(
             ?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             ?? [];
 
+        var preferredConditions = user?.PreferredCondition
+            ?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            ?? [];
+
+        // --- TURKISH TO ENGLISH MAPPING START ---
+        var mappedCategories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var cat in preferredCategories)
+        {
+            switch (cat)
+            {
+                case "Elektronik":
+                    mappedCategories.UnionWith(["Electronics", "Computers & Laptops", "Home Audio", "Tablets & E-readers", "Cell phones & accessories", "TV & Video", "Headphones & MP3 Players", "Smart Home & Security", "Video games & consoles", "Cameras & photo"]);
+                    break;
+                case "Ders Kitabı":
+                    mappedCategories.UnionWith(["Books", "Other Books", "Nonfiction Books", "Fiction Books", "Books and zines", "Textbooks"]);
+                    break;
+                case "Giyim":
+                    mappedCategories.UnionWith(["Men", "Women", "Clothing", "Shoes", "Tops & blouses", "Sweaters", "Jeans", "Pants", "Shorts", "Dresses", "Skirts", "Athletic apparel", "Coats & jackets", "Swimwear", "Underwear", "Accessories", "Jewelry"]);
+                    break;
+                case "Ev Eşyası":
+                    mappedCategories.UnionWith(["Furniture", "Housewares", "Kitchen Dining & Bar", "Bedding", "Home appliances", "Home decor", "Living Room Furniture", "Bedroom Furniture", "Kitchen Furniture", "Bathroom Furniture", "Home Office Furniture", "Kitchen & Table Linens"]);
+                    break;
+                case "Not/Özet":
+                    mappedCategories.UnionWith(["Notebooks & Writing Pads", "Paper goods", "Folders & Filing", "Paper", "Books", "Office Supplies"]);
+                    break;
+                case "Hobi":
+                    mappedCategories.UnionWith(["Hobbies", "Collectibles & Hobbies", "Games & Puzzles", "Toys & Games", "Arts & Crafts", "Musical instruments", "Action Figures & Accessories", "Board Games", "Dolls & Accessories", "Remote Control Toys & Vehicles", "Stuffed Animals & Plush"]);
+                    break;
+                case "Spor":
+                    mappedCategories.UnionWith(["Sports & Outdoors", "Exercise & Fitness", "Outdoors", "Camping Equipment", "Golf", "Bicycles", "Basketball Equipment", "Football Equipment", "Baseball Equipment", "Sports Trading Cards", "Snowboarding Gear", "Ski Gear"]);
+                    break;
+                default:
+                    mappedCategories.Add(cat);
+                    break;
+            }
+        }
+
+        var mappedConditions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var cond in preferredConditions)
+        {
+            var cleanedCond = cond.Trim();
+            if (cleanedCond.Equals("Sıfır", StringComparison.OrdinalIgnoreCase) || 
+                cleanedCond.Equals("Yeni", StringComparison.OrdinalIgnoreCase))
+            {
+                mappedConditions.Add("New");
+            }
+            else if (cleanedCond.Equals("Az Kullanılmış", StringComparison.OrdinalIgnoreCase) || 
+                     cleanedCond.Equals("Yeni Gibi", StringComparison.OrdinalIgnoreCase) ||
+                     cleanedCond.Equals("Yeni gibi", StringComparison.OrdinalIgnoreCase))
+            {
+                mappedConditions.Add("Like new");
+            }
+            else if (cleanedCond.Equals("Çok Kullanılmış", StringComparison.OrdinalIgnoreCase) || 
+                     cleanedCond.Equals("Eski", StringComparison.OrdinalIgnoreCase))
+            {
+                mappedConditions.UnionWith(["Good", "Fair", "Poor"]);
+            }
+            else
+            {
+                mappedConditions.Add(cleanedCond);
+            }
+        }
+        // --- TURKISH TO ENGLISH MAPPING END ---
+
         var query = db.Listings
             .Where(l => l.IsActive
                      && l.UserId != userId
                      && !alreadyIncludedIds.Contains(l.Id));
 
-        if (preferredCategories.Length > 0)
+        if (mappedCategories.Count > 0)
         {
-            query = query.Where(l => preferredCategories.Contains(l.Category));
+            // HashSet can't be translated by EF Core stringly if not converted to list/array. Actually List is better for Contains in EF.
+            var catList = mappedCategories.ToList();
+            query = query.Where(l => catList.Contains(l.Category));
+        }
+
+        if (mappedConditions.Count > 0)
+        {
+            var condList = mappedConditions.ToList();
+            query = query.Where(l => condList.Contains(l.Condition));
         }
 
         var listings = await query
