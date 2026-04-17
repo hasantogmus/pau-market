@@ -1,9 +1,11 @@
 *.csv
 __pycache__/
+model_backups/
+retrain_logs/
+*.tmp
 
-# Makineye özel / gizli config dosyaları — her geliştirici kendi ayarını yapar
-# appsettings.json → Git'te paylaşılıyor (Trusted_Connection, herkes için geçerli)
+# Makineye ozel / gizli config dosyalari
 appsettings.Development.json
 
-# Büyük ML model dosyaları — Git LFS kullanılmıyorsa repoya ekleme
-*.pkl
+# Buyuk ML model dosyalari
+*.pkl
