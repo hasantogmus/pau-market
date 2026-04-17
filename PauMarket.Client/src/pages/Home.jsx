@@ -10,26 +10,10 @@ import {
 import { Link } from 'react-router-dom';
 import listingService from '../services/listingService';
 import ProductCard, { cardVariants } from '../components/ProductCard';
-
-/* ═══════════════════ MOCK DATA ═══════════════════════════════ */
-const MOCK_LISTINGS = [
-    { id: 'm1', title: 'Apple MacBook Air M2 - 13"', price: 28500, condition: 'Az Kullanılmış', categoryName: 'Elektronik', imageUrl: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400&q=80', location: 'Honaz' },
-    { id: 'm2', title: 'Calculus - James Stewart (8. Baskı)', price: 180, condition: 'Çok Kullanılmış', categoryName: 'Ders Kitabı', imageUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400&q=80', location: 'Kampüs' },
-    { id: 'm3', title: 'Nike Air Force 1 – 42 Numara', price: 750, condition: 'Sıfır', categoryName: 'Giyim', imageUrl: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=80', location: 'Çamlaraltı' },
-    { id: 'm4', title: 'Nespresso Kahve Makinesi', price: 1200, condition: 'Az Kullanılmış', categoryName: 'Ev Eşyası', imageUrl: 'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=400&q=80', location: 'Kampüs' },
-    { id: 'm5', title: 'Sony WH-1000XM5 Kulaklık', price: 4200, condition: 'Sıfır', categoryName: 'Elektronik', imageUrl: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&q=80', location: 'Pamukkale' },
-    { id: 'm6', title: 'Veri Yapıları ve Algoritmalar Notları', price: 50, condition: 'Çok Kullanılmış', categoryName: 'Not/Özet', imageUrl: 'https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?w=400&q=80', location: 'Kampüs' },
-    { id: 'm7', title: 'Logitech MX Master 3 Mouse', price: 1850, condition: 'Az Kullanılmış', categoryName: 'Elektronik', imageUrl: 'https://images.unsplash.com/photo-1527814050087-3793815479db?w=400&q=80', location: 'Honaz' },
-    { id: 'm8', title: 'Trek Marlin 5 Dağ Bisikleti', price: 6500, condition: 'Az Kullanılmış', categoryName: 'Hobi', imageUrl: 'https://images.unsplash.com/photo-1485965120184-e220f721d03e?w=400&q=80', location: 'Pamukkale' },
-    { id: 'm9', title: 'iPad Pro 11" + Apple Pencil', price: 19000, condition: 'Sıfır', categoryName: 'Elektronik', imageUrl: 'https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=400&q=80', location: 'Kampüs' },
-    { id: 'm10', title: 'Thermos Stanley 1L', price: 450, condition: 'Sıfır', categoryName: 'Ev Eşyası', imageUrl: 'https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=400&q=80', location: 'Çamlaraltı' },
-    { id: 'm11', title: 'Fizik Olimpiyat Soruları Kitabı', price: 90, condition: 'Az Kullanılmış', categoryName: 'Ders Kitabı', imageUrl: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=400&q=80', location: 'Kampüs' },
-    { id: 'm12', title: 'PlayStation 5 + 2 Kol', price: 22000, condition: 'Az Kullanılmış', categoryName: 'Hobi', imageUrl: 'https://images.unsplash.com/photo-1607853202273-797f1c22a38e?w=400&q=80', location: 'Pamukkale' },
-];
-
-const AI_PICKS = MOCK_LISTINGS.slice(0, 4);
+import { useAuth } from '../context/AuthContext';
 
 /* ═══════════════════ CATEGORIES ═══════════════════════════════ */
+
 const CATEGORIES = [
     { label: 'Tümü',        icon: <ListFilter className="w-4 h-4" /> },
     { label: 'Elektronik',  icon: <Laptop      className="w-4 h-4" /> },
@@ -144,9 +128,9 @@ const formatPrice = (p) =>
         : '—';
 
 const Hero = ({ listings, isLoading }) => {
-    const c1 = listings[0] ?? MOCK_LISTINGS[0];
-    const c2 = listings[1] ?? MOCK_LISTINGS[1];
-    const c3 = listings[2] ?? MOCK_LISTINGS[2];
+    const c1 = listings[0] ?? {};
+    const c2 = listings[1] ?? {};
+    const c3 = listings[2] ?? {};
 
     return (
         <section className="relative w-full bg-gradient-to-br from-blue-50 via-white to-indigo-50 border-b border-indigo-100 overflow-hidden">
@@ -247,7 +231,9 @@ const Hero = ({ listings, isLoading }) => {
 /* ═══════════════════ HOME PAGE ══════════════════════════════════ */
 const Home = () => {
     /* ── State ── */
+    const { isAuthenticated } = useAuth();
     const [listings, setListings] = useState([]);
+    const [aiPicks, setAiPicks] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
 
@@ -267,7 +253,8 @@ const Home = () => {
         (async () => {
             try {
                 const data = await listingService.getAllListings();
-                setListings(Array.isArray(data) ? data : []);
+                // Yüklenme hızını artırmak ve DOM şişmesini önlemek için 73k ürünün sadece ilk 50sini alıyoruz.
+                setListings(Array.isArray(data) ? data.slice(0, 50) : []);
             } catch {
                 setError('İlanlar yüklenirken sunucu ile iletişim kurulamadı.');
             } finally {
@@ -276,8 +263,23 @@ const Home = () => {
         })();
     }, []);
 
+    useEffect(() => {
+        if (isAuthenticated) {
+            (async () => {
+                try {
+                    const recs = await listingService.getHybridRecommendations(4);
+                    setAiPicks(Array.isArray(recs) ? recs : []);
+                } catch (err) {
+                    console.error("Öneriler alınamadı:", err);
+                }
+            })();
+        } else {
+            setAiPicks([]);
+        }
+    }, [isAuthenticated]);
+
     /* ── Derived data ── */
-    const allListings = listings.length > 0 ? listings : MOCK_LISTINGS;
+    const allListings = listings;
 
     const filtered = allListings.filter((item) => {
         const catMatch = activeCategory === 'Tümü' || item.categoryName === activeCategory;
@@ -335,22 +337,24 @@ const Home = () => {
             </section>
 
             {/* ── AI Picks Band ── */}
-            <section className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-indigo-100 py-8">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex items-center gap-2 mb-5">
-                        <Sparkles className="w-5 h-5 text-indigo-500" />
-                        <h2 className="text-lg font-bold text-gray-900">Sana Özel Öneriler</h2>
-                        <span className="ml-1 px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[11px] font-bold rounded-full">AI Picks</span>
+            {isAuthenticated && aiPicks.length > 0 && (
+                <section className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-indigo-100 py-8">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div className="flex items-center gap-2 mb-5">
+                            <Sparkles className="w-5 h-5 text-indigo-500" />
+                            <h2 className="text-lg font-bold text-gray-900">Sana Özel Öneriler</h2>
+                            <span className="ml-1 px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[11px] font-bold rounded-full">AI Picks</span>
+                        </div>
+                        <div className="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-hide">
+                            {aiPicks.map((item, i) => (
+                                <div key={item.id} className="snap-start min-w-[280px]">
+                                    <ProductCard item={item} index={i} compact />
+                                </div>
+                            ))}
+                        </div>
                     </div>
-                    <div className="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-hide">
-                        {AI_PICKS.map((item, i) => (
-                            <div key={item.id} className="snap-start">
-                                <ProductCard item={item} index={i} compact />
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </section>
+                </section>
+            )}
 
             {/* ── Main content: Sidebar + Grid ── */}
             <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-10">

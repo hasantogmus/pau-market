@@ -37,14 +37,21 @@ def read_root():
 @app.get("/oneri-getir/{kullanici_id}")
 def get_recommendations(kullanici_id: int):
     try:
+        # dataset.mapping() fonksiyonundan user_id_map ve item_id_map sözlüklerini çekiyoruz
+        user_id_map, _, item_id_map, _ = dataset.mapping()
+        
+        # Eğer kullanıcı eğitim verilerinde yoksa (yeni kullanıcıysa), soğuk başlangıç yapmalıdır
+        if kullanici_id not in user_id_map:
+            raise ValueError(f"Kullanıcı {kullanici_id} haritada bulunamadı.")
+            
+        internal_user_id = user_id_map[kullanici_id]
+        
         # Toplam ürün sayısını dataset üzerinden elde ediyoruz.
-        # dataset.interactions_shape() genelde (user_count, item_count) döner.
         user_count, n_items = dataset.interactions_shape()
         
         # O kullanıcı için tüm ürünlere skor üretiyoruz
-        # model.predict(kullanici_id, np.arange(n_items)) LightFM'in predict metodunu çağırır.
         item_ids = np.arange(n_items)
-        skorlar = model.predict(kullanici_id, item_ids)
+        skorlar = model.predict(internal_user_id, item_ids)
         
         # En yüksek skorlu 5 ürünün indisini alıyoruz
         top_indices = np.argsort(-skorlar)[:5]
