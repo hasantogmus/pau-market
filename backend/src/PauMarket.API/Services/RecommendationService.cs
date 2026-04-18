@@ -11,7 +11,10 @@ namespace PauMarket.API.Services;
 /// Python FastAPI servisinden yapay zeka destekli önerileri çeker.
 /// Bulunamazsa veritabanından fallback uygular.
 /// </summary>
-public class RecommendationService(PauMarketDbContext db, HttpClient httpClient) : IRecommendationService
+public class RecommendationService(
+    PauMarketDbContext db,
+    HttpClient httpClient,
+    IConfiguration configuration) : IRecommendationService
 {
     // ─── Public — Hibrit Öneri ────────────────────────────────────────────────
 
@@ -24,7 +27,9 @@ public class RecommendationService(PauMarketDbContext db, HttpClient httpClient)
         {
             // 1. Python Yapay Zeka API'sine istek at
             // Port 8000 varsayılan Python fastapi portu
-            var response = await httpClient.GetAsync($"http://127.0.0.1:8000/recommend/{userId}?n={count * 2}");
+            // URL'yi appsettings'den veya Docker ENV vars'dan al (Yoksa varsayılan Docker hostu veya localhost'u dene)
+            var recommenderUrl = configuration["RecommenderApiUrl"] ?? "http://recommender:8000";
+            var response = await httpClient.GetAsync($"{recommenderUrl}/recommend/{userId}?n={count * 2}");
             
             if (response.IsSuccessStatusCode)
             {
