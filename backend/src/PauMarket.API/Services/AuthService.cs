@@ -47,7 +47,11 @@ public class AuthService : IAuthService
 
         string passwordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password, workFactor: 12);
         string verificationToken = GenerateVerificationToken();
+        DateTime verificationExpiresAt = GetVerificationCodeExpiry();
         bool autoVerify = _config.GetValue<bool>("EmailVerification:AutoVerify");
+
+        if (!autoVerify && !IsEmailDeliveryConfigured())
+            throw new InvalidOperationException("Doğrulama kodu şu anda gönderilemiyor. Lütfen daha sonra tekrar deneyin.");
 
         var user = new User
         {
@@ -58,16 +62,19 @@ public class AuthService : IAuthService
             Department             = dto.Department,
             Grade                  = dto.Grade,
             IsEmailVerified        = autoVerify,
-            EmailVerificationToken = autoVerify ? null : verificationToken
+            EmailVerificationToken = autoVerify ? null : BuildStoredVerificationToken(verificationToken, verificationExpiresAt)
         };
 
-        _db.Users.Add(user);
-        await _db.SaveChangesAsync();
-
         if (autoVerify)
+        {
+            _db.Users.Add(user);
+            await _db.SaveChangesAsync();
             return "Kayıt başarılı. Bu ortamda e-posta doğrulaması otomatik açık olduğu için giriş yapabilirsiniz.";
+        }
 
         await SendVerificationEmailAsync(user.Email, verificationToken);
+        _db.Users.Add(user);
+        await _db.SaveChangesAsync();
         return "Kayıt başarılı. Hesabını aktifleştirmek için okul e-posta adresine gönderilen 6 haneli doğrulama kodunu gir.";
     }
 
@@ -100,7 +107,13 @@ public class AuthService : IAuthService
         if (user.IsEmailVerified)
             return "E-posta adresi zaten doğrulanmış.";
 
-        if (user.EmailVerificationToken?.Trim() != token.Trim())
+        if (!TryParseStoredVerificationToken(user.EmailVerificationToken, out var storedToken, out var expiresAt))
+            throw new InvalidOperationException("Doğrulama kodu geçersiz. Lütfen yeni kod isteyin.");
+
+        if (expiresAt < DateTime.UtcNow)
+            throw new InvalidOperationException("Doğrulama kodunun süresi doldu. Lütfen yeni kod isteyin.");
+
+        if (!string.Equals(storedToken, token.Trim(), StringComparison.Ordinal))
             throw new InvalidOperationException("Doğrulama kodu hatalı veya süresi dolmuş.");
 
         user.IsEmailVerified        = true;
@@ -123,10 +136,14 @@ public class AuthService : IAuthService
             return "Bu hesap zaten doğrulanmış durumda. Giriş yapabilirsiniz.";
 
         var verificationToken = GenerateVerificationToken();
-        user.EmailVerificationToken = verificationToken;
-        await _db.SaveChangesAsync();
+        var verificationExpiresAt = GetVerificationCodeExpiry();
+        if (!IsEmailDeliveryConfigured())
+            throw new InvalidOperationException("Doğrulama kodu şu anda gönderilemiyor. Lütfen daha sonra tekrar deneyin.");
 
         await SendVerificationEmailAsync(user.Email, verificationToken);
+        user.EmailVerificationToken = BuildStoredVerificationToken(verificationToken, verificationExpiresAt);
+        await _db.SaveChangesAsync();
+
         return "Yeni doğrulama kodu gönderildi. Lütfen okul e-posta kutunu kontrol et.";
     }
 
@@ -140,12 +157,47 @@ public class AuthService : IAuthService
     private string GenerateVerificationToken() =>
         Random.Shared.Next(0, 1_000_000).ToString("D6");
 
+    private int GetVerificationCodeLifetimeSeconds()
+    {
+        var seconds = _config.GetValue<int?>("EmailVerification:CodeLifetimeSeconds") ?? 120;
+        return seconds > 0 ? seconds : 120;
+    }
+
+    private DateTime GetVerificationCodeExpiry() =>
+        DateTime.UtcNow.AddSeconds(GetVerificationCodeLifetimeSeconds());
+
+    private static string BuildStoredVerificationToken(string token, DateTime expiresAt) =>
+        $"{token}:{expiresAt.Ticks}";
+
+    private static bool TryParseStoredVerificationToken(
+        string? storedValue,
+        out string token,
+        out DateTime expiresAt)
+    {
+        token = string.Empty;
+        expiresAt = DateTime.MinValue;
+
+        if (string.IsNullOrWhiteSpace(storedValue))
+            return false;
+
+        var parts = storedValue.Split(':', 2, StringSplitOptions.TrimEntries);
+        if (parts.Length != 2 || string.IsNullOrWhiteSpace(parts[0]) || !long.TryParse(parts[1], out var ticks))
+            return false;
+
+        token = parts[0];
+        expiresAt = new DateTime(ticks, DateTimeKind.Utc);
+        return true;
+    }
+
+    private bool IsEmailDeliveryConfigured() =>
+        !string.IsNullOrWhiteSpace(_config["Smtp:Host"]) &&
+        !string.IsNullOrWhiteSpace(_config["Smtp:FromEmail"]);
+
     private async Task SendVerificationEmailAsync(string toEmail, string code)
     {
         if (!TryBuildSmtpClient(out var smtpClient, out var fromEmail, out var fromName))
         {
-            SimulateSendVerificationEmail(toEmail, code);
-            return;
+            throw new InvalidOperationException("Doğrulama kodu şu anda gönderilemiyor. Lütfen daha sonra tekrar deneyin.");
         }
 
         var client = smtpClient!;
@@ -205,26 +257,6 @@ public class AuthService : IAuthService
             client.Credentials = new NetworkCredential(username, password);
 
         return true;
-    }
-
-    private void SimulateSendVerificationEmail(string toEmail, string code)
-    {
-        _logger.LogWarning(
-            "SMTP yapılandırması bulunamadı. Doğrulama kodu loga yazıldı. Alıcı: {Email} | Kod: {Code}",
-            toEmail, code);
-
-        _logger.LogInformation(
-            "📧 [E-POSTA SİMÜLASYONU] Alıcı: {Email} | Doğrulama Kodu: {Code}",
-            toEmail, code);
-
-        Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine("┌─────────────────────────────────────────┐");
-        Console.WriteLine("│         PAÜ Market — E-posta Simülasyonu │");
-        Console.WriteLine("├─────────────────────────────────────────┤");
-        Console.WriteLine($"│  Alıcı : {toEmail,-31}│");
-        Console.WriteLine($"│  Kod   : {code,-31}│");
-        Console.WriteLine("└─────────────────────────────────────────┘");
-        Console.ResetColor();
     }
 
     // ─── JWT ──────────────────────────────────────────────────────────────────

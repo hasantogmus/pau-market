@@ -44,7 +44,8 @@ const Register = () => {
                 state: {
                     email,
                     registrationMessage: result.message,
-                    fromRegistration: true
+                    fromRegistration: true,
+                    expiresInSeconds: result.expiresInSeconds
                 }
             });
         } catch (err) {

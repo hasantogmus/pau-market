@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { MailCheck, AlertCircle, Loader2, RotateCcw, CheckCircle2 } from 'lucide-react';
@@ -22,6 +22,26 @@ const VerifyEmail = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isResending, setIsResending] = useState(false);
     const redirectAfterLogin = location.state?.fromRegistration ? '/onboarding' : '/';
+    const initialExpiresInSeconds = location.state?.expiresInSeconds || 120;
+    const [timeLeft, setTimeLeft] = useState(initialExpiresInSeconds);
+
+    useEffect(() => {
+        if (timeLeft <= 0) {
+            return undefined;
+        }
+
+        const timer = window.setInterval(() => {
+            setTimeLeft((previous) => (previous > 0 ? previous - 1 : 0));
+        }, 1000);
+
+        return () => window.clearInterval(timer);
+    }, [timeLeft]);
+
+    const formattedTimeLeft = useMemo(() => {
+        const minutes = String(Math.floor(timeLeft / 60)).padStart(2, '0');
+        const seconds = String(timeLeft % 60).padStart(2, '0');
+        return `${minutes}:${seconds}`;
+    }, [timeLeft]);
 
     const handleVerify = async (e) => {
         e.preventDefault();
@@ -65,6 +85,7 @@ const VerifyEmail = () => {
         try {
             const result = await authService.resendVerification(email);
             setInfo(result.message);
+            setTimeLeft(result.expiresInSeconds || 120);
         } catch (err) {
             setError(
                 err.response?.data?.error
@@ -79,7 +100,7 @@ const VerifyEmail = () => {
     return (
         <AuthSplitLayout
             title="Okul E-Postanı Doğrula"
-            subtitle="Hesabını aktifleştirmek için PAÜ okul e-posta adresine gönderilen 6 haneli kodu gir. SMTP tanımlı değilse kod backend loglarında görünecektir."
+            subtitle="Hesabını aktifleştirmek için okul e-posta adresine gönderilen 6 haneli kodu gir."
         >
             <motion.div
                 initial={{ opacity: 0, y: 30 }}
@@ -98,6 +119,21 @@ const VerifyEmail = () => {
                 <p className="text-center text-sm text-gray-500 mb-6 font-medium">
                     Kodunu girdikten sonra hesabın aktif olacak ve giriş yapabileceksin.
                 </p>
+                <div className="mb-6 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-center">
+                    <p className="text-sm font-semibold text-amber-800">
+                        Kodun geçerlilik süresi: {formattedTimeLeft}
+                    </p>
+                    <p className="mt-1 text-xs text-amber-700">
+                        Süre biterse yeni kod isteyebilirsin.
+                    </p>
+                </div>
+                {timeLeft === 0 && (
+                    <div className="mb-6 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-center">
+                        <p className="text-sm font-semibold text-red-700">
+                            Kodun süresi doldu. Yeni kod isteyebilirsin.
+                        </p>
+                    </div>
+                )}
 
                 {info && (
                     <motion.div
@@ -151,7 +187,7 @@ const VerifyEmail = () => {
 
                     <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="token">
-                            6 Haneli Doğrulama Kodu
+                            6 Haneli Kod
                         </label>
                         <input
                             type="text"
@@ -159,7 +195,7 @@ const VerifyEmail = () => {
                             value={token}
                             onChange={(e) => setToken(e.target.value.replace(/\D/g, '').slice(0, 6))}
                             disabled={isSubmitting}
-                            placeholder="123456"
+                            placeholder="6 haneli kod"
                             inputMode="numeric"
                             maxLength={6}
                             className="w-full px-5 py-3.5 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all text-gray-800 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed font-mono tracking-[0.4em] text-center"

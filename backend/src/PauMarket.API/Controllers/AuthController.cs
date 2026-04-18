@@ -12,10 +12,12 @@ namespace PauMarket.API.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
+    private readonly IConfiguration _configuration;
 
-    public AuthController(IAuthService authService)
+    public AuthController(IAuthService authService, IConfiguration configuration)
     {
         _authService = authService;
+        _configuration = configuration;
     }
 
     /// <summary>
@@ -32,7 +34,11 @@ public class AuthController : ControllerBase
         try
         {
             var message = await _authService.RegisterAsync(dto);
-            return Ok(new { message });
+            return Ok(new
+            {
+                message,
+                expiresInSeconds = GetVerificationCodeLifetimeSeconds()
+            });
         }
         catch (InvalidOperationException ex)
         {
@@ -107,11 +113,21 @@ public class AuthController : ControllerBase
         try
         {
             var message = await _authService.ResendVerificationAsync(dto.Email);
-            return Ok(new { message });
+            return Ok(new
+            {
+                message,
+                expiresInSeconds = GetVerificationCodeLifetimeSeconds()
+            });
         }
         catch (InvalidOperationException ex)
         {
             return BadRequest(new { error = ex.Message });
         }
+    }
+
+    private int GetVerificationCodeLifetimeSeconds()
+    {
+        var seconds = _configuration.GetValue<int?>("EmailVerification:CodeLifetimeSeconds") ?? 120;
+        return seconds > 0 ? seconds : 120;
     }
 }
