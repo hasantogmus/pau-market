@@ -85,12 +85,30 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 // ─── CORS (Frontend React Uygulaması için) ────────────────────────────────────
+var allowedOrigins = builder.Configuration
+    .GetSection("Cors:AllowedOrigins")
+    .Get<string[]>()?
+    .Where(origin => !string.IsNullOrWhiteSpace(origin))
+    .Distinct(StringComparer.OrdinalIgnoreCase)
+    .ToArray()
+    ?? [];
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp", policy =>
-        policy.AllowAnyOrigin()
+    {
+        if (allowedOrigins.Length > 0)
+        {
+            policy.WithOrigins(allowedOrigins)
+                  .AllowAnyMethod()
+                  .AllowAnyHeader();
+            return;
+        }
+
+        policy.WithOrigins("http://localhost:5173", "http://127.0.0.1:5173")
               .AllowAnyMethod()
-              .AllowAnyHeader());
+              .AllowAnyHeader();
+    });
 });
 
 // ─── Health Checks ───────────────────────────────────────────────────────────
@@ -173,4 +191,3 @@ app.MapControllers();
 app.MapHealthChecks("/health");
 
 await app.RunAsync();
-
