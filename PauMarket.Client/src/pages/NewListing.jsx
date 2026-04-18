@@ -7,7 +7,7 @@ import {
     Info, CheckCircle2, Camera, DollarSign, Package, Tablet, Watch
 } from 'lucide-react';
 import listingService from '../services/listingService';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 
 // ─────────────────────────────────────────────────────────────────
 // Sabit Veriler

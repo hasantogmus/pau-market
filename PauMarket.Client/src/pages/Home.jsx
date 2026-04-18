@@ -10,7 +10,7 @@ import {
 import { Link, useNavigate } from 'react-router-dom';
 import listingService from '../services/listingService';
 import favoriteService from '../services/favoriteService';
-import ProductCard, { cardVariants } from '../components/ProductCard';
+import ProductCard from '../components/ProductCard';
 
 /* ═══════════════════ MOCK DATA ═══════════════════════════════ */
 const MOCK_LISTINGS = [

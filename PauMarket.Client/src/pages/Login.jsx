@@ -4,14 +4,13 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { LogIn, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
 import AuthSplitLayout from '../layouts/AuthSplitLayout';
 import authService from '../services/authService';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 
 const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
-    const navigate = useNavigate();
     const location = useLocation();
     const { login } = useAuth();
 

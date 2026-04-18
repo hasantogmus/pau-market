@@ -1,15 +1,53 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { jwtDecode } from "jwt-decode";
 
-const AuthContext = createContext();
+export const AuthContext = createContext();
 
-export const useAuth = () => useContext(AuthContext);
+const getInitialAuthState = () => {
+    const token = localStorage.getItem('token');
+
+    if (!token) {
+        return { user: null, isAuthenticated: false };
+    }
+
+    try {
+        const decodedToken = jwtDecode(token);
+
+        if (decodedToken.exp * 1000 < Date.now()) {
+            localStorage.removeItem('token');
+            return { user: null, isAuthenticated: false };
+        }
+
+        let fullName = decodedToken.name || decodedToken.unique_name || decodedToken['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'];
+        if (!fullName && decodedToken.given_name) {
+            fullName = decodedToken.family_name
+                ? `${decodedToken.given_name} ${decodedToken.family_name}`
+                : decodedToken.given_name;
+        }
+
+        return {
+            user: {
+                id: decodedToken.nameid || decodedToken.sub || decodedToken['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'],
+                email: decodedToken.email || decodedToken['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'],
+                name: fullName || 'Kullanıcı',
+                role: decodedToken.role || decodedToken['http://schemas.microsoft.com/ws/2008/06/identity/claims/role']
+            },
+            isAuthenticated: true
+        };
+    } catch (error) {
+        console.error("Token decode hatası:", error);
+        localStorage.removeItem('token');
+        return { user: null, isAuthenticated: false };
+    }
+};
 
 export const AuthProvider = ({ children }) => {
-    const [user, setUser] = useState(null);
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
+    const initialAuthState = getInitialAuthState();
+
+    const [user, setUser] = useState(initialAuthState.user);
+    const [isAuthenticated, setIsAuthenticated] = useState(initialAuthState.isAuthenticated);
+    const [isLoading] = useState(false);
     const navigate = useNavigate();
 
     // Yardımcı fonksiyon: .NET claim'lerini çözümlemek için
@@ -30,25 +68,12 @@ export const AuthProvider = ({ children }) => {
         };
     };
 
-    useEffect(() => {
-        const token = localStorage.getItem('token');
-        if (token) {
-            try {
-                const decodedToken = jwtDecode(token);
-                // Token süresi dolmuş mu kontrolü
-                if (decodedToken.exp * 1000 < Date.now()) {
-                    logout();
-                } else {
-                    setUser(parseUserFromToken(decodedToken));
-                    setIsAuthenticated(true);
-                }
-            } catch (error) {
-                console.error("Token decode hatası:", error);
-                logout();
-            }
-        }
-        setIsLoading(false);
-    }, []);
+    const logout = useCallback(() => {
+        localStorage.removeItem('token');
+        setUser(null);
+        setIsAuthenticated(false);
+        navigate('/');
+    }, [navigate]);
 
     const login = (token, redirectPath = '/') => {
         localStorage.setItem('token', token);
@@ -58,13 +83,6 @@ export const AuthProvider = ({ children }) => {
         if (redirectPath) {
             navigate(redirectPath);
         }
-    };
-
-    const logout = () => {
-        localStorage.removeItem('token');
-        setUser(null);
-        setIsAuthenticated(false);
-        navigate('/');
     };
 
     return (

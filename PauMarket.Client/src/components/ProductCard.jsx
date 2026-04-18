@@ -33,7 +33,7 @@ const formatPrice = (price) => {
      index  — used for stagger delay (optional)
      compact — narrow card for horizontal scroll strips
 ═══════════════════════════════════════════════════════════════ */
-export const cardVariants = {
+const CARD_VARIANTS = {
     hidden: { opacity: 0, y: 32 },
     visible: (i = 0) => ({
         opacity: 1,
@@ -54,7 +54,7 @@ const ProductCard = ({ item, index = 0, compact = false, isFavorite = false, onT
     return (
         <motion.div
             custom={index}
-            variants={cardVariants}
+            variants={CARD_VARIANTS}
             initial="hidden"
             animate="visible"
             whileHover={{ y: -4, transition: { duration: 0.2 } }}
