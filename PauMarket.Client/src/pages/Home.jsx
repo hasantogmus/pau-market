@@ -19,7 +19,7 @@ const MOCK_LISTINGS = [
     { id: 'm3', title: 'Nike Air Force 1 – 42 Numara', price: 750, condition: 'Sıfır', categoryName: 'Giyim', imageUrl: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=80', location: 'Çamlaraltı' },
     { id: 'm4', title: 'Nespresso Kahve Makinesi', price: 1200, condition: 'Az Kullanılmış', categoryName: 'Ev Eşyası', imageUrl: 'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=400&q=80', location: 'Kampüs' },
     { id: 'm5', title: 'Sony WH-1000XM5 Kulaklık', price: 4200, condition: 'Sıfır', categoryName: 'Elektronik', imageUrl: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&q=80', location: 'Pamukkale' },
-    { id: 'm6', title: 'Veri Yapıları ve Algoritmalar Notları', price: 50, condition: 'Çok Kullanılmış', categoryName: 'Not/Özet', imageUrl: 'https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?w=400&q=80', location: 'Kampüs' },
+    { id: 'm6', title: 'Veri Yapıları ve Algoritmalar Notları', price: 50, condition: 'Çok Kullanılmış', categoryName: 'Not / Özet', imageUrl: 'https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?w=400&q=80', location: 'Kampüs' },
     { id: 'm7', title: 'Logitech MX Master 3 Mouse', price: 1850, condition: 'Az Kullanılmış', categoryName: 'Elektronik', imageUrl: 'https://images.unsplash.com/photo-1527814050087-3793815479db?w=400&q=80', location: 'Honaz' },
     { id: 'm8', title: 'Trek Marlin 5 Dağ Bisikleti', price: 6500, condition: 'Az Kullanılmış', categoryName: 'Hobi', imageUrl: 'https://images.unsplash.com/photo-1485965120184-e220f721d03e?w=400&q=80', location: 'Pamukkale' },
     { id: 'm9', title: 'iPad Pro 11" + Apple Pencil', price: 19000, condition: 'Sıfır', categoryName: 'Elektronik', imageUrl: 'https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=400&q=80', location: 'Kampüs' },
@@ -37,7 +37,7 @@ const CATEGORIES = [
     { label: 'Ders Kitabı', icon: <BookOpen    className="w-4 h-4" /> },
     { label: 'Giyim',       icon: <Shirt       className="w-4 h-4" /> },
     { label: 'Ev Eşyası',   icon: <HomeIcon    className="w-4 h-4" /> },
-    { label: 'Not/Özet',    icon: <Coffee      className="w-4 h-4" /> },
+    { label: 'Not / Özet',  icon: <Coffee      className="w-4 h-4" /> },
     { label: 'Hobi',        icon: <Gamepad2    className="w-4 h-4" /> },
     { label: 'Spor',        icon: <Bike        className="w-4 h-4" /> },
 ];

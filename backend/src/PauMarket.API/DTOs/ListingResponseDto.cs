@@ -8,6 +8,7 @@ public class ListingResponseDto
     public string? Description { get; set; }
     public decimal Price { get; set; }
     public string Category { get; set; } = null!;
+    public string CategoryName => Category;
     public string Condition { get; set; } = null!;
     public string? ImageUrl { get; set; }
     public bool IsActive { get; set; }
