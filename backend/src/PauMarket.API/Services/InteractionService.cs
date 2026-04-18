@@ -7,20 +7,20 @@ namespace PauMarket.API.Services;
 
 public class InteractionService(PauMarketDbContext context) : IInteractionService
 {
-    public async Task<bool> AddFavoriteAsync(AddFavoriteDto dto)
+    public async Task<bool> AddFavoriteAsync(int userId, int listingId)
     {
         // İlan var mı kontrolü
-        var listingExists = await context.Listings.AnyAsync(l => l.Id == dto.ListingId);
+        var listingExists = await context.Listings.AnyAsync(l => l.Id == listingId);
         if (!listingExists) return false;
 
         // Kullanıcı var mı kontrolü
-        var userExists = await context.Users.AnyAsync(u => u.Id == dto.UserId);
+        var userExists = await context.Users.AnyAsync(u => u.Id == userId);
         if (!userExists) return false;
 
         // Aynı kullanıcı aynı ilanı daha önce favoriye eklemiş mi?
         var existingFavorite = await context.Interactions.FirstOrDefaultAsync(
-            i => i.UserId == dto.UserId && 
-                 i.ListingId == dto.ListingId && 
+            i => i.UserId == userId && 
+                 i.ListingId == listingId && 
                  i.InteractionType == InteractionType.Favorite);
 
         if (existingFavorite != null)
@@ -31,8 +31,8 @@ public class InteractionService(PauMarketDbContext context) : IInteractionServic
 
         var interaction = new Interaction
         {
-            UserId = dto.UserId,
-            ListingId = dto.ListingId,
+            UserId = userId,
+            ListingId = listingId,
             InteractionType = InteractionType.Favorite,
             Timestamp = DateTime.UtcNow
         };

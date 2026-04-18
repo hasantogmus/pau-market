@@ -1,11 +1,14 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PauMarket.API.DTOs;
+using PauMarket.API.Extensions;
 using PauMarket.API.Services;
 
 namespace PauMarket.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class FavoritesController(IInteractionService interactionService) : ControllerBase
 {
     [HttpPost]
@@ -14,7 +17,11 @@ public class FavoritesController(IInteractionService interactionService) : Contr
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
 
-        var result = await interactionService.AddFavoriteAsync(dto);
+        int? userId = User.GetUserId();
+        if (userId is null)
+            return Unauthorized(new { error = "Geçersiz token." });
+
+        var result = await interactionService.AddFavoriteAsync(userId.Value, dto.ListingId);
 
         if (!result)
             return BadRequest(new { message = "İlan veya kullanıcı bulunamadı, ya da ilan zaten favorilerde." });
@@ -22,10 +29,14 @@ public class FavoritesController(IInteractionService interactionService) : Contr
         return Ok(new { message = "İlan başarıyla favorilere eklendi." });
     }
 
-    [HttpDelete("{userId}/{listingId}")]
-    public async Task<IActionResult> RemoveFavorite(int userId, int listingId)
+    [HttpDelete("{listingId:int}")]
+    public async Task<IActionResult> RemoveFavorite(int listingId)
     {
-        var result = await interactionService.RemoveFavoriteAsync(userId, listingId);
+        int? userId = User.GetUserId();
+        if (userId is null)
+            return Unauthorized(new { error = "Geçersiz token." });
+
+        var result = await interactionService.RemoveFavoriteAsync(userId.Value, listingId);
 
         if (!result)
             return NotFound(new { message = "Favori kaydı bulunamadı." });
@@ -33,10 +44,14 @@ public class FavoritesController(IInteractionService interactionService) : Contr
         return Ok(new { message = "İlan favorilerden çıkarıldı." });
     }
 
-    [HttpGet("{userId}")]
-    public async Task<ActionResult<IEnumerable<ListingResponseDto>>> GetUserFavorites(int userId)
+    [HttpGet]
+    public async Task<ActionResult<IEnumerable<ListingResponseDto>>> GetUserFavorites()
     {
-        var favorites = await interactionService.GetUserFavoritesAsync(userId);
+        int? userId = User.GetUserId();
+        if (userId is null)
+            return Unauthorized(new { error = "Geçersiz token." });
+
+        var favorites = await interactionService.GetUserFavoritesAsync(userId.Value);
         return Ok(favorites);
     }
 }
