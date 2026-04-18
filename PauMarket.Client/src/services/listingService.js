@@ -1,15 +1,22 @@
 import api from './api';
 
+const normalizeListing = (item) => ({
+    ...item,
+    categoryName: item.categoryName ?? item.category ?? null,
+});
+
+const normalizeListingCollection = (data) => {
+    if (Array.isArray(data)) return data.map(normalizeListing);
+    if (data && Array.isArray(data.data)) return data.data.map(normalizeListing);
+    if (data && Array.isArray(data.items)) return data.items.map(normalizeListing);
+
+    return [];
+};
+
 const listingService = {
     getAllListings: async () => {
         const response = await api.get('/listings');
-        const data = response.data;
-
-        if (Array.isArray(data)) return data;
-        if (data && Array.isArray(data.data)) return data.data;
-        if (data && Array.isArray(data.items)) return data.items;
-
-        return [];
+        return normalizeListingCollection(response.data);
     },
 
     /**
@@ -41,12 +48,12 @@ const listingService = {
 
     getListingById: async (id) => {
         const response = await api.get(`/listings/${id}`);
-        return response.data;
+        return normalizeListing(response.data);
     },
 
     getRecommendations: async () => {
-        const response = await api.get('/recommendations/hybrid?count=4');
-        return response.data;
+        const response = await api.get('/recommendations/hybrid?count=4', { timeout: 8000 });
+        return normalizeListingCollection(response.data);
     }
 };
 

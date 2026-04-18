@@ -46,8 +46,9 @@ export const cardVariants = {
     }),
 };
 
-const ProductCard = ({ item, index = 0, compact = false }) => {
-    const [liked, setLiked] = useState(false);
+const ProductCard = ({ item, index = 0, compact = false, isFavorite = false, onToggleFavorite }) => {
+    const [likedFallback, setLikedFallback] = useState(false);
+    const liked = onToggleFavorite ? isFavorite : likedFallback;
     const badge = getConditionBadge(item.condition);
 
     return (
@@ -122,7 +123,17 @@ const ProductCard = ({ item, index = 0, compact = false }) => {
 
             {/* ── Heart button (outside Link to avoid nested interactive) ── */}
             <button
-                onClick={(e) => { e.stopPropagation(); setLiked((p) => !p); }}
+                onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    if (onToggleFavorite) {
+                        onToggleFavorite(item.id);
+                        return;
+                    }
+
+                    setLikedFallback((prev) => !prev);
+                }}
                 aria-label={liked ? 'Favorilerden çıkar' : 'Favorilere ekle'}
                 className="absolute top-3 right-3 p-1.5 bg-white/90 backdrop-blur-sm rounded-full shadow-sm z-10 transition-colors hover:bg-white"
             >

@@ -7,8 +7,9 @@ import {
     Gamepad2, Coffee, Bike, Sparkles,
     ChevronDown,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import listingService from '../services/listingService';
+import favoriteService from '../services/favoriteService';
 import ProductCard, { cardVariants } from '../components/ProductCard';
 
 /* ═══════════════════ MOCK DATA ═══════════════════════════════ */
@@ -249,8 +250,10 @@ const Home = () => {
     /* ── State ── */
     const [listings, setListings] = useState([]);
     const [aiRecommendations, setAiRecommendations] = useState([]);
+    const [favoriteIds, setFavoriteIds] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
+    const navigate = useNavigate();
 
     // Filters
     const [activeCategory, setActiveCategory] = useState('Tümü');
@@ -265,24 +268,86 @@ const Home = () => {
 
     /* ── Fetch ── */
     useEffect(() => {
-        (async () => {
+        let isMounted = true;
+
+        const loadListings = async () => {
             try {
                 const data = await listingService.getAllListings();
-                setListings(Array.isArray(data) ? data : []);
+                if (!isMounted) return;
 
-                // Token (kullanıcı girişi) varsa özel önerileri çek
-                if (localStorage.getItem('token')) {
-                    const recData = await listingService.getRecommendations();
-                    setAiRecommendations(Array.isArray(recData) ? recData : []);
-                }
+                setListings(Array.isArray(data) ? data : []);
             } catch (err) {
+                if (!isMounted) return;
+
                 console.error("Öneriler veya ilanlar alınamadı:", err);
                 setError('İlanlar yüklenirken sunucu ile iletişim kurulamadı.');
             } finally {
-                setIsLoading(false);
+                if (isMounted) {
+                    setIsLoading(false);
+                }
             }
-        })();
+        };
+
+        const loadRecommendations = async () => {
+            try {
+                const recData = await listingService.getRecommendations();
+                if (isMounted) {
+                    setAiRecommendations(Array.isArray(recData) ? recData : []);
+                }
+            } catch (err) {
+                console.error("Öneriler alınamadı, varsayılan kartlar gösterilecek:", err);
+            }
+        };
+
+        const loadFavorites = async () => {
+            try {
+                const favorites = await favoriteService.getFavorites();
+                if (isMounted) {
+                    setFavoriteIds(favorites.map((item) => item.id));
+                }
+            } catch (err) {
+                console.error("Favoriler alınamadı:", err);
+            }
+        };
+
+        loadListings();
+
+        if (localStorage.getItem('token')) {
+            loadRecommendations();
+            loadFavorites();
+        }
+
+        return () => {
+            isMounted = false;
+        };
     }, []);
+
+    const handleToggleFavorite = async (listingId) => {
+        if (!localStorage.getItem('token')) {
+            navigate('/login');
+            return;
+        }
+
+        const wasFavorite = favoriteIds.includes(listingId);
+
+        setFavoriteIds((prev) =>
+            wasFavorite ? prev.filter((id) => id !== listingId) : [...prev, listingId]
+        );
+
+        try {
+            if (wasFavorite) {
+                await favoriteService.removeFavorite(listingId);
+            } else {
+                await favoriteService.addFavorite(listingId);
+            }
+        } catch (err) {
+            console.error("Favori işlemi başarısız:", err);
+
+            setFavoriteIds((prev) =>
+                wasFavorite ? [...prev, listingId] : prev.filter((id) => id !== listingId)
+            );
+        }
+    };
 
     /* ── Derived data ── */
     const allListings = listings.length > 0 ? listings : MOCK_LISTINGS;
@@ -353,7 +418,13 @@ const Home = () => {
                     <div className="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-hide">
                         {(aiRecommendations.length > 0 ? aiRecommendations : AI_PICKS).map((item, i) => (
                             <div key={item.id} className="snap-start">
-                                <ProductCard item={item} index={i} compact />
+                                <ProductCard
+                                    item={item}
+                                    index={i}
+                                    compact
+                                    isFavorite={favoriteIds.includes(item.id)}
+                                    onToggleFavorite={handleToggleFavorite}
+                                />
                             </div>
                         ))}
                     </div>
@@ -439,7 +510,13 @@ const Home = () => {
                                 variants={{ visible: { transition: { staggerChildren: 0.08 } } }}
                             >
                                 {filtered.map((item, i) => (
-                                    <ProductCard key={item.id} item={item} index={i} />
+                                    <ProductCard
+                                        key={item.id}
+                                        item={item}
+                                        index={i}
+                                        isFavorite={favoriteIds.includes(item.id)}
+                                        onToggleFavorite={handleToggleFavorite}
+                                    />
                                 ))}
                             </motion.div>
                         )}
