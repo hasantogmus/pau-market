@@ -4,6 +4,7 @@ import { User, Mail, GraduationCap, Building2, ShieldCheck, CalendarDays, BarCha
 import { useAuth } from '../hooks/useAuth';
 import userService from '../services/userService';
 import dashboardService from '../services/dashboardService';
+import reviewService from '../services/reviewService';
 
 const metricCards = (dashboard) => [
     { label: 'Aktif İlan', value: dashboard?.totalActiveListings ?? 0, icon: Package },
@@ -24,14 +25,27 @@ const InfoRow = ({ icon: Icon, label, value }) => (
     </div>
 );
 
+const ReviewStars = ({ rating }) => (
+    <div className="flex items-center gap-1">
+        {[1, 2, 3, 4, 5].map((value) => (
+            <Star
+                key={value}
+                className={`w-4 h-4 ${value <= rating ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`}
+            />
+        ))}
+    </div>
+);
+
 const Profile = () => {
     const navigate = useNavigate();
     const { id } = useParams();
     const { isAuthenticated, user } = useAuth();
     const [profile, setProfile] = useState(null);
     const [dashboard, setDashboard] = useState(null);
+    const [reviewSummary, setReviewSummary] = useState(null);
     const [error, setError] = useState(null);
     const [dashboardError, setDashboardError] = useState(null);
+    const [reviewError, setReviewError] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const requestedUserId = id ? Number(id) : null;
     const isOwnProfile = !requestedUserId || Number(user?.id) === requestedUserId;
@@ -44,6 +58,7 @@ const Profile = () => {
 
         const load = async () => {
             try {
+                setReviewError(null);
                 if (isOwnProfile) {
                     const [profileResult, dashboardResult] = await Promise.allSettled([
                         userService.getCurrentUser(),
@@ -67,6 +82,16 @@ const Profile = () => {
                     setDashboard(null);
                     setDashboardError(null);
                 }
+
+                const targetUserId = isOwnProfile ? (user?.id ?? requestedUserId) : requestedUserId;
+                if (targetUserId) {
+                    try {
+                        const reviews = await reviewService.getUserReviews(targetUserId);
+                        setReviewSummary(reviews);
+                    } catch (reviewErr) {
+                        setReviewError(reviewErr.response?.data?.error || 'Değerlendirmeler şu anda getirilemedi.');
+                    }
+                }
             } catch (err) {
                 setError(err.response?.data?.error || 'Profil bilgileri yüklenemedi.');
             } finally {
@@ -75,7 +100,7 @@ const Profile = () => {
         };
 
         load();
-    }, [isAuthenticated, isOwnProfile, requestedUserId]);
+    }, [isAuthenticated, isOwnProfile, requestedUserId, user?.id]);
 
     if (!isAuthenticated) {
         return (
@@ -109,6 +134,8 @@ const Profile = () => {
         isEmailVerified: profile?.isEmailVerified ?? false,
         createdAt: profile?.createdAt,
     };
+    const averageRating = reviewSummary?.averageRating ?? 0;
+    const totalReviews = reviewSummary?.totalReviews ?? 0;
 
     const joinedAt = effectiveProfile.createdAt
         ? new Date(effectiveProfile.createdAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -131,7 +158,7 @@ const Profile = () => {
                                 </span>
                             )}
                         </div>
-                        <p className="text-gray-600 font-medium">{effectiveProfile.email}</p>
+                        {effectiveProfile.email && <p className="text-gray-600 font-medium">{effectiveProfile.email}</p>}
                     </div>
                     <div className="flex flex-wrap gap-3 sm:justify-end">
                         {isOwnProfile ? (
@@ -179,6 +206,12 @@ const Profile = () => {
                 </div>
             )}
 
+            {reviewError && (
+                <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl px-4 py-3 text-sm font-medium">
+                    {reviewError}
+                </div>
+            )}
+
             <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
                     <h2 className="text-lg font-bold text-gray-900 mb-4">Hesap Bilgileri</h2>
@@ -202,6 +235,60 @@ const Profile = () => {
                         </>
                     ) : (
                         <InfoRow icon={ShieldCheck} label="Hesap Durumu" value={effectiveProfile.isEmailVerified ? 'Doğrulanmış PAÜ hesabı' : 'Henüz doğrulanmamış'} />
+                    )}
+                </div>
+            </section>
+
+            <section className="grid grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)] gap-6">
+                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
+                    <h2 className="text-lg font-bold text-gray-900 mb-4">Satıcı Puanı</h2>
+                    <div className="flex items-end gap-3 mb-3">
+                        <p className="text-4xl font-black text-gray-900">{averageRating.toFixed(1)}</p>
+                        <p className="text-sm text-gray-400 pb-1">/ 5</p>
+                    </div>
+                    <ReviewStars rating={Math.round(averageRating)} />
+                    <p className="text-sm text-gray-500 mt-3">
+                        {totalReviews > 0
+                            ? `${totalReviews} değerlendirme ile oluşan satıcı puanı`
+                            : 'Henüz değerlendirme yok'}
+                    </p>
+                </div>
+
+                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
+                    <div className="flex items-center justify-between gap-3 mb-5">
+                        <h2 className="text-lg font-bold text-gray-900">Yorumlar</h2>
+                        <span className="text-sm font-semibold text-gray-400">{totalReviews} kayıt</span>
+                    </div>
+
+                    {reviewSummary?.reviews?.length ? (
+                        <div className="space-y-4">
+                            {reviewSummary.reviews.map((review) => (
+                                <article key={review.id} className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-4">
+                                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
+                                        <div>
+                                            <p className="text-sm font-bold text-gray-900">{review.reviewerName}</p>
+                                            <p className="text-xs text-gray-400">
+                                                {new Date(review.createdAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                            </p>
+                                        </div>
+                                        <ReviewStars rating={review.rating} />
+                                    </div>
+                                    <p className="text-sm leading-6 text-gray-600">
+                                        {review.comment?.trim() || 'Yıldız puanı bırakıldı, ek yorum paylaşılmadı.'}
+                                    </p>
+                                </article>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-5 py-10 text-center">
+                            <Star className="w-8 h-8 text-amber-400 mx-auto mb-3" />
+                            <p className="text-sm font-semibold text-gray-700">Henüz yorum yok</p>
+                            <p className="text-sm text-gray-500 mt-1">
+                                {isOwnProfile
+                                    ? 'İlk değerlendirmeler geldikçe burada listelenecek.'
+                                    : 'Bu kullanıcı için henüz değerlendirme bırakılmamış.'}
+                            </p>
+                        </div>
                     )}
                 </div>
             </section>
