@@ -165,6 +165,7 @@ const ListingDetail = () => {
     const reviewCount = reviewSummary?.totalReviews ?? 0;
     const averageRating = reviewSummary?.averageRating ?? 0;
     const isOwnListing = Number(user?.id) === Number(listing.userId);
+    const canReviewSeller = isAuthenticated && listing.isSold && Number(listing.soldToUserId) === Number(user?.id) && !isOwnListing;
     const existingReview = reviewSummary?.reviews?.find(
         (review) => Number(review.reviewerId) === Number(user?.id) && Number(review.listingId) === Number(listing.id)
     );
@@ -382,7 +383,7 @@ const ListingDetail = () => {
 
                                 <button
                                     type="button"
-                                    disabled={!isAuthenticated || isOwnListing || !!existingReview}
+                                    disabled={!canReviewSeller || !!existingReview}
                                     onClick={() => {
                                         setReviewError(null);
                                         setIsReviewModalOpen(true);
@@ -399,10 +400,12 @@ const ListingDetail = () => {
                                     : isOwnListing
                                         ? 'Kendi ilanına değerlendirme bırakamazsın.'
                                         : existingReview
-                                            ? 'Bu ilan için satıcıyı zaten değerlendirdin.'
-                                            : listing.isSold
-                                                ? 'Satılmış ilan için mesaj başlatılamaz; yine de değerlendirme bırakabilirsin.'
-                                                : 'Mesajlaşabilir ve deneyimini yıldızla puanlayabilirsin.'}
+                                            ? 'Bu alışveriş için satıcıyı zaten değerlendirdin.'
+                                            : !listing.isSold
+                                                ? 'Değerlendirme yalnızca tamamlanan alışverişlerden sonra açılır.'
+                                                : Number(listing.soldToUserId) !== Number(user?.id)
+                                                    ? 'Bu satıcıyı sadece ürünü satın alan kullanıcı değerlendirebilir.'
+                                                    : 'Alışveriş tamamlandıysa satıcı deneyimini puanlayabilirsin.'}
                             </p>
                         </motion.div>
 

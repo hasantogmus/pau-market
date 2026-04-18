@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { BadgeCheck, CheckCircle2, Package, Pencil, PlusCircle, Power, Tag, Trash2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import listingService from '../services/listingService';
+import messageService from '../services/messageService';
 
 const CATEGORIES = ['Elektronik', 'Ders Kitabı', 'Ev Eşyası', 'Giyim', 'Hobi', 'Not / Özet', 'Spor', 'Müzik Aletleri', 'Diğer'];
 const CONDITIONS = ['Sıfır', 'Az Kullanılmış', 'Çok Kullanılmış'];
@@ -43,6 +44,10 @@ const MyListings = () => {
     const [editForm, setEditForm] = useState(null);
     const [savingListingId, setSavingListingId] = useState(null);
     const [deletingListingId, setDeletingListingId] = useState(null);
+    const [saleModalListing, setSaleModalListing] = useState(null);
+    const [saleCandidates, setSaleCandidates] = useState([]);
+    const [selectedBuyerId, setSelectedBuyerId] = useState(null);
+    const [isLoadingSaleCandidates, setIsLoadingSaleCandidates] = useState(false);
 
     useEffect(() => {
         if (!isAuthenticated) {
@@ -143,13 +148,14 @@ const MyListings = () => {
         }
     };
 
-    const handleToggleSold = async (listing) => {
+    const applySaleStatusChange = async (listing, soldToUserId = null) => {
         setSavingListingId(listing.id);
         setFeedback(null);
 
         try {
             const updatedListing = await listingService.updateSaleStatus(listing.id, {
                 isSold: !listing.isSold,
+                soldToUserId,
             });
 
             updateListingInState(updatedListing);
@@ -162,6 +168,54 @@ const MyListings = () => {
         } finally {
             setSavingListingId(null);
         }
+    };
+
+    const closeSaleModal = () => {
+        setSaleModalListing(null);
+        setSaleCandidates([]);
+        setSelectedBuyerId(null);
+    };
+
+    const handleToggleSold = async (listing) => {
+        if (listing.isSold) {
+            await applySaleStatusChange(listing, null);
+            return;
+        }
+
+        setSaleModalListing(listing);
+        setSelectedBuyerId(null);
+        setSaleCandidates([]);
+        setIsLoadingSaleCandidates(true);
+
+        try {
+            const threads = await messageService.getThreads();
+            const candidates = threads
+                .filter((thread) => Number(thread.listingId) === Number(listing.id))
+                .map((thread) => ({
+                    userId: thread.otherUserId,
+                    name: thread.otherUserName,
+                    lastMessageAt: thread.lastMessageAt,
+                    lastMessage: thread.lastMessage,
+                }))
+                .filter((candidate, index, array) => array.findIndex((item) => item.userId === candidate.userId) === index);
+
+            setSaleCandidates(candidates);
+            if (candidates.length === 1) {
+                setSelectedBuyerId(candidates[0].userId);
+            }
+        } catch (err) {
+            setFeedback({ type: 'error', text: err.response?.data?.error || 'Alıcı listesi yüklenemedi.' });
+            setSaleModalListing(null);
+        } finally {
+            setIsLoadingSaleCandidates(false);
+        }
+    };
+
+    const confirmSoldStatus = async () => {
+        if (!saleModalListing) return;
+
+        await applySaleStatusChange(saleModalListing, selectedBuyerId);
+        closeSaleModal();
     };
 
     const openListingDetail = (listingId) => {
@@ -399,6 +453,82 @@ const MyListings = () => {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {saleModalListing && (
+                <div className="fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
+                        <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between gap-4">
+                            <div>
+                                <h3 className="text-xl font-extrabold text-gray-900">Alışverişi Tamamla</h3>
+                                <p className="text-sm text-gray-500 mt-1">
+                                    Bu ilanı satıldı yaparken alıcıyı seçersen yalnızca o kullanıcı satıcı değerlendirmesi bırakabilir.
+                                </p>
+                            </div>
+                            <button type="button" onClick={closeSaleModal} className="text-sm font-semibold text-gray-500 hover:text-gray-800 transition-colors">
+                                Kapat
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-5">
+                            <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3">
+                                <p className="text-sm font-semibold text-blue-900">{saleModalListing.title}</p>
+                                <p className="text-xs text-blue-700 mt-1">Alıcı seçimi, sahte değerlendirme bırakılmasını önler.</p>
+                            </div>
+
+                            {isLoadingSaleCandidates ? (
+                                <div className="text-center text-gray-500 py-10">Mesajlaşan kullanıcılar yükleniyor...</div>
+                            ) : saleCandidates.length > 0 ? (
+                                <div className="space-y-3">
+                                    <p className="text-sm font-semibold text-gray-700">Bu ilanla ilgilenen kullanıcılar</p>
+                                    {saleCandidates.map((candidate) => (
+                                        <button
+                                            key={candidate.userId}
+                                            type="button"
+                                            onClick={() => setSelectedBuyerId(candidate.userId)}
+                                            className={`w-full text-left rounded-2xl border px-4 py-4 transition-colors ${
+                                                selectedBuyerId === candidate.userId
+                                                    ? 'border-blue-300 bg-blue-50'
+                                                    : 'border-gray-200 hover:bg-gray-50'
+                                            }`}
+                                        >
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div>
+                                                    <p className="text-sm font-bold text-gray-900">{candidate.name}</p>
+                                                    <p className="text-sm text-gray-500 mt-1 line-clamp-1">{candidate.lastMessage}</p>
+                                                </div>
+                                                <span className="text-xs text-gray-400 whitespace-nowrap">
+                                                    {new Date(candidate.lastMessageAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}
+                                                </span>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-5 py-8 text-center">
+                                    <p className="text-sm font-semibold text-gray-700">Bu ilan için kayıtlı alıcı bulunamadı</p>
+                                    <p className="text-sm text-gray-500 mt-2">
+                                        Mesajlaşma geçmişinden bir alıcı seçilmediği için satıcı değerlendirmesi de açılmayacak.
+                                    </p>
+                                </div>
+                            )}
+
+                            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+                                <button type="button" onClick={closeSaleModal} className="px-5 py-3 rounded-2xl border border-gray-200 text-gray-700 font-semibold hover:bg-gray-50 transition-colors">
+                                    Vazgeç
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={confirmSoldStatus}
+                                    disabled={isLoadingSaleCandidates || savingListingId === saleModalListing.id || (saleCandidates.length > 0 && !selectedBuyerId)}
+                                    className="px-5 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold transition-colors disabled:opacity-60"
+                                >
+                                    {savingListingId === saleModalListing.id ? 'Kaydediliyor...' : 'Satışı Tamamla'}
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}

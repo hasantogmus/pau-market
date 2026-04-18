@@ -10,8 +10,9 @@ public class CreateReviewDto
     [Required(ErrorMessage = "Değerlendirilecek kullanıcı (TargetUserId) zorunludur.")]
     public required int TargetUserId { get; set; }
 
-    /// <summary>İsteğe bağlı: Hangi ilan referans alınarak yapıldı?</summary>
-    public int? ListingId { get; set; }
+    /// <summary>Değerlendirmenin bağlı olduğu satın alma ilanı.</summary>
+    [Required(ErrorMessage = "Değerlendirme için satın alınan ilan bilgisi zorunludur.")]
+    public required int ListingId { get; set; }
 
     [Required(ErrorMessage = "Puan zorunludur.")]
     [Range(1, 5, ErrorMessage = "Puan 1 ile 5 arasında olmalıdır.")]

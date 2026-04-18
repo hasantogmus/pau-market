@@ -18,17 +18,33 @@ public class ReviewService(PauMarketDbContext db) : IReviewService
         if (!targetUserExists)
             throw new InvalidOperationException("Değerlendirilmek istenen satıcı bulunamadı.");
 
-        // Kural 2: Aynı ilandan dolayı aynı kişiye birden fazla yorum yapılamaz
-        if (dto.ListingId.HasValue)
-        {
-            bool alreadyReviewed = await db.Reviews.AnyAsync(r => 
-                r.ReviewerId == reviewerId && 
-                r.TargetUserId == dto.TargetUserId && 
-                r.ListingId == dto.ListingId.Value);
+        var listing = await db.Listings
+            .AsNoTracking()
+            .FirstOrDefaultAsync(item => item.Id == dto.ListingId);
 
-            if (alreadyReviewed)
-                throw new InvalidOperationException("Bu ilan için bu satıcıya zaten bir değerlendirme yaptınız.");
-        }
+        if (listing is null)
+            throw new InvalidOperationException("Değerlendirilecek alışveriş ilanı bulunamadı.");
+
+        if (listing.UserId != dto.TargetUserId)
+            throw new InvalidOperationException("Bu ilan seçilen satıcıya ait değil.");
+
+        bool completedPurchase = listing.IsSold &&
+                                 (listing.SoldToUserId == reviewerId || await db.Interactions.AnyAsync(interaction =>
+                                     interaction.UserId == reviewerId &&
+                                     interaction.ListingId == listing.Id &&
+                                     interaction.InteractionType == InteractionType.Purchase));
+
+        if (!completedPurchase)
+            throw new InvalidOperationException("Satıcıyı değerlendirebilmek için önce bu ilandan alışveriş yapmış olmanız gerekir.");
+
+        // Kural 2: Aynı ilandan dolayı aynı kişiye birden fazla yorum yapılamaz
+        bool alreadyReviewed = await db.Reviews.AnyAsync(r =>
+            r.ReviewerId == reviewerId &&
+            r.TargetUserId == dto.TargetUserId &&
+            r.ListingId == dto.ListingId);
+
+        if (alreadyReviewed)
+            throw new InvalidOperationException("Bu alışveriş için bu satıcıya zaten bir değerlendirme yaptınız.");
 
         var review = new Review
         {
