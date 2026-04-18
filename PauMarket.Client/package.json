@@ -10,7 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "axios": "^1.13.6",
+    "axios": "^1.15.0",
     "framer-motion": "^12.34.3",
     "jwt-decode": "^4.0.0",
     "lucide-react": "^0.575.0",
@@ -33,6 +33,9 @@
     "globals": "^16.5.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.2.1",
-    "vite": "^7.3.1"
+    "vite": "^7.3.2"
+  },
+  "overrides": {
+    "follow-redirects": "^1.16.0"
   }
 }
