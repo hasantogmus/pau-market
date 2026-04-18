@@ -16,6 +16,22 @@ namespace PauMarket.API.Controllers;
 public class MessagesController(IMessageService messageService) : ControllerBase
 {
     /// <summary>
+    /// Giriş yapan kullanıcının konuşma özetlerini getirir.
+    /// </summary>
+    [HttpGet("threads")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<IEnumerable<MessageThreadDto>>> GetThreads()
+    {
+        int? currentUserId = User.GetUserId();
+        if (currentUserId is null)
+            return Unauthorized(new { error = "Geçersiz token." });
+
+        var threads = await messageService.GetInboxAsync(currentUserId.Value);
+        return Ok(threads);
+    }
+
+    /// <summary>
     /// Yeni bir mesaj gönderir.
     /// SenderId token'dan otomatik alınır.
     /// </summary>

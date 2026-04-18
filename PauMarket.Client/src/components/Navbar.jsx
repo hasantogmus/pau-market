@@ -5,6 +5,7 @@ import {
     Search,
     PlusCircle,
     Bell,
+    MessageCircle,
     User,
     Menu,
     X,
@@ -195,6 +196,16 @@ const Navbar = () => {
                             <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white" />
                         </motion.button>
 
+                        {isAuthenticated && (
+                            <Link
+                                to="/messages"
+                                className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-semibold text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                            >
+                                <MessageCircle className="w-4 h-4" />
+                                Mesajlar
+                            </Link>
+                        )}
+
                         {/* Profile / Auth */}
                         {isAuthenticated ? (
                             <div ref={profileRef} className="relative">
@@ -244,6 +255,7 @@ const Navbar = () => {
 
                                             {/* Menu items */}
                                             <div className="py-1.5">
+                                                <DropdownItem to="/messages" icon={<MessageCircle className="w-4 h-4" />} label="Mesajlar" onClick={() => setProfileOpen(false)} />
                                                 <DropdownItem to="/profile" icon={<User className="w-4 h-4" />} label="Profilim" onClick={() => setProfileOpen(false)} />
                                                 <DropdownItem to="/my-listings" icon={<Package className="w-4 h-4" />} label="İlanlarım" onClick={() => setProfileOpen(false)} />
                                                 <DropdownItem to="/settings" icon={<Settings className="w-4 h-4" />} label="Ayarlar" onClick={() => setProfileOpen(false)} />
@@ -382,6 +394,7 @@ const Navbar = () => {
                                                 <p className="text-xs text-gray-500 truncate">{user?.email}</p>
                                             </div>
                                         </div>
+                                        <MobileNavLink to="/messages" icon={<MessageCircle className="w-5 h-5" />} label="Mesajlar" onClick={() => setMobileOpen(false)} />
                                         <MobileNavLink to="/profile" icon={<User className="w-5 h-5" />} label="Profilim" onClick={() => setMobileOpen(false)} />
                                         <MobileNavLink to="/my-listings" icon={<Package className="w-5 h-5" />} label="İlanlarım" onClick={() => setMobileOpen(false)} />
                                         <MobileNavLink to="/settings" icon={<Settings className="w-5 h-5" />} label="Ayarlar" onClick={() => setMobileOpen(false)} />
