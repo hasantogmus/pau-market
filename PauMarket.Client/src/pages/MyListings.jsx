@@ -1,15 +1,47 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Package, PlusCircle } from 'lucide-react';
+import { BadgeCheck, Eye, Package, Pencil, PlusCircle, Power, Tag, Trash2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import listingService from '../services/listingService';
-import ProductCard from '../components/ProductCard';
+
+const CATEGORIES = ['Elektronik', 'Ders Kitabı', 'Ev Eşyası', 'Giyim', 'Hobi', 'Not / Özet', 'Spor', 'Müzik Aletleri', 'Diğer'];
+const CONDITIONS = ['Sıfır', 'Az Kullanılmış', 'Çok Kullanılmış'];
+
+const currency = (value) =>
+    new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 }).format(value || 0);
+
+const formatDate = (value) =>
+    new Date(value).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' });
+
+const createEditForm = (listing) => ({
+    title: listing.title || '',
+    description: listing.description || '',
+    price: listing.price ?? '',
+    category: listing.category || '',
+    condition: listing.condition || '',
+    isActive: listing.isActive ?? true,
+});
+
+const SummaryCard = ({ icon: Icon, label, value, tone }) => (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <div className={`w-11 h-11 rounded-2xl flex items-center justify-center mb-4 ${tone}`}>
+            <Icon className="w-5 h-5" />
+        </div>
+        <p className="text-sm text-gray-500 font-medium">{label}</p>
+        <p className="text-2xl font-extrabold text-gray-900 mt-1">{value}</p>
+    </div>
+);
 
 const MyListings = () => {
     const { isAuthenticated } = useAuth();
     const [listings, setListings] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [feedback, setFeedback] = useState(null);
+    const [editingListing, setEditingListing] = useState(null);
+    const [editForm, setEditForm] = useState(null);
+    const [savingListingId, setSavingListingId] = useState(null);
+    const [deletingListingId, setDeletingListingId] = useState(null);
 
     useEffect(() => {
         if (!isAuthenticated) {
@@ -31,12 +63,114 @@ const MyListings = () => {
         load();
     }, [isAuthenticated]);
 
+    const summary = useMemo(() => {
+        const activeCount = listings.filter((item) => item.isActive).length;
+        const inactiveCount = listings.length - activeCount;
+        const totalValue = listings.reduce((sum, item) => sum + Number(item.price || 0), 0);
+
+        return { activeCount, inactiveCount, totalValue };
+    }, [listings]);
+
+    const openEditModal = (listing) => {
+        setFeedback(null);
+        setEditingListing(listing);
+        setEditForm(createEditForm(listing));
+    };
+
+    const closeEditModal = () => {
+        setEditingListing(null);
+        setEditForm(null);
+    };
+
+    const updateListingInState = (updatedListing) => {
+        setListings((prev) => prev.map((item) => (item.id === updatedListing.id ? updatedListing : item)));
+    };
+
+    const handleEditChange = (event) => {
+        const { name, value, type, checked } = event.target;
+        setEditForm((prev) => ({
+            ...prev,
+            [name]: type === 'checkbox' ? checked : value,
+        }));
+    };
+
+    const handleSaveEdit = async (event) => {
+        event.preventDefault();
+        if (!editingListing || !editForm) return;
+
+        setSavingListingId(editingListing.id);
+        setFeedback(null);
+
+        try {
+            const updatedListing = await listingService.updateListing(editingListing.id, {
+                title: editForm.title,
+                description: editForm.description,
+                price: Number(editForm.price),
+                category: editForm.category,
+                condition: editForm.condition,
+                isActive: editForm.isActive,
+            });
+
+            updateListingInState(updatedListing);
+            setFeedback({ type: 'success', text: 'İlan başarıyla güncellendi.' });
+            closeEditModal();
+        } catch (err) {
+            setFeedback({ type: 'error', text: err.response?.data?.error || 'İlan güncellenemedi.' });
+        } finally {
+            setSavingListingId(null);
+        }
+    };
+
+    const handleToggleActive = async (listing) => {
+        setSavingListingId(listing.id);
+        setFeedback(null);
+
+        try {
+            const updatedListing = await listingService.updateListing(listing.id, {
+                title: listing.title,
+                description: listing.description,
+                price: Number(listing.price),
+                category: listing.category,
+                condition: listing.condition,
+                isActive: !listing.isActive,
+            });
+
+            updateListingInState(updatedListing);
+            setFeedback({
+                type: 'success',
+                text: updatedListing.isActive ? 'İlan yeniden yayına alındı.' : 'İlan yayından kaldırıldı.',
+            });
+        } catch (err) {
+            setFeedback({ type: 'error', text: err.response?.data?.error || 'İlan durumu güncellenemedi.' });
+        } finally {
+            setSavingListingId(null);
+        }
+    };
+
+    const handleDelete = async (listing) => {
+        const confirmed = window.confirm(`"${listing.title}" ilanını silmek istediğine emin misin? Bu işlem geri alınamaz.`);
+        if (!confirmed) return;
+
+        setDeletingListingId(listing.id);
+        setFeedback(null);
+
+        try {
+            await listingService.deleteListing(listing.id);
+            setListings((prev) => prev.filter((item) => item.id !== listing.id));
+            setFeedback({ type: 'success', text: 'İlan başarıyla silindi.' });
+        } catch (err) {
+            setFeedback({ type: 'error', text: err.response?.data?.error || 'İlan silinemedi.' });
+        } finally {
+            setDeletingListingId(null);
+        }
+    };
+
     if (!isAuthenticated) {
         return (
             <div className="min-h-[70vh] flex items-center justify-center px-4">
                 <div className="text-center max-w-lg bg-white rounded-3xl border border-gray-100 shadow-sm p-8">
-                    <h1 className="text-2xl font-extrabold text-gray-900 mb-3">İlanlarını görmek için giriş yap</h1>
-                    <p className="text-gray-600 mb-6">Kendi ilanların yalnızca hesabınla giriş yaptığında görüntülenebilir.</p>
+                    <h1 className="text-2xl font-extrabold text-gray-900 mb-3">İlanlarını yönetmek için giriş yap</h1>
+                    <p className="text-gray-600 mb-6">Kendi ilanların ve yönetim araçları yalnızca hesabınla giriş yaptığında görüntülenebilir.</p>
                     <Link to="/login" className="inline-flex items-center justify-center px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-2xl transition-colors">
                         Giriş Yap
                     </Link>
@@ -46,42 +180,204 @@ const MyListings = () => {
     }
 
     return (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-                <div>
-                    <h1 className="text-3xl font-extrabold tracking-tight text-gray-900">İlanlarım</h1>
-                    <p className="text-gray-500 mt-1">Kendi hesabına bağlı ilanları burada görebilirsin.</p>
-                </div>
-                <Link to="/listings/new" className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-2xl transition-colors">
-                    <PlusCircle className="w-4 h-4" />
-                    Yeni İlan Ver
-                </Link>
-            </div>
-
-            {isLoading ? (
-                <div className="text-center text-gray-500 py-20">İlanların yükleniyor...</div>
-            ) : error ? (
-                <div className="text-center text-red-600 py-20">{error}</div>
-            ) : listings.length === 0 ? (
-                <div className="bg-white rounded-3xl border border-dashed border-gray-200 shadow-sm p-10 text-center">
-                    <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-5">
-                        <Package className="w-8 h-8" />
+        <>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+                <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5 mb-8">
+                    <div>
+                        <h1 className="text-3xl font-extrabold tracking-tight text-gray-900">İlan Yönetimi</h1>
+                        <p className="text-gray-500 mt-1">İlanlarını düzenle, yayından kaldır, tekrar yayınla ve performansını hızlıca takip et.</p>
                     </div>
-                    <h2 className="text-xl font-bold text-gray-900 mb-2">Henüz ilanın yok</h2>
-                    <p className="text-gray-500 mb-6">İlk ilanını ekleyerek PauMarket vitrininde görünmeye başlayabilirsin.</p>
                     <Link to="/listings/new" className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-2xl transition-colors">
                         <PlusCircle className="w-4 h-4" />
-                        İlk İlanımı Oluştur
+                        Yeni İlan Ver
                     </Link>
                 </div>
-            ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {listings.map((item, index) => (
-                        <ProductCard key={item.id} item={item} index={index} />
-                    ))}
+
+                <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
+                    <SummaryCard icon={Package} label="Toplam İlan" value={listings.length} tone="bg-blue-50 text-blue-600" />
+                    <SummaryCard icon={BadgeCheck} label="Yayındaki İlan" value={summary.activeCount} tone="bg-green-50 text-green-600" />
+                    <SummaryCard icon={Power} label="Pasif İlan" value={summary.inactiveCount} tone="bg-amber-50 text-amber-600" />
+                    <SummaryCard icon={Tag} label="Toplam Portföy Değeri" value={currency(summary.totalValue)} tone="bg-indigo-50 text-indigo-600" />
+                </section>
+
+                {feedback && (
+                    <div className={`mb-6 rounded-2xl border px-4 py-3 text-sm font-medium ${feedback.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-700'}`}>
+                        {feedback.text}
+                    </div>
+                )}
+
+                {isLoading ? (
+                    <div className="text-center text-gray-500 py-20">İlanların yükleniyor...</div>
+                ) : error ? (
+                    <div className="text-center text-red-600 py-20">{error}</div>
+                ) : listings.length === 0 ? (
+                    <div className="bg-white rounded-3xl border border-dashed border-gray-200 shadow-sm p-10 text-center">
+                        <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-5">
+                            <Package className="w-8 h-8" />
+                        </div>
+                        <h2 className="text-xl font-bold text-gray-900 mb-2">Henüz ilanın yok</h2>
+                        <p className="text-gray-500 mb-6">İlk ilanını ekleyerek PauMarket vitrininde görünmeye başlayabilirsin.</p>
+                        <Link to="/listings/new" className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-2xl transition-colors">
+                            <PlusCircle className="w-4 h-4" />
+                            İlk İlanımı Oluştur
+                        </Link>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                        {listings.map((listing) => {
+                            const isBusy = savingListingId === listing.id || deletingListingId === listing.id;
+
+                            return (
+                                <article key={listing.id} className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+                                    <div className="grid grid-cols-1 md:grid-cols-[220px_minmax(0,1fr)]">
+                                        <div className="aspect-[4/3] md:aspect-auto bg-gray-100">
+                                            {listing.imageUrl ? (
+                                                <img src={listing.imageUrl} alt={listing.title} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center text-gray-400 font-bold">Görsel Yok</div>
+                                            )}
+                                        </div>
+
+                                        <div className="p-6 flex flex-col">
+                                            <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+                                                <div className="min-w-0">
+                                                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                                                        <span className={`inline-flex px-3 py-1 rounded-full text-xs font-bold border ${listing.isActive ? 'bg-green-50 text-green-700 border-green-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                                                            {listing.isActive ? 'Yayında' : 'Pasif'}
+                                                        </span>
+                                                        <span className="inline-flex px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                                                            {listing.category}
+                                                        </span>
+                                                    </div>
+                                                    <h2 className="text-xl font-extrabold text-gray-900 truncate">{listing.title}</h2>
+                                                    <p className="text-sm text-gray-500 mt-1">{formatDate(listing.createdAt)} tarihinde oluşturuldu</p>
+                                                </div>
+                                                <p className="text-2xl font-black text-blue-600 shrink-0">{currency(listing.price)}</p>
+                                            </div>
+
+                                            <p className="text-sm text-gray-600 leading-6 mb-4 min-h-[3rem]">
+                                                {listing.description?.trim() || 'Bu ilan için henüz açıklama eklenmemiş.'}
+                                            </p>
+
+                                            <div className="flex flex-wrap items-center gap-2 mb-6 text-xs font-semibold text-gray-500">
+                                                <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-700">{listing.condition}</span>
+                                                <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-700">İlan No: #{listing.id}</span>
+                                            </div>
+
+                                            <div className="mt-auto grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                                <Link
+                                                    to={`/listings/${listing.id}`}
+                                                    className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors text-sm font-semibold"
+                                                >
+                                                    <Eye className="w-4 h-4" />
+                                                    Görüntüle
+                                                </Link>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => openEditModal(listing)}
+                                                    disabled={isBusy}
+                                                    className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border border-blue-200 text-blue-700 hover:bg-blue-50 transition-colors text-sm font-semibold disabled:opacity-60"
+                                                >
+                                                    <Pencil className="w-4 h-4" />
+                                                    Düzenle
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleToggleActive(listing)}
+                                                    disabled={isBusy}
+                                                    className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border border-amber-200 text-amber-700 hover:bg-amber-50 transition-colors text-sm font-semibold disabled:opacity-60"
+                                                >
+                                                    <Power className="w-4 h-4" />
+                                                    {savingListingId === listing.id ? 'Kaydediliyor...' : listing.isActive ? 'Pasife Al' : 'Yayına Al'}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleDelete(listing)}
+                                                    disabled={isBusy}
+                                                    className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border border-red-200 text-red-600 hover:bg-red-50 transition-colors text-sm font-semibold disabled:opacity-60"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                    {deletingListingId === listing.id ? 'Siliniyor...' : 'Sil'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </article>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+
+            {editingListing && editForm && (
+                <div className="fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
+                        <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between gap-4">
+                            <div>
+                                <h3 className="text-xl font-extrabold text-gray-900">İlanı Düzenle</h3>
+                                <p className="text-sm text-gray-500 mt-1">Kapak görseli sabit kalır; metin, fiyat ve yayın durumu güncellenir.</p>
+                            </div>
+                            <button type="button" onClick={closeEditModal} className="text-sm font-semibold text-gray-500 hover:text-gray-800 transition-colors">
+                                Kapat
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleSaveEdit} className="p-6 space-y-5">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div className="md:col-span-2">
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="listing-title">Başlık</label>
+                                    <input id="listing-title" name="title" value={editForm.title} onChange={handleEditChange} className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400" required />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="listing-price">Fiyat</label>
+                                    <input id="listing-price" name="price" type="number" min="0" step="0.01" value={editForm.price} onChange={handleEditChange} className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400" required />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="listing-condition">Durum</label>
+                                    <select id="listing-condition" name="condition" value={editForm.condition} onChange={handleEditChange} className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400" required>
+                                        <option value="">Durum seç</option>
+                                        {CONDITIONS.map((item) => (
+                                            <option key={item} value={item}>{item}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div className="md:col-span-2">
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="listing-category">Kategori</label>
+                                    <select id="listing-category" name="category" value={editForm.category} onChange={handleEditChange} className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400" required>
+                                        <option value="">Kategori seç</option>
+                                        {CATEGORIES.map((item) => (
+                                            <option key={item} value={item}>{item}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div className="md:col-span-2">
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="listing-description">Açıklama</label>
+                                    <textarea id="listing-description" name="description" rows={5} value={editForm.description} onChange={handleEditChange} className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 resize-none" />
+                                </div>
+                            </div>
+
+                            <label className="inline-flex items-center gap-3 px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 cursor-pointer">
+                                <input type="checkbox" name="isActive" checked={editForm.isActive} onChange={handleEditChange} className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                                <span className="text-sm font-semibold text-gray-700">İlan yayında kalsın</span>
+                            </label>
+
+                            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+                                <button type="button" onClick={closeEditModal} className="px-5 py-3 rounded-2xl border border-gray-200 text-gray-700 font-semibold hover:bg-gray-50 transition-colors">
+                                    Vazgeç
+                                </button>
+                                <button type="submit" disabled={savingListingId === editingListing.id} className="px-5 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-colors disabled:opacity-60">
+                                    {savingListingId === editingListing.id ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             )}
-        </div>
+        </>
     );
 };
 

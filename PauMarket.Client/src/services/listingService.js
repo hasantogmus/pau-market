@@ -56,6 +56,15 @@ const listingService = {
         return normalizeListingCollection(response.data);
     },
 
+    updateListing: async (id, payload) => {
+        const response = await api.put(`/listings/${id}`, payload);
+        return normalizeListing(response.data);
+    },
+
+    deleteListing: async (id) => {
+        await api.delete(`/listings/${id}`);
+    },
+
     getRecommendations: async () => {
         const response = await api.get('/recommendations/hybrid?count=4', { timeout: 8000 });
         return normalizeListingCollection(response.data);

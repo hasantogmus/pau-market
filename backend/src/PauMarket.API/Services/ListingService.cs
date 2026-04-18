@@ -134,7 +134,7 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
         listing.Price       = dto.Price;
         listing.Category    = dto.Category;
         listing.Condition   = dto.Condition;
-        listing.IsActive    = listing.IsActive;
+        listing.IsActive    = dto.IsActive;
 
         await context.SaveChangesAsync();
 

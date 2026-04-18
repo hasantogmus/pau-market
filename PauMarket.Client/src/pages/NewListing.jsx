@@ -262,7 +262,7 @@ const NewListing = () => {
                 imageFiles:  images.map(i => i.file),
             });
             triggerToast('success', 'Harika! İlanın yayınlandı 🚀');
-            setTimeout(() => navigate('/'), 2500);
+            setTimeout(() => navigate('/my-listings'), 2200);
         } catch (err) {
             let msg = 'İlan yayınlanırken bir hata oluştu.';
             if (err.response?.data?.error)   msg = err.response.data.error;
