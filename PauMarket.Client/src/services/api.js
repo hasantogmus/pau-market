@@ -1,8 +1,10 @@
 import axios from 'axios';
 
-// Backend (http://localhost:5251/api) için temel axios örneği
+const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5251/api';
+
+// Backend için temel axios örneği
 const api = axios.create({
-  baseURL: 'http://localhost:5251/api',
+  baseURL,
   headers: {
     'Content-Type': 'application/json',
   },

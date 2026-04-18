@@ -1,0 +1,66 @@
+services:
+  paumarket-sql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: paumarket-sql
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=PauMarket2026!
+      # Enable Turkish collation if needed, but default is usually fine
+    ports:
+      - "1433:1433"
+    volumes:
+      - sql_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD", "/opt/mssql-tools/bin/sqlcmd", "-U", "sa", "-P", "PauMarket2026!", "-Q", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  recommender:
+    build:
+      context: ./recommender
+      dockerfile: Dockerfile
+    container_name: paumarket-recommender
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./recommender:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: paumarket-backend
+    ports:
+      - "5251:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=paumarket-sql;Database=PauMarketDb;User Id=sa;Password=PauMarket2026!;TrustServerCertificate=True;
+      - RecommenderApiUrl=http://recommender:8000
+    depends_on:
+      paumarket-sql:
+        condition: service_healthy
+      recommender:
+        condition: service_started
+
+  frontend:
+    image: node:20-slim
+    container_name: paumarket-frontend
+    working_dir: /app
+    volumes:
+      - ./PauMarket.Client:/app
+      - /app/node_modules # Prevent standard local node_modules from conflicting with linux container
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:5251/api
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    depends_on:
+      backend:
+        condition: service_started
+
+volumes:
+  sql_data:
