@@ -1,6 +1,11 @@
 import api from './api';
 
 const userService = {
+    getCurrentUser: async () => {
+        const response = await api.get('/users/me');
+        return response.data;
+    },
+
     /**
      * Kullanıcının onboarding tercihlerini kaydeder.
      * @param {string|null} preferredCategories - Virgülle ayrılmış kategori listesi (örn: "Elektronik,Kitap")

@@ -51,6 +51,18 @@ public class ListingsController(
         return Ok(listing);
     }
 
+    [HttpGet("mine")]
+    [Authorize]
+    public async Task<ActionResult<IEnumerable<ListingResponseDto>>> GetMine()
+    {
+        int? callerId = User.GetUserId();
+        if (callerId is null)
+            return Unauthorized(new { error = "Geçersiz token." });
+
+        var listings = await listingService.GetUserListingsAsync(callerId.Value);
+        return Ok(listings);
+    }
+
     /// <summary>
     /// Yeni ilan ekler.
     /// Kural: giriş yapan kullanıcının e-postası doğrulanmış olmalı ve fotoğraf yüklenmeli.

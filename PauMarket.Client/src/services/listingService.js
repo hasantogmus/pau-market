@@ -51,6 +51,11 @@ const listingService = {
         return normalizeListing(response.data);
     },
 
+    getMyListings: async () => {
+        const response = await api.get('/listings/mine');
+        return normalizeListingCollection(response.data);
+    },
+
     getRecommendations: async () => {
         const response = await api.get('/recommendations/hybrid?count=4', { timeout: 8000 });
         return normalizeListingCollection(response.data);

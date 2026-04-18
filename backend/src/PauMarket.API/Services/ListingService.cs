@@ -75,6 +75,17 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
         return listing is null ? null : MapToResponseDto(listing);
     }
 
+    public async Task<IEnumerable<ListingResponseDto>> GetUserListingsAsync(int userId)
+    {
+        var listings = await context.Listings
+            .AsNoTracking()
+            .Where(l => l.UserId == userId)
+            .OrderByDescending(l => l.CreatedAt)
+            .ToListAsync();
+
+        return listings.Select(MapToResponseDto);
+    }
+
     // ── Kimlik doğrulaması ve Yetki gerekli ────────────────────────────────────
 
     /// <summary>

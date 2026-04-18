@@ -7,7 +7,10 @@ import Register from './pages/Register';
 import NewListing from './pages/NewListing';
 import Onboarding from './pages/Onboarding';
 import ListingDetail from './pages/ListingDetail';
-import PlaceholderPage from './pages/PlaceholderPage';
+import Messages from './pages/Messages';
+import Profile from './pages/Profile';
+import MyListings from './pages/MyListings';
+import Settings from './pages/Settings';
 import { AuthProvider } from './context/AuthContext';
 
 function App() {
@@ -70,11 +73,7 @@ function App() {
             path="/messages"
             element={
               <MainLayout>
-                <PlaceholderPage
-                  title="Mesajlaşma Ekranı Hazırlanıyor"
-                  description="Mesajlaşma altyapısı backend tarafında hazır, bu ekranın son kullanıcı arayüzü ise henüz tamamlanmadı."
-                  primaryLabel="İlana Geri Dön"
-                />
+                <Messages />
               </MainLayout>
             }
           />
@@ -82,10 +81,7 @@ function App() {
             path="/profile"
             element={
               <MainLayout>
-                <PlaceholderPage
-                  title="Profil Sayfası Hazırlanıyor"
-                  description="Profil bilgilerini ve hesap detaylarını yöneteceğin ekran henüz tamamlanmadı."
-                />
+                <Profile />
               </MainLayout>
             }
           />
@@ -93,10 +89,7 @@ function App() {
             path="/my-listings"
             element={
               <MainLayout>
-                <PlaceholderPage
-                  title="İlanlarım Ekranı Hazırlanıyor"
-                  description="Kendi ilanlarını toplu halde yöneteceğin arayüz henüz tamamlanmadı."
-                />
+                <MyListings />
               </MainLayout>
             }
           />
@@ -104,10 +97,7 @@ function App() {
             path="/settings"
             element={
               <MainLayout>
-                <PlaceholderPage
-                  title="Ayarlar Sayfası Hazırlanıyor"
-                  description="Hesap ve uygulama ayarlarını düzenleyeceğin alan henüz tamamlanmadı."
-                />
+                <Settings />
               </MainLayout>
             }
           />
