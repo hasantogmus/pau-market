@@ -6,6 +6,11 @@ const userService = {
         return response.data;
     },
 
+    getPublicProfile: async (userId) => {
+        const response = await api.get(`/users/${userId}/public`);
+        return response.data;
+    },
+
     updateProfile: async ({ firstName, lastName, department, grade }) => {
         const response = await api.patch('/users/me', {
             firstName,

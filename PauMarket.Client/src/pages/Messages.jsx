@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { MessageCircle, Send } from 'lucide-react';
+import { MessageCircle, Send, User } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import messageService from '../services/messageService';
+import listingService from '../services/listingService';
+import userService from '../services/userService';
 
 const formatMessageTime = (value) =>
     new Date(value).toLocaleString('tr-TR', {
@@ -28,6 +30,7 @@ const Messages = () => {
     const [isLoadingMessages, setIsLoadingMessages] = useState(false);
     const [isSending, setIsSending] = useState(false);
     const [error, setError] = useState(null);
+    const [conversationMeta, setConversationMeta] = useState(null);
 
     useEffect(() => {
         if (!isAuthenticated) {
@@ -110,10 +113,48 @@ const Messages = () => {
         [listingId, sellerId, threads]
     );
 
-    const conversationTitle = selectedThread
-        ? selectedThread.listingTitle
+    useEffect(() => {
+        if (!isAuthenticated || !canLoadConversation || selectedThread) {
+            setConversationMeta(null);
+            return;
+        }
+
+        const loadConversationMeta = async () => {
+            try {
+                const [listingResult, profileResult] = await Promise.all([
+                    listingService.getListingById(listingId),
+                    userService.getPublicProfile(sellerId),
+                ]);
+
+                setConversationMeta({
+                    listingTitle: listingResult?.title || 'İlan',
+                    listingImageUrl: listingResult?.imageUrl || null,
+                    otherUserName: profileResult?.fullName || 'PAÜ Market Kullanıcısı',
+                });
+            } catch {
+                setConversationMeta({
+                    listingTitle: 'İlan',
+                    listingImageUrl: null,
+                    otherUserName: 'PAÜ Market Kullanıcısı',
+                });
+            }
+        };
+
+        loadConversationMeta();
+    }, [canLoadConversation, isAuthenticated, listingId, selectedThread, sellerId]);
+
+    const activeConversation = selectedThread || (canLoadConversation ? {
+        otherUserId: sellerId,
+        otherUserName: conversationMeta?.otherUserName || 'PAÜ Market Kullanıcısı',
+        listingId,
+        listingTitle: conversationMeta?.listingTitle || 'İlan',
+        listingImageUrl: conversationMeta?.listingImageUrl || null,
+    } : null);
+
+    const conversationTitle = activeConversation
+        ? activeConversation.otherUserName
         : canLoadConversation
-            ? `İlan #${listingId} için görüşme`
+            ? 'Konuşma'
             : 'Mesajlar';
 
     const handleOpenThread = (thread) => {
@@ -140,10 +181,10 @@ const Messages = () => {
                 const existing = prev.find((thread) => Number(thread.listingId) === listingId && Number(thread.otherUserId) === sellerId);
                 const threadBase = existing || {
                     otherUserId: sellerId,
-                    otherUserName: selectedThread?.otherUserName || `Kullanıcı #${sellerId}`,
+                    otherUserName: activeConversation?.otherUserName || 'PAÜ Market Kullanıcısı',
                     listingId,
-                    listingTitle: selectedThread?.listingTitle || `İlan #${listingId}`,
-                    listingImageUrl: selectedThread?.listingImageUrl || null,
+                    listingTitle: activeConversation?.listingTitle || 'İlan',
+                    listingImageUrl: activeConversation?.listingImageUrl || null,
                 };
 
                 const updated = {
@@ -218,7 +259,7 @@ const Messages = () => {
                                                 )}
                                             </div>
                                             <div className="min-w-0 flex-1">
-                                                <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-start justify-between gap-2">
                                                     <p className="text-sm font-bold text-gray-900 truncate">{thread.otherUserName}</p>
                                                     <span className="text-[11px] text-gray-400 whitespace-nowrap">{formatMessageTime(thread.lastMessageAt)}</span>
                                                 </div>
@@ -243,12 +284,26 @@ const Messages = () => {
 
                 <section className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden min-h-[42rem] flex flex-col">
                     <div className="px-6 py-5 border-b border-gray-100">
-                        <h2 className="text-2xl font-extrabold tracking-tight text-gray-900">{conversationTitle}</h2>
-                        <p className="text-sm text-gray-500 mt-1">
-                            {selectedThread
-                                ? `${selectedThread.otherUserName} ile ${selectedThread.listingTitle} ilanı hakkında konuşuyorsun.`
-                                : 'Sol taraftan bir konuşma seç ya da ilan detayından yeni mesaj başlat.'}
-                        </p>
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                            <div>
+                                <h2 className="text-2xl font-extrabold tracking-tight text-gray-900">{conversationTitle}</h2>
+                                <p className="text-sm text-gray-500 mt-1">
+                                    {activeConversation
+                                        ? `${activeConversation.listingTitle} ilanı hakkında konuşuyorsun.`
+                                        : 'Sol taraftan bir konuşma seç ya da ilan detayından yeni mesaj başlat.'}
+                                </p>
+                            </div>
+                            {activeConversation && (
+                                <button
+                                    type="button"
+                                    onClick={() => navigate(`/profile/${activeConversation.otherUserId}`)}
+                                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors font-semibold text-sm"
+                                >
+                                    <User className="w-4 h-4" />
+                                    Profili Gör
+                                </button>
+                            )}
+                        </div>
                     </div>
 
                     {!canLoadConversation ? (

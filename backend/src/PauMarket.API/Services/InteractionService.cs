@@ -63,6 +63,7 @@ public class InteractionService(PauMarketDbContext context) : IInteractionServic
         var favoriteListings = await context.Interactions
             .Where(i => i.UserId == userId && i.InteractionType == InteractionType.Favorite)
             .Include(i => i.Listing)
+            .ThenInclude(listing => listing.User)
             .Select(i => i.Listing)
             .AsNoTracking()
             .ToListAsync();
@@ -76,6 +77,7 @@ public class InteractionService(PauMarketDbContext context) : IInteractionServic
         {
             Id = listing.Id,
             UserId = listing.UserId,
+            SellerName = listing.User is null ? null : $"{listing.User.FirstName} {listing.User.LastName}".Trim(),
             Title = listing.Title,
             Description = listing.Description,
             Price = listing.Price,

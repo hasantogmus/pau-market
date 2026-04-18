@@ -285,7 +285,6 @@ const MyListings = () => {
 
                                             <div className="flex flex-wrap items-center gap-2 mb-6 text-xs font-semibold text-gray-500">
                                                 <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-700">{listing.condition}</span>
-                                                <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-700">İlan No: #{listing.id}</span>
                                             </div>
 
                                             <div className="mt-auto flex flex-wrap items-center gap-3 border-t border-gray-100 pt-5">
@@ -325,9 +324,6 @@ const MyListings = () => {
                                                     <Trash2 className="w-4 h-4" />
                                                     {deletingListingId === listing.id ? 'Siliniyor...' : 'Sil'}
                                                 </button>
-                                                <span className="ml-auto text-xs font-medium text-gray-400">
-                                                    Detaya gitmek için karta tıkla
-                                                </span>
                                             </div>
                                         </div>
                                     </div>

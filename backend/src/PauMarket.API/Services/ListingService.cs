@@ -16,7 +16,10 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
         if (!cache.TryGetValue("AllListings", out List<Listing>? allListings))
         {
             // 2. RAM'de yoksa veritabanından çek
-            allListings = await context.Listings.AsNoTracking().ToListAsync();
+            allListings = await context.Listings
+                .Include(listing => listing.User)
+                .AsNoTracking()
+                .ToListAsync();
 
             // 3. 5 dakikalık AbsoluteExpiration (kesin ömür) belirle
             var cacheOptions = new MemoryCacheEntryOptions
@@ -71,6 +74,7 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
     public async Task<ListingResponseDto?> GetListingByIdAsync(int id)
     {
         var listing = await context.Listings
+            .Include(item => item.User)
             .AsNoTracking()
             .FirstOrDefaultAsync(l => l.Id == id);
 
@@ -80,6 +84,7 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
     public async Task<IEnumerable<ListingResponseDto>> GetUserListingsAsync(int userId)
     {
         var listings = await context.Listings
+            .Include(item => item.User)
             .AsNoTracking()
             .Where(l => l.UserId == userId)
             .OrderByDescending(l => l.CreatedAt)
@@ -112,6 +117,7 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
 
         context.Listings.Add(listing);
         await context.SaveChangesAsync();
+        await context.Entry(listing).Reference(item => item.User).LoadAsync();
 
         // Cache Invalidation: Yeni ilan eklendi, eski önbelleği temizle
         cache.Remove("AllListings");
@@ -143,6 +149,7 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
         listing.IsActive    = dto.IsSold ? false : dto.IsActive;
 
         await context.SaveChangesAsync();
+        await context.Entry(listing).Reference(item => item.User).LoadAsync();
 
         // Cache Invalidation: İlan güncellendi, eski önbelleği temizle
         cache.Remove("AllListings");
@@ -186,6 +193,7 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
         listing.IsActive = !isSold;
 
         await context.SaveChangesAsync();
+        await context.Entry(listing).Reference(item => item.User).LoadAsync();
         cache.Remove("AllListings");
 
         if (isSold && soldToUserId is int buyerId)
@@ -218,6 +226,7 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
     {
         Id          = listing.Id,
         UserId      = listing.UserId,
+        SellerName  = listing.User is null ? null : $"{listing.User.FirstName} {listing.User.LastName}".Trim(),
         Title       = listing.Title,
         Description = listing.Description,
         Price       = listing.Price,

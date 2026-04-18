@@ -6,6 +6,7 @@ import {
     User, Calendar, ShieldCheck, AlertTriangle
 } from 'lucide-react';
 import listingService from '../services/listingService';
+import userService from '../services/userService';
 
 // ─── Animasyon Varyantları ─────────────────────────────────────────
 const fadeUpVariants = {
@@ -71,12 +72,24 @@ const ListingDetail = () => {
     const [listing, setListing]   = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError]         = useState(null);
+    const [sellerProfile, setSellerProfile] = useState(null);
 
     useEffect(() => {
         const fetch = async () => {
             try {
                 const data = await listingService.getListingById(id);
                 setListing(data);
+
+                if (data?.userId && !data?.sellerName) {
+                    try {
+                        const publicProfile = await userService.getPublicProfile(data.userId);
+                        setSellerProfile(publicProfile);
+                    } catch {
+                        setSellerProfile(null);
+                    }
+                } else {
+                    setSellerProfile(null);
+                }
             } catch (err) {
                 if (err.response?.status === 404) {
                     setError('Bu ilan bulunamadı veya kaldırılmış olabilir.');
@@ -114,6 +127,7 @@ const ListingDetail = () => {
     );
 
     const conditionStyle = getConditionStyle(listing.condition);
+    const sellerDisplayName = listing.sellerName || sellerProfile?.fullName || 'PAÜ Market Kullanıcısı';
 
     return (
         <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
@@ -232,7 +246,7 @@ const ListingDetail = () => {
                             </div>
                             <div>
                                 <p className="text-xs font-semibold text-blue-500 uppercase tracking-wider mb-0.5">Satıcı</p>
-                                <p className="text-sm font-bold text-gray-900">Öğrenci Satıcı #{listing.userId}</p>
+                                <p className="text-sm font-bold text-gray-900">{sellerDisplayName}</p>
                                 <div className="flex items-center gap-1 mt-0.5">
                                     <ShieldCheck className="w-3.5 h-3.5 text-green-500" />
                                     <span className="text-xs text-green-600 font-semibold">PAÜ Öğrencisi</span>

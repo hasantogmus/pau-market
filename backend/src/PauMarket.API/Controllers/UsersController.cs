@@ -56,6 +56,32 @@ public class UsersController : ControllerBase
     }
 
     /// <summary>
+    /// Herkese açık profil özeti. İsim, bölüm ve sınıf gibi güvenli alanları döner.
+    /// </summary>
+    [HttpGet("{id:int}/public")]
+    [AllowAnonymous]
+    public async Task<ActionResult<PublicUserProfileDto>> GetPublicProfile(int id)
+    {
+        var user = await _db.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == id);
+
+        if (user is null)
+            return NotFound(new { error = "Kullanıcı bulunamadı." });
+
+        return Ok(new PublicUserProfileDto
+        {
+            Id = user.Id,
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            Department = user.Department,
+            Grade = user.Grade,
+            IsEmailVerified = user.IsEmailVerified,
+            CreatedAt = user.CreatedAt
+        });
+    }
+
+    /// <summary>
     /// Giriş yapmış kullanıcının temel profil bilgilerini günceller.
     /// </summary>
     [HttpPatch("me")]

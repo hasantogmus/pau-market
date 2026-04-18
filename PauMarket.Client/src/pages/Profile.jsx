@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { User, Mail, GraduationCap, Building2, ShieldCheck, CalendarDays, BarChart3, Heart, Eye, Star, Package, Settings, MessageCircle } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import userService from '../services/userService';
@@ -25,12 +25,16 @@ const InfoRow = ({ icon: Icon, label, value }) => (
 );
 
 const Profile = () => {
+    const navigate = useNavigate();
+    const { id } = useParams();
     const { isAuthenticated, user } = useAuth();
     const [profile, setProfile] = useState(null);
     const [dashboard, setDashboard] = useState(null);
     const [error, setError] = useState(null);
     const [dashboardError, setDashboardError] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+    const requestedUserId = id ? Number(id) : null;
+    const isOwnProfile = !requestedUserId || Number(user?.id) === requestedUserId;
 
     useEffect(() => {
         if (!isAuthenticated) {
@@ -40,21 +44,28 @@ const Profile = () => {
 
         const load = async () => {
             try {
-                const [profileResult, dashboardResult] = await Promise.allSettled([
-                    userService.getCurrentUser(),
-                    dashboardService.getMyDashboard(),
-                ]);
+                if (isOwnProfile) {
+                    const [profileResult, dashboardResult] = await Promise.allSettled([
+                        userService.getCurrentUser(),
+                        dashboardService.getMyDashboard(),
+                    ]);
 
-                if (profileResult.status === 'fulfilled') {
-                    setProfile(profileResult.value);
-                } else {
-                    throw profileResult.reason;
-                }
+                    if (profileResult.status === 'fulfilled') {
+                        setProfile(profileResult.value);
+                    } else {
+                        throw profileResult.reason;
+                    }
 
-                if (dashboardResult.status === 'fulfilled') {
-                    setDashboard(dashboardResult.value);
+                    if (dashboardResult.status === 'fulfilled') {
+                        setDashboard(dashboardResult.value);
+                    } else {
+                        setDashboardError(dashboardResult.reason?.response?.data?.error || 'Performans özeti şu anda getirilemedi.');
+                    }
                 } else {
-                    setDashboardError(dashboardResult.reason?.response?.data?.error || 'Performans özeti şu anda getirilemedi.');
+                    const publicProfile = await userService.getPublicProfile(requestedUserId);
+                    setProfile(publicProfile);
+                    setDashboard(null);
+                    setDashboardError(null);
                 }
             } catch (err) {
                 setError(err.response?.data?.error || 'Profil bilgileri yüklenemedi.');
@@ -64,7 +75,7 @@ const Profile = () => {
         };
 
         load();
-    }, [isAuthenticated]);
+    }, [isAuthenticated, isOwnProfile, requestedUserId]);
 
     if (!isAuthenticated) {
         return (
@@ -90,7 +101,7 @@ const Profile = () => {
 
     const effectiveProfile = {
         fullName: profile?.fullName || user?.name || 'PAU Market Kullanıcısı',
-        email: profile?.email || user?.email || 'Belirtilmemiş',
+        email: isOwnProfile ? (profile?.email || user?.email || 'Belirtilmemiş') : null,
         department: profile?.department,
         grade: profile?.grade,
         preferredCategories: profile?.preferredCategories,
@@ -123,31 +134,46 @@ const Profile = () => {
                         <p className="text-gray-600 font-medium">{effectiveProfile.email}</p>
                     </div>
                     <div className="flex flex-wrap gap-3 sm:justify-end">
-                        <Link to="/settings" className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-2xl transition-colors">
-                            <Settings className="w-4 h-4" />
-                            Profili Düzenle
-                        </Link>
-                        <Link to="/messages" className="inline-flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-200 hover:bg-gray-50 text-gray-700 font-semibold rounded-2xl transition-colors">
-                            <MessageCircle className="w-4 h-4" />
-                            Mesajlara Git
-                        </Link>
+                        {isOwnProfile ? (
+                            <>
+                                <Link to="/settings" className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-2xl transition-colors">
+                                    <Settings className="w-4 h-4" />
+                                    Profili Düzenle
+                                </Link>
+                                <Link to="/messages" className="inline-flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-200 hover:bg-gray-50 text-gray-700 font-semibold rounded-2xl transition-colors">
+                                    <MessageCircle className="w-4 h-4" />
+                                    Mesajlara Git
+                                </Link>
+                            </>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={() => navigate(-1)}
+                                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-200 hover:bg-gray-50 text-gray-700 font-semibold rounded-2xl transition-colors"
+                            >
+                                <MessageCircle className="w-4 h-4" />
+                                Mesajlara Dön
+                            </button>
+                        )}
                     </div>
                 </div>
             </section>
 
-            <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-                {metricCards(dashboard).map(({ label, value, icon: Icon }) => (
-                    <div key={label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-                        <div className="w-11 h-11 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4">
-                            <Icon className="w-5 h-5" />
+            {isOwnProfile && (
+                <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                    {metricCards(dashboard).map(({ label, value, icon: Icon }) => (
+                        <div key={label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                            <div className="w-11 h-11 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4">
+                                <Icon className="w-5 h-5" />
+                            </div>
+                            <p className="text-sm text-gray-500 font-medium">{label}</p>
+                            <p className="text-2xl font-extrabold text-gray-900 mt-1">{value}</p>
                         </div>
-                        <p className="text-sm text-gray-500 font-medium">{label}</p>
-                        <p className="text-2xl font-extrabold text-gray-900 mt-1">{value}</p>
-                    </div>
-                ))}
-            </section>
+                    ))}
+                </section>
+            )}
 
-            {dashboardError && (
+            {isOwnProfile && dashboardError && (
                 <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl px-4 py-3 text-sm font-medium">
                     {dashboardError}
                 </div>
@@ -156,21 +182,27 @@ const Profile = () => {
             <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
                     <h2 className="text-lg font-bold text-gray-900 mb-4">Hesap Bilgileri</h2>
-                    <InfoRow icon={Mail} label="E-posta" value={effectiveProfile.email} />
+                    {isOwnProfile && <InfoRow icon={Mail} label="E-posta" value={effectiveProfile.email} />}
                     <InfoRow icon={Building2} label="Bölüm" value={effectiveProfile.department} />
                     <InfoRow icon={GraduationCap} label="Sınıf" value={effectiveProfile.grade ? `${effectiveProfile.grade}. sınıf` : null} />
                     <InfoRow icon={CalendarDays} label="Katılım Tarihi" value={joinedAt} />
                 </div>
 
                 <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
-                    <h2 className="text-lg font-bold text-gray-900 mb-4">Tercih Özeti</h2>
-                    <InfoRow icon={BarChart3} label="Kategori Tercihleri" value={effectiveProfile.preferredCategories} />
-                    <InfoRow icon={ShieldCheck} label="Durum Tercihi" value={effectiveProfile.preferredCondition} />
-                    <div className="pt-4">
-                        <Link to="/settings" className="inline-flex items-center justify-center px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-2xl transition-colors">
-                            Tercihleri Düzenle
-                        </Link>
-                    </div>
+                    <h2 className="text-lg font-bold text-gray-900 mb-4">{isOwnProfile ? 'Tercih Özeti' : 'Profil Özeti'}</h2>
+                    {isOwnProfile ? (
+                        <>
+                            <InfoRow icon={BarChart3} label="Kategori Tercihleri" value={effectiveProfile.preferredCategories} />
+                            <InfoRow icon={ShieldCheck} label="Durum Tercihi" value={effectiveProfile.preferredCondition} />
+                            <div className="pt-4">
+                                <Link to="/settings" className="inline-flex items-center justify-center px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-2xl transition-colors">
+                                    Tercihleri Düzenle
+                                </Link>
+                            </div>
+                        </>
+                    ) : (
+                        <InfoRow icon={ShieldCheck} label="Hesap Durumu" value={effectiveProfile.isEmailVerified ? 'Doğrulanmış PAÜ hesabı' : 'Henüz doğrulanmamış'} />
+                    )}
                 </div>
             </section>
         </div>

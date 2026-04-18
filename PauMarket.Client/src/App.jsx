@@ -95,6 +95,14 @@ function App() {
             }
           />
           <Route
+            path="/profile/:id"
+            element={
+              <MainLayout>
+                <Profile />
+              </MainLayout>
+            }
+          />
+          <Route
             path="/my-listings"
             element={
               <MainLayout>
