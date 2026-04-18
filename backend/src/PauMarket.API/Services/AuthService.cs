@@ -204,18 +204,27 @@ public class AuthService : IAuthService
         using var disposableClient = client;
         using var message = new MailMessage
         {
-            From = new MailAddress(fromEmail!, fromName),
-            Subject = "PAÜ Market e-posta doğrulama kodu",
+            From = new MailAddress(fromEmail!),
+            Subject = "PAU Market kodunuz",
             Body = $"""
                    Merhaba,
 
-                   PAÜ Market hesabını aktifleştirmek için doğrulama kodun: {code}
+                   PAU Market hesabiniz icin dogrulama kodunuz: {code}
 
-                   Eğer bu işlemi sen yapmadıysan bu e-postayı dikkate alma.
+                   Bu kod 2 dakika gecerlidir.
+
+                   Tesekkurler.
                    """,
-            IsBodyHtml = false
+            IsBodyHtml = false,
+            SubjectEncoding = Encoding.UTF8,
+            BodyEncoding = Encoding.UTF8,
+            HeadersEncoding = Encoding.UTF8
         };
 
+        if (!string.IsNullOrWhiteSpace(fromName))
+            message.From = new MailAddress(fromEmail!, fromName);
+
+        message.ReplyToList.Add(new MailAddress(fromEmail!));
         message.To.Add(toEmail);
 
         try
