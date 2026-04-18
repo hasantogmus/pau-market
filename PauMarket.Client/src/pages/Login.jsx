@@ -12,12 +12,14 @@ const Login = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
     const location = useLocation();
+    const navigate = useNavigate();
     const { login } = useAuth();
 
-    // Kayıt sonrası mı geliniyoruz?
-    const justRegistered = new URLSearchParams(location.search).get('registered') === 'true';
-    const registrationMessage = location.state?.registrationMessage
-        || 'Hesabın oluşturuldu. Giriş yapıp onboarding adımına geçebilirsin.';
+    const searchParams = new URLSearchParams(location.search);
+    const justVerified = searchParams.get('verified') === 'true';
+    const verificationMessage = location.state?.verificationMessage
+        || 'E-posta adresin doğrulandı. Artık giriş yapabilirsin.';
+    const redirectAfterLogin = location.state?.redirectAfterLogin || '/';
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -27,17 +29,26 @@ const Login = () => {
         try {
             const data = await authService.login(email, password);
             if (data.token) {
-                // Kayıt sonrasıysa onboarding'e yönlendirilecek
-                if (justRegistered) {
-                    login(data.token, '/onboarding');
-                } else {
-                    login(data.token, '/');
-                }
+                login(data.token, redirectAfterLogin);
             } else {
                 setError('Giriş başarısız. Lütfen bilgilerinizi kontrol edin.');
             }
         } catch (err) {
-            setError(err.response?.data?.error || err.response?.data?.message || 'Giriş yapılırken bir hata oluştu. E-posta adresinizi ve şifrenizi kontrol edin.');
+            const responseData = err.response?.data;
+            const responseCode = responseData?.code;
+            const responseError = responseData?.error || responseData?.message;
+
+            if (responseCode === 'EMAIL_NOT_VERIFIED') {
+                navigate('/verify-email', {
+                    state: {
+                        email,
+                        loginMessage: responseError
+                    }
+                });
+                return;
+            }
+
+            setError(responseError || 'Giriş yapılırken bir hata oluştu. E-posta adresinizi ve şifrenizi kontrol edin.');
         } finally {
             setIsLoading(false);
         }
@@ -63,8 +74,7 @@ const Login = () => {
                     Giriş Yap
                 </h2>
 
-                {/* Kayıt sonrası hoş geldin notu */}
-                {justRegistered && (
+                {justVerified && (
                     <motion.div
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
@@ -72,7 +82,7 @@ const Login = () => {
                     >
                         <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5 shrink-0" />
                         <p className="text-sm text-green-800 font-medium">
-                            {registrationMessage}
+                            {verificationMessage}
                         </p>
                     </motion.div>
                 )}

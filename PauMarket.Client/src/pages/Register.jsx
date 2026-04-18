@@ -40,10 +40,11 @@ const Register = () => {
         try {
             const result = await authService.register(firstName, lastName, studentNumber, email, password);
 
-            // Onboarding akışı token gerektirdiği için kullanıcıyı önce login ekranına alıyoruz.
-            navigate('/login?registered=true', {
+            navigate('/verify-email', {
                 state: {
-                    registrationMessage: result.message
+                    email,
+                    registrationMessage: result.message,
+                    fromRegistration: true
                 }
             });
         } catch (err) {

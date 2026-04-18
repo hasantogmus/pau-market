@@ -4,6 +4,7 @@ import MainLayout from './layouts/MainLayout';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import VerifyEmail from './pages/VerifyEmail';
 import NewListing from './pages/NewListing';
 import Onboarding from './pages/Onboarding';
 import ListingDetail from './pages/ListingDetail';
@@ -47,6 +48,14 @@ function App() {
             element={
               <MainLayout>
                 <Register />
+              </MainLayout>
+            }
+          />
+          <Route
+            path="/verify-email"
+            element={
+              <MainLayout>
+                <VerifyEmail />
               </MainLayout>
             }
           />

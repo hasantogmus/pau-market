@@ -19,8 +19,7 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Yeni kullanıcı kaydeder.
-    /// Geliştirme aşamasında hesap otomatik olarak onaylanır; doğrulama kodu sadece konsola yazılır.
+    /// Yeni kullanıcı kaydeder ve doğrulama kodu üretir.
     /// </summary>
     [HttpPost("register")]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -43,7 +42,6 @@ public class AuthController : ControllerBase
 
     /// <summary>
     /// Kullanıcı girişini doğrular ve başarı durumunda JWT token döner.
-    /// Geçersiz girişlerde 401 döner; ileride manuel e-posta doğrulaması açılırsa 403 de dönebilir.
     /// </summary>
     [HttpPost("login")]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -65,27 +63,50 @@ public class AuthController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            // İleride doğrulama zorunlu hale getirilirse aynı endpoint 403 döndürmeye devam edebilir.
-            return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message });
+            var code = ex.Message.Contains("doğrulanmadı", StringComparison.OrdinalIgnoreCase)
+                ? "EMAIL_NOT_VERIFIED"
+                : "LOGIN_BLOCKED";
+
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message, code });
         }
     }
 
     /// <summary>
     /// Kayıt sonrası gönderilen 6 haneli kodu doğrular ve hesabı aktif eder.
     /// </summary>
-    /// <param name="email">Doğrulanacak e-posta adresi</param>
-    /// <param name="token">6 haneli doğrulama kodu</param>
     [HttpPost("verify-email")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> VerifyEmail([FromQuery] string email, [FromQuery] string token)
+    public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailRequestDto dto)
     {
-        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(token))
-            return BadRequest(new { error = "E-posta ve doğrulama kodu zorunludur." });
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
 
         try
         {
-            var message = await _authService.VerifyEmailAsync(email, token);
+            var message = await _authService.VerifyEmailAsync(dto.Email, dto.Token);
+            return Ok(new { message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Kullanıcı için yeni doğrulama kodu üretir ve tekrar gönderir.
+    /// </summary>
+    [HttpPost("resend-verification")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ResendVerification([FromBody] ResendVerificationRequestDto dto)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        try
+        {
+            var message = await _authService.ResendVerificationAsync(dto.Email);
             return Ok(new { message });
         }
         catch (InvalidOperationException ex)

@@ -1,10 +1,8 @@
 using System.IdentityModel.Tokens.Jwt;
-using System.Net.Security;
-using System.Net.Sockets;
+using System.Net;
+using System.Net.Mail;
 using System.Security.Claims;
 using System.Text;
-using System.Text.RegularExpressions;
-using DnsClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using PauMarket.API.Data;
@@ -15,14 +13,10 @@ namespace PauMarket.API.Services;
 
 /// <summary>
 /// IAuthService implementasyonu.
-/// Geliştirme ortamında kayıt olan kullanıcılar otomatik olarak onaylanır.
-/// Doğrulama kodu yine üretilir ve konsola yazılır; böylece ileride manuel doğrulamaya dönmek kolay kalır.
+/// Okul e-postası doğrulamasını zorunlu kılar; SMTP yapılandırması yoksa geliştirme ortamında kod loglara yazılır.
 /// </summary>
 public class AuthService : IAuthService
 {
-    // Sadece @posta.pau.edu.tr uzantısı zorunlu — diğer kurallar kaldırıldı
-    private const string PauEmailSuffix = "@posta.pau.edu.tr";
-
     private readonly PauMarketDbContext   _db;
     private readonly IConfiguration      _config;
     private readonly ILogger<AuthService> _logger;
@@ -39,43 +33,42 @@ public class AuthService : IAuthService
     /// <inheritdoc/>
     public async Task<string> RegisterAsync(RegisterDto dto)
     {
-        // ── Adım 1: PAÜ e-posta uzantı kontrolü ────────────────────────────
-        if (!dto.Email.ToLower().EndsWith(PauEmailSuffix))
-            throw new InvalidOperationException(
-                "Sadece @posta.pau.edu.tr uzantılı üniversite e-posta adresleri ile kayıt olabilirsiniz.");
+        var normalizedEmail = dto.Email.Trim().ToLowerInvariant();
+        var emailSuffix = GetAllowedEmailSuffix();
 
-        // ── Adım 2: E-posta daha önce kullanılmış mı? ───────────────────────
+        if (!normalizedEmail.EndsWith(emailSuffix, StringComparison.Ordinal))
+            throw new InvalidOperationException(
+                $"Sadece {emailSuffix} uzantılı üniversite e-posta adresleri ile kayıt olabilirsiniz.");
+
         bool emailExists = await _db.Users
-            .AnyAsync(u => u.Email == dto.Email.ToLower());
+            .AnyAsync(u => u.Email == normalizedEmail);
         if (emailExists)
             throw new InvalidOperationException("Bu e-posta adresi zaten kayıtlı.");
 
-        // ── Adım 3: BCrypt şifre hashleme (work factor: 12) ─────────────────
         string passwordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password, workFactor: 12);
+        string verificationToken = GenerateVerificationToken();
+        bool autoVerify = _config.GetValue<bool>("EmailVerification:AutoVerify");
 
-        // ── Adım 4: 6 haneli rastgele doğrulama kodu üret ───────────────────
-        string verificationToken = Random.Shared.Next(0, 1_000_000).ToString("D6");
-
-        // ── Adım 5: Kullanıcıyı oluştur ve kaydet ───────────────────────────
         var user = new User
         {
             FirstName              = dto.FirstName,
             LastName               = dto.LastName,
-            Email                  = dto.Email.ToLower(),
+            Email                  = normalizedEmail,
             PasswordHash           = passwordHash,
             Department             = dto.Department,
             Grade                  = dto.Grade,
-            IsEmailVerified        = true, // Geliştirme aşaması için e-posta direkt onaylı geldi
-            EmailVerificationToken = verificationToken
+            IsEmailVerified        = autoVerify,
+            EmailVerificationToken = autoVerify ? null : verificationToken
         };
 
         _db.Users.Add(user);
         await _db.SaveChangesAsync();
 
-        // ── Adım 6: E-posta simülasyonu (konsola yaz) ────────────────────────
-        SimulateSendVerificationEmail(user.Email, verificationToken);
+        if (autoVerify)
+            return "Kayıt başarılı. Bu ortamda e-posta doğrulaması otomatik açık olduğu için giriş yapabilirsiniz.";
 
-        return "Kayıt başarılı. Geliştirme aşamasında olduğumuz için hesabınız otomatik olarak onaylanmıştır, giriş yapabilirsiniz.";
+        await SendVerificationEmailAsync(user.Email, verificationToken);
+        return "Kayıt başarılı. Hesabını aktifleştirmek için okul e-posta adresine gönderilen 6 haneli doğrulama kodunu gir.";
     }
 
     /// <inheritdoc/>
@@ -88,6 +81,9 @@ public class AuthService : IAuthService
 
         bool passwordValid = BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash);
         if (!passwordValid) return null;
+
+        if (!user.IsEmailVerified)
+            throw new InvalidOperationException("E-posta adresiniz henüz doğrulanmadı. Lütfen doğrulama kodunu girip hesabınızı aktifleştirin.");
 
         return GenerateJwtToken(user);
     }
@@ -114,12 +110,109 @@ public class AuthService : IAuthService
         return "E-posta başarıyla doğrulandı. Artık giriş yapabilirsiniz.";
     }
 
+    /// <inheritdoc/>
+    public async Task<string> ResendVerificationAsync(string email)
+    {
+        var normalizedEmail = email.Trim().ToLowerInvariant();
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail);
+
+        if (user is null)
+            throw new InvalidOperationException("Kullanıcı bulunamadı.");
+
+        if (user.IsEmailVerified)
+            return "Bu hesap zaten doğrulanmış durumda. Giriş yapabilirsiniz.";
+
+        var verificationToken = GenerateVerificationToken();
+        user.EmailVerificationToken = verificationToken;
+        await _db.SaveChangesAsync();
+
+        await SendVerificationEmailAsync(user.Email, verificationToken);
+        return "Yeni doğrulama kodu gönderildi. Lütfen okul e-posta kutunu kontrol et.";
+    }
+
 
     // ─── E-posta Simülasyonu ──────────────────────────────────────────────────
 
 
+    private string GetAllowedEmailSuffix() =>
+        _config["AllowedEmailDomain"]?.Trim().ToLowerInvariant() ?? "@posta.pau.edu.tr";
+
+    private string GenerateVerificationToken() =>
+        Random.Shared.Next(0, 1_000_000).ToString("D6");
+
+    private async Task SendVerificationEmailAsync(string toEmail, string code)
+    {
+        if (!TryBuildSmtpClient(out var smtpClient, out var fromEmail, out var fromName))
+        {
+            SimulateSendVerificationEmail(toEmail, code);
+            return;
+        }
+
+        var client = smtpClient!;
+        using var disposableClient = client;
+        using var message = new MailMessage
+        {
+            From = new MailAddress(fromEmail!, fromName),
+            Subject = "PAÜ Market e-posta doğrulama kodu",
+            Body = $"""
+                   Merhaba,
+
+                   PAÜ Market hesabını aktifleştirmek için doğrulama kodun: {code}
+
+                   Eğer bu işlemi sen yapmadıysan bu e-postayı dikkate alma.
+                   """,
+            IsBodyHtml = false
+        };
+
+        message.To.Add(toEmail);
+
+        try
+        {
+            await client.SendMailAsync(message);
+            _logger.LogInformation("Doğrulama e-postası başarıyla gönderildi: {Email}", toEmail);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Doğrulama e-postası gönderilemedi: {Email}", toEmail);
+            throw new InvalidOperationException("Doğrulama e-postası gönderilemedi. Lütfen daha sonra tekrar deneyin.");
+        }
+    }
+
+    private bool TryBuildSmtpClient(out SmtpClient? client, out string? fromEmail, out string fromName)
+    {
+        var host = _config["Smtp:Host"];
+        fromEmail = _config["Smtp:FromEmail"];
+        fromName = _config["Smtp:FromName"] ?? "PAÜ Market";
+
+        if (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(fromEmail))
+        {
+            client = null;
+            return false;
+        }
+
+        var port = _config.GetValue("Smtp:Port", 587);
+        var username = _config["Smtp:Username"];
+        var password = _config["Smtp:Password"];
+        var enableSsl = _config.GetValue("Smtp:EnableSsl", true);
+
+        client = new SmtpClient(host, port)
+        {
+            EnableSsl = enableSsl,
+            DeliveryMethod = SmtpDeliveryMethod.Network
+        };
+
+        if (!string.IsNullOrWhiteSpace(username))
+            client.Credentials = new NetworkCredential(username, password);
+
+        return true;
+    }
+
     private void SimulateSendVerificationEmail(string toEmail, string code)
     {
+        _logger.LogWarning(
+            "SMTP yapılandırması bulunamadı. Doğrulama kodu loga yazıldı. Alıcı: {Email} | Kod: {Code}",
+            toEmail, code);
+
         _logger.LogInformation(
             "📧 [E-POSTA SİMÜLASYONU] Alıcı: {Email} | Doğrulama Kodu: {Code}",
             toEmail, code);
