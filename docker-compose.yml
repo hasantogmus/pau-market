@@ -4,14 +4,14 @@ services:
     container_name: paumarket-sql
     environment:
       - ACCEPT_EULA=Y
-      - MSSQL_SA_PASSWORD=PauMarket2026!
+      - MSSQL_SA_PASSWORD=${MSSQL_SA_PASSWORD}
       # Enable Turkish collation if needed, but default is usually fine
     ports:
       - "1433:1433"
     volumes:
       - sql_data:/var/opt/mssql
     healthcheck:
-      test: ["CMD", "/opt/mssql-tools18/bin/sqlcmd", "-C", "-U", "sa", "-P", "PauMarket2026!", "-Q", "SELECT 1"]
+      test: ["CMD", "/opt/mssql-tools18/bin/sqlcmd", "-C", "-U", "${DB_USER:-sa}", "-P", "${MSSQL_SA_PASSWORD}", "-Q", "SELECT 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -37,9 +37,17 @@ services:
     ports:
       - "5251:8080"
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__DefaultConnection=Server=paumarket-sql;Database=PauMarketDb;User Id=sa;Password=PauMarket2026!;TrustServerCertificate=True;
-      - RecommenderApiUrl=http://recommender:8000
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
+      - ConnectionStrings__DefaultConnection=Server=${DB_SERVER:-paumarket-sql};Database=${DB_NAME:-PauMarketDb};User Id=${DB_USER:-sa};Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;
+      - Jwt__Key=${JWT_KEY}
+      - Jwt__Issuer=${JWT_ISSUER:-PauMarket.API}
+      - Jwt__Audience=${JWT_AUDIENCE:-PauMarket.Client}
+      - Jwt__ExpireMinutes=${JWT_EXPIRE_MINUTES:-1440}
+      - AllowedEmailDomain=${ALLOWED_EMAIL_DOMAIN:-@posta.pau.edu.tr}
+      - CloudinarySettings__CloudName=${CLOUDINARY_CLOUD_NAME}
+      - CloudinarySettings__ApiKey=${CLOUDINARY_API_KEY}
+      - CloudinarySettings__ApiSecret=${CLOUDINARY_API_SECRET}
+      - RecommenderApiUrl=${RECOMMENDER_API_URL:-http://recommender:8000}
     depends_on:
       paumarket-sql:
         condition: service_healthy
@@ -56,7 +64,7 @@ services:
     ports:
       - "5173:5173"
     environment:
-      - VITE_API_URL=http://localhost:5251/api
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:5251/api}
     command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
     depends_on:
       backend:
