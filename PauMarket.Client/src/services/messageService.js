@@ -21,6 +21,10 @@ const messageService = {
         });
         return response.data;
     },
+
+    markAsRead: async (messageId) => {
+        await api.put(`/messages/${messageId}/read`);
+    },
 };
 
 export default messageService;

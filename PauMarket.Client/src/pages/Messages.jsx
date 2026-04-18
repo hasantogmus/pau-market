@@ -50,6 +50,15 @@ const Messages = () => {
     }, [isAuthenticated]);
 
     useEffect(() => {
+        if (!isAuthenticated || canLoadConversation || isLoadingThreads || threads.length === 0) {
+            return;
+        }
+
+        const firstThread = threads[0];
+        navigate(`/messages?listingId=${firstThread.listingId}&sellerId=${firstThread.otherUserId}`, { replace: true });
+    }, [canLoadConversation, isAuthenticated, isLoadingThreads, navigate, threads]);
+
+    useEffect(() => {
         if (!isAuthenticated || !canLoadConversation) {
             setMessages([]);
             setIsLoadingMessages(false);
@@ -62,6 +71,30 @@ const Messages = () => {
             try {
                 const data = await messageService.getConversation(sellerId, listingId);
                 setMessages(data);
+
+                const unreadIncoming = data.filter(
+                    (message) => Number(message.receiverId) === Number(user?.id) && !message.isRead
+                );
+
+                if (unreadIncoming.length > 0) {
+                    await Promise.all(unreadIncoming.map((message) => messageService.markAsRead(message.id)));
+
+                    setMessages((prev) =>
+                        prev.map((message) =>
+                            unreadIncoming.some((unread) => unread.id === message.id)
+                                ? { ...message, isRead: true }
+                                : message
+                        )
+                    );
+
+                    setThreads((prev) =>
+                        prev.map((thread) =>
+                            Number(thread.listingId) === listingId && Number(thread.otherUserId) === sellerId
+                                ? { ...thread, unreadCount: 0 }
+                                : thread
+                        )
+                    );
+                }
             } catch (err) {
                 setError(err.response?.data?.error || 'Mesajlar yüklenemedi.');
             } finally {
@@ -70,7 +103,7 @@ const Messages = () => {
         };
 
         loadConversation();
-    }, [canLoadConversation, isAuthenticated, listingId, sellerId]);
+    }, [canLoadConversation, isAuthenticated, listingId, sellerId, user?.id]);
 
     const selectedThread = useMemo(
         () => threads.find((thread) => Number(thread.listingId) === listingId && Number(thread.otherUserId) === sellerId) || null,
