@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BadgeCheck, Eye, Package, Pencil, PlusCircle, Power, Tag, Trash2 } from 'lucide-react';
+import { BadgeCheck, CheckCircle2, Eye, Package, Pencil, PlusCircle, Power, Tag, Trash2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import listingService from '../services/listingService';
 
@@ -65,10 +65,11 @@ const MyListings = () => {
 
     const summary = useMemo(() => {
         const activeCount = listings.filter((item) => item.isActive).length;
-        const inactiveCount = listings.length - activeCount;
+        const soldCount = listings.filter((item) => item.isSold).length;
+        const inactiveCount = listings.filter((item) => !item.isActive && !item.isSold).length;
         const totalValue = listings.reduce((sum, item) => sum + Number(item.price || 0), 0);
 
-        return { activeCount, inactiveCount, totalValue };
+        return { activeCount, inactiveCount, soldCount, totalValue };
     }, [listings]);
 
     const openEditModal = (listing) => {
@@ -109,6 +110,8 @@ const MyListings = () => {
                 category: editForm.category,
                 condition: editForm.condition,
                 isActive: editForm.isActive,
+                isSold: editingListing.isSold ?? false,
+                soldToUserId: editingListing.soldToUserId ?? null,
             });
 
             updateListingInState(updatedListing);
@@ -132,7 +135,9 @@ const MyListings = () => {
                 price: Number(listing.price),
                 category: listing.category,
                 condition: listing.condition,
-                isActive: !listing.isActive,
+                isActive: listing.isSold ? false : !listing.isActive,
+                isSold: listing.isSold ?? false,
+                soldToUserId: listing.soldToUserId ?? null,
             });
 
             updateListingInState(updatedListing);
@@ -162,6 +167,27 @@ const MyListings = () => {
             setFeedback({ type: 'error', text: err.response?.data?.error || 'İlan silinemedi.' });
         } finally {
             setDeletingListingId(null);
+        }
+    };
+
+    const handleToggleSold = async (listing) => {
+        setSavingListingId(listing.id);
+        setFeedback(null);
+
+        try {
+            const updatedListing = await listingService.updateSaleStatus(listing.id, {
+                isSold: !listing.isSold,
+            });
+
+            updateListingInState(updatedListing);
+            setFeedback({
+                type: 'success',
+                text: updatedListing.isSold ? 'İlan satıldı olarak işaretlendi.' : 'İlan yeniden satışa açıldı.',
+            });
+        } catch (err) {
+            setFeedback({ type: 'error', text: err.response?.data?.error || 'Satış durumu güncellenemedi.' });
+        } finally {
+            setSavingListingId(null);
         }
     };
 
@@ -196,6 +222,7 @@ const MyListings = () => {
                 <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
                     <SummaryCard icon={Package} label="Toplam İlan" value={listings.length} tone="bg-blue-50 text-blue-600" />
                     <SummaryCard icon={BadgeCheck} label="Yayındaki İlan" value={summary.activeCount} tone="bg-green-50 text-green-600" />
+                    <SummaryCard icon={CheckCircle2} label="Satılan İlan" value={summary.soldCount} tone="bg-emerald-50 text-emerald-600" />
                     <SummaryCard icon={Power} label="Pasif İlan" value={summary.inactiveCount} tone="bg-amber-50 text-amber-600" />
                     <SummaryCard icon={Tag} label="Toplam Portföy Değeri" value={currency(summary.totalValue)} tone="bg-indigo-50 text-indigo-600" />
                 </section>
@@ -242,8 +269,14 @@ const MyListings = () => {
                                             <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
                                                 <div className="min-w-0">
                                                     <div className="flex flex-wrap items-center gap-2 mb-2">
-                                                        <span className={`inline-flex px-3 py-1 rounded-full text-xs font-bold border ${listing.isActive ? 'bg-green-50 text-green-700 border-green-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
-                                                            {listing.isActive ? 'Yayında' : 'Pasif'}
+                                                        <span className={`inline-flex px-3 py-1 rounded-full text-xs font-bold border ${
+                                                            listing.isSold
+                                                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                                                : listing.isActive
+                                                                    ? 'bg-green-50 text-green-700 border-green-200'
+                                                                    : 'bg-amber-50 text-amber-700 border-amber-200'
+                                                        }`}>
+                                                            {listing.isSold ? 'Satıldı' : listing.isActive ? 'Yayında' : 'Pasif'}
                                                         </span>
                                                         <span className="inline-flex px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
                                                             {listing.category}
@@ -264,7 +297,7 @@ const MyListings = () => {
                                                 <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-700">İlan No: #{listing.id}</span>
                                             </div>
 
-                                            <div className="mt-auto grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                            <div className="mt-auto grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-2">
                                                 <Link
                                                     to={`/listings/${listing.id}`}
                                                     className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors text-sm font-semibold"
@@ -283,12 +316,21 @@ const MyListings = () => {
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    onClick={() => handleToggleActive(listing)}
+                                                    onClick={() => handleToggleSold(listing)}
                                                     disabled={isBusy}
+                                                    className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border border-emerald-200 text-emerald-700 hover:bg-emerald-50 transition-colors text-sm font-semibold disabled:opacity-60"
+                                                >
+                                                    <CheckCircle2 className="w-4 h-4" />
+                                                    {savingListingId === listing.id ? 'Kaydediliyor...' : listing.isSold ? 'Satışı Geri Al' : 'Satıldı Yap'}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleToggleActive(listing)}
+                                                    disabled={isBusy || listing.isSold}
                                                     className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border border-amber-200 text-amber-700 hover:bg-amber-50 transition-colors text-sm font-semibold disabled:opacity-60"
                                                 >
                                                     <Power className="w-4 h-4" />
-                                                    {savingListingId === listing.id ? 'Kaydediliyor...' : listing.isActive ? 'Pasife Al' : 'Yayına Al'}
+                                                    {savingListingId === listing.id ? 'Kaydediliyor...' : listing.isSold ? 'Önce Satışı Geri Al' : listing.isActive ? 'Pasife Al' : 'Yayına Al'}
                                                 </button>
                                                 <button
                                                     type="button"

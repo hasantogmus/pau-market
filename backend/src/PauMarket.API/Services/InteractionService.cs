@@ -81,7 +81,11 @@ public class InteractionService(PauMarketDbContext context) : IInteractionServic
             Price = listing.Price,
             Category = listing.Category,
             Condition = listing.Condition,
+            ImageUrl = listing.ImageUrl,
             IsActive = listing.IsActive,
+            IsSold = listing.IsSold,
+            SoldAt = listing.SoldAt,
+            SoldToUserId = listing.SoldToUserId,
             CreatedAt = listing.CreatedAt
         };
     }

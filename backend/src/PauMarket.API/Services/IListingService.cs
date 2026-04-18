@@ -29,4 +29,9 @@ public interface IListingService
     /// Sahip değilse UnauthorizedAccessException fırlatır.
     /// </summary>
     Task<bool> DeleteListingAsync(int id, int callerId);
+
+    /// <summary>
+    /// İlanı satıldı / satışta olarak işaretler.
+    /// </summary>
+    Task<ListingResponseDto?> MarkListingSoldAsync(int id, bool isSold, int callerId, int? soldToUserId = null);
 }

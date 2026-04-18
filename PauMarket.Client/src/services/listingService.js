@@ -61,6 +61,11 @@ const listingService = {
         return normalizeListing(response.data);
     },
 
+    updateSaleStatus: async (id, payload) => {
+        const response = await api.patch(`/listings/${id}/sale-status`, payload);
+        return normalizeListing(response.data);
+    },
+
     deleteListing: async (id) => {
         await api.delete(`/listings/${id}`);
     },

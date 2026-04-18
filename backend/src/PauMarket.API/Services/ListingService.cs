@@ -29,7 +29,9 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
         }
 
         // Filtreleme ve sayfalamayı RAM'e aldığımız liste üzerinden (in-memory) yapıyoruz
-        var query = (allListings ?? []).AsQueryable();
+        var query = (allListings ?? [])
+            .Where(listing => listing.IsActive && !listing.IsSold)
+            .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(parameters.SearchTerm))
         {
@@ -104,6 +106,7 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
             Condition   = dto.Condition,
             ImageUrl    = imageUrl,          // Berke'nin görseli: Buluttan gelir
             IsActive    = true,
+            IsSold      = false,
             CreatedAt   = DateTime.UtcNow
         };
 
@@ -134,7 +137,10 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
         listing.Price       = dto.Price;
         listing.Category    = dto.Category;
         listing.Condition   = dto.Condition;
-        listing.IsActive    = dto.IsActive;
+        listing.IsSold      = dto.IsSold;
+        listing.SoldToUserId = dto.IsSold ? dto.SoldToUserId : null;
+        listing.SoldAt      = dto.IsSold ? listing.SoldAt ?? DateTime.UtcNow : null;
+        listing.IsActive    = dto.IsSold ? false : dto.IsActive;
 
         await context.SaveChangesAsync();
 
@@ -166,6 +172,46 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
         return true;
     }
 
+    public async Task<ListingResponseDto?> MarkListingSoldAsync(int id, bool isSold, int callerId, int? soldToUserId = null)
+    {
+        var listing = await context.Listings.FindAsync(id);
+        if (listing is null) return null;
+
+        if (listing.UserId != callerId)
+            throw new UnauthorizedAccessException("Bu ilanın satış durumunu değiştirmeye yetkiniz yok.");
+
+        listing.IsSold = isSold;
+        listing.SoldAt = isSold ? DateTime.UtcNow : null;
+        listing.SoldToUserId = isSold ? soldToUserId : null;
+        listing.IsActive = !isSold;
+
+        await context.SaveChangesAsync();
+        cache.Remove("AllListings");
+
+        if (isSold && soldToUserId is int buyerId)
+        {
+            var alreadyTracked = await context.Interactions.AnyAsync(interaction =>
+                interaction.UserId == buyerId &&
+                interaction.ListingId == listing.Id &&
+                interaction.InteractionType == InteractionType.Purchase);
+
+            if (!alreadyTracked)
+            {
+                context.Interactions.Add(new Interaction
+                {
+                    UserId = buyerId,
+                    ListingId = listing.Id,
+                    InteractionType = InteractionType.Purchase,
+                    Timestamp = DateTime.UtcNow
+                });
+
+                await context.SaveChangesAsync();
+            }
+        }
+
+        return MapToResponseDto(listing);
+    }
+
     // ── Helper ───────────────────────────────────────────────────────────────
 
     private static ListingResponseDto MapToResponseDto(Listing listing) => new()
@@ -179,6 +225,9 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
         Condition   = listing.Condition,
         ImageUrl    = listing.ImageUrl, // Berke'nin eklediği alan
         IsActive    = listing.IsActive,
+        IsSold      = listing.IsSold,
+        SoldAt      = listing.SoldAt,
+        SoldToUserId = listing.SoldToUserId,
         CreatedAt   = listing.CreatedAt
     };
 }

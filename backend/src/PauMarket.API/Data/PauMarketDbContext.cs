@@ -69,6 +69,7 @@ public class PauMarketDbContext(DbContextOptions<PauMarketDbContext> options) : 
             entity.Property(l => l.Category).IsRequired().HasMaxLength(50);
             entity.Property(l => l.Condition).IsRequired().HasMaxLength(50);
             entity.Property(l => l.IsActive).HasDefaultValue(true);
+            entity.Property(l => l.IsSold).HasDefaultValue(false);
             entity.Property(l => l.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
 
             // Listing → User (N:1)
@@ -236,4 +237,3 @@ public class PauMarketDbContext(DbContextOptions<PauMarketDbContext> options) : 
         });
     }
 }
-

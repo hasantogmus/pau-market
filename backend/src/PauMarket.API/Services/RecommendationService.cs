@@ -44,7 +44,7 @@ public class RecommendationService(
 
                     // 2. Python'dan gelen ID'leri SQL DB'den bul ve getir. Kullanıcının KENDİ ilanlarını gösterme.
                     var listings = await db.Listings
-                        .Where(l => pythonItemIds.Contains(l.Id) && l.IsActive && l.UserId != userId)
+                        .Where(l => pythonItemIds.Contains(l.Id) && l.IsActive && !l.IsSold && l.UserId != userId)
                         .ToListAsync();
 
                     // Python'un sıralamasını koru
@@ -89,6 +89,7 @@ public class RecommendationService(
             .Take(count)
             .Include(v => v.Listing)
             .Select(v => v.Listing)
+            .Where(l => l.IsActive && !l.IsSold)
             .ToListAsync();
 
         return recentViews.Select(MapToDto);
@@ -151,6 +152,7 @@ public class RecommendationService(
             // Örn: l.Category = "Hobi" ise ve rawCategories = "Hobi / Oyun" ise bu eşleşir.
             var preferredListings = await db.Listings
                 .Where(l => l.IsActive
+                         && !l.IsSold
                          && l.UserId != userId
                          && !alreadyIncludedIds.Contains(l.Id)
                          && rawCategories.Contains(l.Category))
@@ -169,6 +171,7 @@ public class RecommendationService(
 
             var generalListings = await db.Listings
                 .Where(l => l.IsActive
+                         && !l.IsSold
                          && l.UserId != userId
                          && !excluded.Contains(l.Id))
                 .OrderByDescending(l => l.CreatedAt)
@@ -196,6 +199,9 @@ public class RecommendationService(
         Condition   = listing.Condition,
         ImageUrl    = listing.ImageUrl,
         IsActive    = listing.IsActive,
+        IsSold      = listing.IsSold,
+        SoldAt      = listing.SoldAt,
+        SoldToUserId = listing.SoldToUserId,
         CreatedAt   = listing.CreatedAt
     };
 }

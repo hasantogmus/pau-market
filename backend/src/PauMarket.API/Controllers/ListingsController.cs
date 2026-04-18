@@ -137,6 +137,32 @@ public class ListingsController(
         }
     }
 
+    [HttpPatch("{id}/sale-status")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ListingResponseDto>> UpdateSaleStatus(int id, [FromBody] MarkListingSoldDto dto)
+    {
+        int? callerId = User.GetUserId();
+        if (callerId is null)
+            return Unauthorized(new { error = "Geçersiz token." });
+
+        try
+        {
+            var updatedListing = await listingService.MarkListingSoldAsync(id, dto.IsSold, callerId.Value, dto.SoldToUserId);
+
+            if (updatedListing is null)
+                return NotFound(new { error = "İlan bulunamadı." });
+
+            return Ok(updatedListing);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message });
+        }
+    }
+
     /// <summary>
     /// İlanı siler.
     /// Kural: yalnızca ilanın sahibi silebilir.

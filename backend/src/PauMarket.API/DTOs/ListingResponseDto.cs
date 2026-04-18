@@ -12,5 +12,8 @@ public class ListingResponseDto
     public string Condition { get; set; } = null!;
     public string? ImageUrl { get; set; }
     public bool IsActive { get; set; }
+    public bool IsSold { get; set; }
+    public DateTime? SoldAt { get; set; }
+    public int? SoldToUserId { get; set; }
     public DateTime CreatedAt { get; set; }
 }

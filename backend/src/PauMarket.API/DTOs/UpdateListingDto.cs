@@ -24,4 +24,6 @@ public class UpdateListingDto
     public required string Condition { get; set; }
 
     public bool IsActive { get; set; }
+    public bool IsSold { get; set; }
+    public int? SoldToUserId { get; set; }
 }

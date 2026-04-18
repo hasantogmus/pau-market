@@ -184,6 +184,12 @@ const ListingDetail = () => {
 
                         {/* Badge'ler: Kategori + Durum */}
                         <motion.div variants={fadeUpVariants} initial="hidden" animate="visible" custom={0.2} className="flex flex-wrap gap-2">
+                            {listing.isSold && (
+                                <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-sm font-bold">
+                                    <ShieldCheck className="w-3.5 h-3.5" />
+                                    Satıldı
+                                </span>
+                            )}
                             {/* Kategori */}
                             <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-sm font-bold">
                                 <Tag className="w-3.5 h-3.5" />
@@ -195,6 +201,23 @@ const ListingDetail = () => {
                                 {listing.condition}
                             </span>
                         </motion.div>
+
+                        {listing.isSold && (
+                            <motion.div
+                                variants={fadeUpVariants}
+                                initial="hidden"
+                                animate="visible"
+                                custom={0.24}
+                                className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3"
+                            >
+                                <p className="text-sm font-semibold text-emerald-800">
+                                    Bu ilan satıldı olarak işaretlendi.
+                                </p>
+                                <p className="text-xs text-emerald-700 mt-1">
+                                    Satıcı bu ürünü artık satışta göstermiyor.
+                                </p>
+                            </motion.div>
+                        )}
 
                         {/* Satıcı Kartı */}
                         <motion.div
@@ -233,14 +256,15 @@ const ListingDetail = () => {
                         {/* Aksiyon: Satıcıya Mesaj At */}
                         <motion.div variants={fadeUpVariants} initial="hidden" animate="visible" custom={0.38} className="mt-auto">
                             <button
+                                disabled={listing.isSold}
                                 onClick={() => navigate(`/messages?listingId=${listing.id}&sellerId=${listing.userId}`)}
-                                className="w-full flex items-center justify-center gap-3 py-4 px-6 bg-blue-600 hover:bg-blue-700 text-white text-lg font-extrabold rounded-2xl shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5 active:scale-[0.98]"
+                                className="w-full flex items-center justify-center gap-3 py-4 px-6 bg-blue-600 hover:bg-blue-700 text-white text-lg font-extrabold rounded-2xl shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5 active:scale-[0.98] disabled:bg-gray-300 disabled:hover:bg-gray-300 disabled:shadow-none disabled:hover:translate-y-0 disabled:cursor-not-allowed"
                             >
                                 <MessageCircle className="w-6 h-6" />
-                                Satıcıya Mesaj At
+                                {listing.isSold ? 'Bu İlan Satıldı' : 'Satıcıya Mesaj At'}
                             </button>
                             <p className="text-center text-xs text-gray-400 font-medium mt-3">
-                                Güvenli mesajlaşma sistemi üzerinden iletişime geç.
+                                {listing.isSold ? 'Satılmış ilanlar için mesaj başlatılamaz.' : 'Güvenli mesajlaşma sistemi üzerinden iletişime geç.'}
                             </p>
                         </motion.div>
 

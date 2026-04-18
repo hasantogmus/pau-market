@@ -39,6 +39,9 @@ public class Listing
     public string? ImageUrl { get; set; }
 
     public bool IsActive { get; set; } = true;
+    public bool IsSold { get; set; } = false;
+    public DateTime? SoldAt { get; set; }
+    public int? SoldToUserId { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
