@@ -1,16 +1,44 @@
-# React + Vite
+# PauMarket Client
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+PAÜ Market frontend uygulaması React + Vite ile geliştirilmiştir.
 
-Currently, two official plugins are available:
+## Komutlar
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+```bash
+cd /Users/hasantogmus/Desktop/pau-market/PauMarket.Client
+npm install
+npm run dev
+```
 
-## React Compiler
+Build ve lint:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+npm run lint
+npm run build
+```
 
-## Expanding the ESLint configuration
+## Ortam Değişkeni
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Frontend backend adresini `VITE_API_URL` ile okur.
+
+Örnek:
+
+```bash
+VITE_API_URL=http://localhost:5251/api
+```
+
+Docker Compose kullanıyorsan bu değer kök `.env` ve `docker-compose.yml` üzerinden zaten sağlanır.
+
+## Kapsam
+
+Frontend içinde şu temel akışlar bulunur:
+
+- giriş / kayıt
+- ana sayfa ve ilan detayları
+- ilan oluşturma
+- ilan yönetimi
+- favoriler
+- mesajlar
+- profil ve ayarlar
+
+Ana proje dokümantasyonu için kökteki [README.md](/Users/hasantogmus/Desktop/pau-market/README.md) dosyasına bak.
