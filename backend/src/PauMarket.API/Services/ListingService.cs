@@ -29,13 +29,13 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
         }
 
         // Filtreleme ve sayfalamayı RAM'e aldığımız liste üzerinden (in-memory) yapıyoruz
-        var query = allListings!.AsQueryable();
+        var query = (allListings ?? []).AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(parameters.SearchTerm))
         {
             var searchTerm = parameters.SearchTerm.ToLower();
-            query = query.Where(l => l.Title.ToLower().Contains(searchTerm) || 
-                                     l.Description.ToLower().Contains(searchTerm));
+            query = query.Where(l => l.Title.ToLower().Contains(searchTerm) ||
+                                     (l.Description ?? string.Empty).ToLower().Contains(searchTerm));
         }
 
         if (!string.IsNullOrWhiteSpace(parameters.Category))
