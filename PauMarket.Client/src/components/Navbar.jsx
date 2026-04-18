@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     Search,
     PlusCircle,
-    Bell,
     MessageCircle,
     User,
     Menu,
@@ -18,15 +17,7 @@ import {
     Home,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
-
-/* ─── Bell swing animation ────────────────────────────────────── */
-const bellSwing = {
-    rest: { rotate: 0 },
-    hover: {
-        rotate: [0, -22, 18, -14, 10, -6, 4, 0],
-        transition: { duration: 0.65, ease: 'easeInOut' },
-    },
-};
+import messageService from '../services/messageService';
 
 /* ─── Dropdown slide-in animation ────────────────────────────── */
 const dropdownVariants = {
@@ -77,6 +68,7 @@ const Navbar = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [mobileOpen, setMobileOpen] = useState(false);
     const [profileOpen, setProfileOpen] = useState(false);
+    const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
 
     const profileRef = useRef(null);
 
@@ -99,6 +91,33 @@ const Navbar = () => {
         window.addEventListener('resize', handler);
         return () => window.removeEventListener('resize', handler);
     }, []);
+
+    useEffect(() => {
+        if (!isAuthenticated) {
+            return;
+        }
+
+        let isMounted = true;
+
+        const loadThreads = async () => {
+            try {
+                const threads = await messageService.getThreads();
+                if (isMounted) {
+                    setHasUnreadMessages(threads.some((thread) => Number(thread.unreadCount) > 0));
+                }
+            } catch {
+                if (isMounted) {
+                    setHasUnreadMessages(false);
+                }
+            }
+        };
+
+        loadThreads();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [isAuthenticated]);
 
     const handleSearch = (e) => {
         e.preventDefault();
@@ -182,27 +201,16 @@ const Navbar = () => {
                             </Link>
                         </motion.div>
 
-                        {/* Notifications Bell */}
-                        <motion.button
-                            initial="rest"
-                            whileHover="hover"
-                            aria-label="Bildirimler"
-                            className="relative p-2 rounded-full text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                        >
-                            <motion.span variants={bellSwing} style={{ display: 'inline-flex' }}>
-                                <Bell className="w-5 h-5" />
-                            </motion.span>
-                            {/* Notification dot */}
-                            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white" />
-                        </motion.button>
-
                         {isAuthenticated && (
                             <Link
                                 to="/messages"
-                                className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-semibold text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                                className="relative inline-flex items-center gap-2 px-3.5 py-2 text-sm font-semibold text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
                             >
                                 <MessageCircle className="w-4 h-4" />
                                 Mesajlar
+                                {hasUnreadMessages && (
+                                    <span className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-white" />
+                                )}
                             </Link>
                         )}
 
@@ -394,7 +402,7 @@ const Navbar = () => {
                                                 <p className="text-xs text-gray-500 truncate">{user?.email}</p>
                                             </div>
                                         </div>
-                                        <MobileNavLink to="/messages" icon={<MessageCircle className="w-5 h-5" />} label="Mesajlar" onClick={() => setMobileOpen(false)} />
+                                        <MobileNavLink to="/messages" icon={<MessageCircle className="w-5 h-5" />} label="Mesajlar" showDot={hasUnreadMessages} onClick={() => setMobileOpen(false)} />
                                         <MobileNavLink to="/profile" icon={<User className="w-5 h-5" />} label="Profilim" onClick={() => setMobileOpen(false)} />
                                         <MobileNavLink to="/my-listings" icon={<Package className="w-5 h-5" />} label="İlanlarım" onClick={() => setMobileOpen(false)} />
                                         <MobileNavLink to="/settings" icon={<Settings className="w-5 h-5" />} label="Ayarlar" onClick={() => setMobileOpen(false)} />
@@ -449,11 +457,11 @@ const DropdownItem = ({ to, icon, label, onClick }) => (
     </Link>
 );
 
-const MobileNavLink = ({ to, icon, label, highlight, onClick }) => (
+const MobileNavLink = ({ to, icon, label, highlight, showDot, onClick }) => (
     <Link
         to={to}
         onClick={onClick}
-        className={`flex items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-xl transition-colors ${
+        className={`relative flex items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-xl transition-colors ${
             highlight
                 ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
                 : 'text-gray-700 hover:bg-gray-100 hover:text-blue-600'
@@ -461,6 +469,9 @@ const MobileNavLink = ({ to, icon, label, highlight, onClick }) => (
     >
         {icon}
         {label}
+        {showDot && (
+            <span className="ml-auto w-2.5 h-2.5 rounded-full bg-red-500" />
+        )}
     </Link>
 );
 
