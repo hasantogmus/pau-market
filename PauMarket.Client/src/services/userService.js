@@ -6,6 +6,16 @@ const userService = {
         return response.data;
     },
 
+    updateProfile: async ({ firstName, lastName, department, grade }) => {
+        const response = await api.patch('/users/me', {
+            firstName,
+            lastName,
+            department,
+            grade,
+        });
+        return response.data;
+    },
+
     /**
      * Kullanıcının onboarding tercihlerini kaydeder.
      * @param {string|null} preferredCategories - Virgülle ayrılmış kategori listesi (örn: "Elektronik,Kitap")
