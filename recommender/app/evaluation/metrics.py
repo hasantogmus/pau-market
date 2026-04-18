@@ -8,6 +8,7 @@ Metrikler:
     - Precision@K: Top-K önerideki isabet oranı
     - Recall@K: Tüm ilgili öğelerin ne kadarı top-K'da
     - NDCG@K: Sıralama pozisyonu kalitesi (üstteki isabetler daha değerli)
+    - RMSE: Tahmin edilen etkileşim skoru ile gerçek ağırlık arasındaki hata
     - AUC: Sıralama kalitesi (LightFM built-in)
 
 Referans:
@@ -134,3 +135,29 @@ def mean_reciprocal_rank(recommended: list[int], relevant: set[int]) -> float:
         if item in relevant:
             return 1.0 / (i + 1)
     return 0.0
+
+
+def root_mean_squared_error(
+    y_true: list[float] | np.ndarray,
+    y_pred: list[float] | np.ndarray,
+) -> float:
+    """
+    Root Mean Squared Error (RMSE).
+
+    RMSE = sqrt(mean((y_true - y_pred)^2))
+
+    Özellikle skor/rating tahmini yapan modeller için anlamlıdır.
+
+    Args:
+        y_true: Gerçek etkileşim ağırlıkları
+        y_pred: Modelin tahmin ettiği skorlar
+
+    Returns:
+        float: 0.0+ arası hata değeri. Düşük olması daha iyidir.
+    """
+    if len(y_true) == 0:
+        return 0.0
+
+    y_true_arr = np.asarray(y_true, dtype=np.float32)
+    y_pred_arr = np.asarray(y_pred, dtype=np.float32)
+    return float(np.sqrt(np.mean((y_true_arr - y_pred_arr) ** 2)))

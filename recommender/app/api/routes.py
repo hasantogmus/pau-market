@@ -190,7 +190,7 @@ async def train_models():
 async def get_metrics():
     """
     Son eğitimin performans metriklerini döndürür.
-    Precision@K, Recall@K, NDCG@K, HitRate@K karşılaştırma tablosu.
+    Precision@K, Recall@K, NDCG@K, HitRate@K, MRR ve RMSE karşılaştırma tablosu.
     """
     if _evaluator_results is None:
         raise HTTPException(

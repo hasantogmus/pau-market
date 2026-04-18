@@ -5,7 +5,7 @@ Model Değerlendirme Pipeline'ı (Evaluator)
 Üç modeli aynı test seti üzerinde değerlendirir ve karşılaştırma raporu üretir.
 
 Çıktı:
-    - Tablo: Her model için Precision@K, Recall@K, NDCG@K, HitRate@K
+    - Tablo: Her model için Precision@K, Recall@K, NDCG@K, HitRate@K, RMSE
     - Grafik: Karşılaştırma bar chart + K değerine göre line chart
     - JSON: API endpoint'i için metrik sonuçları
 
@@ -29,6 +29,7 @@ from app.evaluation.metrics import (
     ndcg_at_k,
     hit_rate_at_k,
     mean_reciprocal_rank,
+    root_mean_squared_error,
 )
 
 
@@ -91,6 +92,7 @@ class ModelEvaluator:
             model_results = self._evaluate_model(model, test_users)
             elapsed = time.time() - start_time
 
+            model_results["rmse"] = self._evaluate_rmse(model, test_users)
             model_results["evaluation_time_seconds"] = round(elapsed, 2)
             self.results[model_name] = model_results
 
@@ -98,7 +100,12 @@ class ModelEvaluator:
             pk = model_results.get(PRIMARY_K, {}).get("precision", 0)
             rk = model_results.get(PRIMARY_K, {}).get("recall", 0)
             nk = model_results.get(PRIMARY_K, {}).get("ndcg", 0)
-            print(f"   P@{PRIMARY_K}={pk:.4f}  R@{PRIMARY_K}={rk:.4f}  NDCG@{PRIMARY_K}={nk:.4f}  ({elapsed:.1f}s)")
+            rmse = model_results.get("rmse")
+            rmse_text = f"  RMSE={rmse:.4f}" if rmse is not None else ""
+            print(
+                f"   P@{PRIMARY_K}={pk:.4f}  R@{PRIMARY_K}={rk:.4f}  "
+                f"NDCG@{PRIMARY_K}={nk:.4f}{rmse_text}  ({elapsed:.1f}s)"
+            )
 
         # Karşılaştırma tablosu oluştur
         self.results["comparison_table"] = self._build_comparison_table()
@@ -204,6 +211,37 @@ class ModelEvaluator:
 
         return final_results
 
+    def _evaluate_rmse(self, model, test_users: list[int]) -> Optional[float]:
+        """
+        Skor tahmini yapabilen modeller için RMSE hesaplar.
+
+        Content-based modelde kalibre edilmiş tahmin skoru olmadığı için
+        sahte bir RMSE üretmek yerine None döndürürüz.
+        """
+        if not hasattr(model, "predict"):
+            return None
+
+        test_subset = self.preprocessor.test_df[
+            self.preprocessor.test_df["user_idx"].isin(test_users)
+        ]
+
+        y_true: list[float] = []
+        y_pred: list[float] = []
+
+        for row in test_subset.itertuples(index=False):
+            try:
+                predicted_score = float(model.predict(int(row.user_idx), int(row.item_idx)))
+            except Exception:
+                continue
+
+            y_true.append(float(row.weight))
+            y_pred.append(predicted_score)
+
+        if not y_true:
+            return None
+
+        return round(root_mean_squared_error(y_true, y_pred), 6)
+
     def _build_comparison_table(self) -> dict:
         """Karşılaştırma tablosu oluşturur (DataFrame-uyumlu dict)."""
         k = PRIMARY_K
@@ -219,6 +257,7 @@ class ModelEvaluator:
                     f"NDCG@{k}": metrics.get("ndcg", 0),
                     f"HitRate@{k}": metrics.get("hit_rate", 0),
                     f"MRR": metrics.get("mrr", 0),
+                    "RMSE": self.results[model_name].get("rmse"),
                 })
 
         return rows
@@ -230,21 +269,27 @@ class ModelEvaluator:
             return
 
         k = PRIMARY_K
-        print(f"\n{'─' * 75}")
-        print(f"{'Model':<20} {'P@' + str(k):<12} {'R@' + str(k):<12} {'NDCG@' + str(k):<12} {'HR@' + str(k):<12} {'MRR':<10}")
-        print(f"{'─' * 75}")
+        print(f"\n{'─' * 88}")
+        print(
+            f"{'Model':<20} {'P@' + str(k):<10} {'R@' + str(k):<10} "
+            f"{'NDCG@' + str(k):<12} {'HR@' + str(k):<10} {'MRR':<10} {'RMSE':<10}"
+        )
+        print(f"{'─' * 88}")
 
         for row in table:
+            rmse = row["RMSE"]
+            rmse_text = f"{rmse:.4f}" if rmse is not None else "N/A"
             print(
                 f"{row['Model']:<20} "
-                f"{row[f'Precision@{k}']:<12.4f} "
-                f"{row[f'Recall@{k}']:<12.4f} "
+                f"{row[f'Precision@{k}']:<10.4f} "
+                f"{row[f'Recall@{k}']:<10.4f} "
                 f"{row[f'NDCG@{k}']:<12.4f} "
-                f"{row[f'HitRate@{k}']:<12.4f} "
-                f"{row['MRR']:<10.4f}"
+                f"{row[f'HitRate@{k}']:<10.4f} "
+                f"{row['MRR']:<10.4f} "
+                f"{rmse_text:<10}"
             )
 
-        print(f"{'─' * 75}")
+        print(f"{'─' * 88}")
 
     def get_results_json(self) -> dict:
         """API endpoint'i için JSON-uyumlu sonuç."""
@@ -255,7 +300,7 @@ class ModelEvaluator:
                 for key, value in self.results[model_name].items():
                     if isinstance(key, int):
                         model_data[f"k_{key}"] = value
-                    elif key == "evaluation_time_seconds":
+                    elif key in {"evaluation_time_seconds", "rmse"}:
                         model_data[key] = value
                 output[model_name] = model_data
 

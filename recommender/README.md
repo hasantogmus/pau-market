@@ -10,7 +10,7 @@ Python FastAPI ─── 3 ML Model ─── Retailrocket Dataset
   /recommend/{user}  →  Anahtarlamalı Hibrit RS
   /similar/{item}    →  LightFM Item Embeddings
   /train             →  Model Eğitimi Pipeline
-  /metrics           →  Precision@K, Recall@K, NDCG@K
+  /metrics           →  Precision@K, Recall@K, NDCG@K, RMSE
   /health            →  Servis Durumu
 ```
 
