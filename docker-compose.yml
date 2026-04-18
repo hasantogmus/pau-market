@@ -11,7 +11,7 @@ services:
     volumes:
       - sql_data:/var/opt/mssql
     healthcheck:
-      test: ["CMD", "/opt/mssql-tools/bin/sqlcmd", "-U", "sa", "-P", "PauMarket2026!", "-Q", "SELECT 1"]
+      test: ["CMD", "/opt/mssql-tools18/bin/sqlcmd", "-C", "-U", "sa", "-P", "PauMarket2026!", "-Q", "SELECT 1"]
       interval: 10s
       timeout: 5s
       retries: 5
