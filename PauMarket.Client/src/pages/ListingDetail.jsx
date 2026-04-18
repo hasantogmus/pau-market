@@ -8,6 +8,7 @@ import {
 import listingService from '../services/listingService';
 import userService from '../services/userService';
 import reviewService from '../services/reviewService';
+import dealRequestService from '../services/dealRequestService';
 import { useAuth } from '../hooks/useAuth';
 
 // ─── Animasyon Varyantları ─────────────────────────────────────────
@@ -104,6 +105,12 @@ const ListingDetail = () => {
     const [reviewError, setReviewError] = useState(null);
     const [reviewSuccess, setReviewSuccess] = useState(null);
     const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+    const [dealRequest, setDealRequest] = useState(null);
+    const [isDealModalOpen, setIsDealModalOpen] = useState(false);
+    const [dealRequestNote, setDealRequestNote] = useState('');
+    const [dealRequestError, setDealRequestError] = useState(null);
+    const [dealRequestSuccess, setDealRequestSuccess] = useState(null);
+    const [isSubmittingDealRequest, setIsSubmittingDealRequest] = useState(false);
 
     useEffect(() => {
         const fetch = async () => {
@@ -124,6 +131,17 @@ const ListingDetail = () => {
 
                 const ratings = await reviewService.getUserReviews(data.userId);
                 setReviewSummary(ratings);
+
+                if (isAuthenticated && Number(user?.id) !== Number(data.userId)) {
+                    try {
+                        const request = await dealRequestService.getMyRequestForListing(id);
+                        setDealRequest(request);
+                    } catch {
+                        setDealRequest(null);
+                    }
+                } else {
+                    setDealRequest(null);
+                }
             } catch (err) {
                 if (err.response?.status === 404) {
                     setError('Bu ilan bulunamadı veya kaldırılmış olabilir.');
@@ -135,7 +153,7 @@ const ListingDetail = () => {
             }
         };
         fetch();
-    }, [id]);
+    }, [id, isAuthenticated, user?.id]);
 
     // ── Yükleniyor ──
     if (isLoading) return (
@@ -166,6 +184,7 @@ const ListingDetail = () => {
     const averageRating = reviewSummary?.averageRating ?? 0;
     const isOwnListing = Number(user?.id) === Number(listing.userId);
     const canReviewSeller = isAuthenticated && listing.isSold && Number(listing.soldToUserId) === Number(user?.id) && !isOwnListing;
+    const canCreateDealRequest = isAuthenticated && !isOwnListing && !listing.isSold && dealRequest?.status !== 1 && dealRequest?.status !== 2;
     const existingReview = reviewSummary?.reviews?.find(
         (review) => Number(review.reviewerId) === Number(user?.id) && Number(review.listingId) === Number(listing.id)
     );
@@ -197,6 +216,29 @@ const ListingDetail = () => {
             setReviewError(err.response?.data?.error || 'Değerlendirme kaydedilemedi.');
         } finally {
             setIsSubmittingReview(false);
+        }
+    };
+
+    const handleCreateDealRequest = async (event) => {
+        event.preventDefault();
+        setDealRequestError(null);
+        setDealRequestSuccess(null);
+        setIsSubmittingDealRequest(true);
+
+        try {
+            const createdRequest = await dealRequestService.createDealRequest({
+                listingId: listing.id,
+                note: dealRequestNote,
+            });
+
+            setDealRequest(createdRequest);
+            setDealRequestSuccess('Anlaşma isteğin satıcıya iletildi. Dilersen mesajlaşmaya devam edip detayları netleştirebilirsin.');
+            setIsDealModalOpen(false);
+            setDealRequestNote('');
+        } catch (err) {
+            setDealRequestError(err.response?.data?.error || 'Anlaşma isteği gönderilemedi.');
+        } finally {
+            setIsSubmittingDealRequest(false);
         }
     };
 
@@ -300,6 +342,21 @@ const ListingDetail = () => {
                                 </p>
                                 <p className="text-xs text-emerald-700 mt-1">
                                     Satıcı bu ürünü artık satışta göstermiyor.
+                                    {listing.soldToUserName ? ` Alıcı: ${listing.soldToUserName}.` : ''}
+                                </p>
+                            </motion.div>
+                        )}
+
+                        {!listing.isSold && listing.acceptedBuyerName && (
+                            <motion.div
+                                variants={fadeUpVariants}
+                                initial="hidden"
+                                animate="visible"
+                                custom={0.25}
+                                className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3"
+                            >
+                                <p className="text-sm font-semibold text-blue-800">
+                                    Bu ilan için anlaşılan öğrenci: {listing.acceptedBuyerName}
                                 </p>
                             </motion.div>
                         )}
@@ -356,6 +413,18 @@ const ListingDetail = () => {
                             </motion.div>
                         )}
 
+                        {dealRequestSuccess && (
+                            <motion.div
+                                variants={fadeUpVariants}
+                                initial="hidden"
+                                animate="visible"
+                                custom={0.295}
+                                className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-800"
+                            >
+                                {dealRequestSuccess}
+                            </motion.div>
+                        )}
+
                         {/* Açıklama */}
                         {listing.description && (
                             <motion.div variants={fadeUpVariants} initial="hidden" animate="visible" custom={0.32}>
@@ -383,6 +452,20 @@ const ListingDetail = () => {
 
                                 <button
                                     type="button"
+                                    disabled={!canCreateDealRequest}
+                                    onClick={() => {
+                                        setDealRequestError(null);
+                                        setIsDealModalOpen(true);
+                                    }}
+                                    className="w-full flex items-center justify-center gap-3 py-4 px-6 bg-white border border-blue-200 text-blue-700 text-lg font-extrabold rounded-2xl shadow-sm hover:bg-blue-50 transition-all disabled:bg-gray-50 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed"
+                                >
+                                    <ShieldCheck className="w-5 h-5" />
+                                    {dealRequest?.status === 2 ? 'Anlaşma Kabul Edildi' : dealRequest?.status === 1 ? 'Anlaşma Bekliyor' : dealRequest?.status === 3 ? 'Tekrar Anlaşma İste' : 'Anlaşma İsteği Gönder'}
+                                </button>
+                            </div>
+                            <div className="mt-3">
+                                <button
+                                    type="button"
                                     disabled={!canReviewSeller || !!existingReview}
                                     onClick={() => {
                                         setReviewError(null);
@@ -391,18 +474,20 @@ const ListingDetail = () => {
                                     className="w-full flex items-center justify-center gap-3 py-4 px-6 bg-white border border-amber-200 text-amber-700 text-lg font-extrabold rounded-2xl shadow-sm hover:bg-amber-50 transition-all disabled:bg-gray-50 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed"
                                 >
                                     <PencilLine className="w-5 h-5" />
-                                    {existingReview ? 'Değerlendirildi' : 'Değerlendir'}
+                                    {existingReview ? 'Değerlendirildi' : 'Satıcıyı Değerlendir'}
                                 </button>
                             </div>
                             <p className="text-center text-xs text-gray-400 font-medium mt-3">
                                 {!isAuthenticated
-                                    ? 'Değerlendirme bırakmak için giriş yap.'
+                                    ? 'Anlaşma isteği göndermek ve değerlendirme bırakmak için giriş yap.'
                                     : isOwnListing
-                                        ? 'Kendi ilanına değerlendirme bırakamazsın.'
+                                        ? 'Kendi ilanına anlaşma isteği gönderemez veya değerlendirme bırakamazsın.'
                                         : existingReview
                                             ? 'Bu alışveriş için satıcıyı zaten değerlendirdin.'
                                             : !listing.isSold
-                                                ? 'Değerlendirme yalnızca tamamlanan alışverişlerden sonra açılır.'
+                                                ? dealRequest?.status === 2
+                                                    ? 'Anlaşma kabul edildi. Yüz yüze alışveriş tamamlanıp ilan satıldı olduğunda değerlendirme açılır.'
+                                                    : 'Önce anlaşma isteği gönderip satıcıyla uzlaşman gerekir. Değerlendirme yalnızca tamamlanan alışverişlerden sonra açılır.'
                                                 : Number(listing.soldToUserId) !== Number(user?.id)
                                                     ? 'Bu satıcıyı sadece ürünü satın alan kullanıcı değerlendirebilir.'
                                                     : 'Alışveriş tamamlandıysa satıcı deneyimini puanlayabilirsin.'}
@@ -474,6 +559,70 @@ const ListingDetail = () => {
                                     className="px-5 py-3 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-semibold transition-colors disabled:opacity-60"
                                 >
                                     {isSubmittingReview ? 'Kaydediliyor...' : 'Değerlendirmeyi Gönder'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {isDealModalOpen && (
+                <div className="fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="w-full max-w-xl bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
+                        <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between gap-4">
+                            <div>
+                                <h3 className="text-xl font-extrabold text-gray-900">Anlaşma İsteği Gönder</h3>
+                                <p className="text-sm text-gray-500 mt-1">Satıcı bu isteği mesajlar ekranından kabul ettiğinde, ilanı sana satıldı olarak işaretleyebilir.</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setIsDealModalOpen(false)}
+                                className="text-sm font-semibold text-gray-500 hover:text-gray-800 transition-colors"
+                            >
+                                Kapat
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleCreateDealRequest} className="p-6 space-y-5">
+                            <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3">
+                                <p className="text-sm font-semibold text-blue-900">{listing.title}</p>
+                                <p className="text-xs text-blue-700 mt-1">İstersen fiyat veya buluşma notunu satıcıya iletebilirsin.</p>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="deal-note">
+                                    Not (opsiyonel)
+                                </label>
+                                <textarea
+                                    id="deal-note"
+                                    rows={4}
+                                    value={dealRequestNote}
+                                    onChange={(event) => setDealRequestNote(event.target.value)}
+                                    placeholder="Örn: Kampüste yarın öğlen teslim alabilirim."
+                                    className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 resize-none"
+                                />
+                            </div>
+
+                            {dealRequestError && (
+                                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                                    {dealRequestError}
+                                </div>
+                            )}
+
+                            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsDealModalOpen(false)}
+                                    className="px-5 py-3 rounded-2xl border border-gray-200 text-gray-700 font-semibold hover:bg-gray-50 transition-colors"
+                                >
+                                    Vazgeç
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isSubmittingDealRequest}
+                                    className="px-5 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-colors disabled:opacity-60"
+                                >
+                                    {isSubmittingDealRequest ? 'Gönderiliyor...' : 'İsteği Gönder'}
                                 </button>
                             </div>
                         </form>

@@ -51,4 +51,5 @@ public class Listing
 
     public ICollection<Interaction> Interactions { get; set; } = [];
     public ICollection<Message> Messages { get; set; } = [];
+    public ICollection<DealRequest> DealRequests { get; set; } = [];
 }

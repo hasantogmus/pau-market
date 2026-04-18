@@ -11,6 +11,7 @@ import ListingDetail from './pages/ListingDetail';
 import Messages from './pages/Messages';
 import Profile from './pages/Profile';
 import MyListings from './pages/MyListings';
+import Purchases from './pages/Purchases';
 import Settings from './pages/Settings';
 import { AuthProvider } from './context/AuthContext';
 
@@ -107,6 +108,14 @@ function App() {
             element={
               <MainLayout>
                 <MyListings />
+              </MainLayout>
+            }
+          />
+          <Route
+            path="/purchases"
+            element={
+              <MainLayout>
+                <Purchases />
               </MainLayout>
             }
           />

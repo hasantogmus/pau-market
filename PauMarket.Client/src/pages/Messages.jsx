@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 import messageService from '../services/messageService';
 import listingService from '../services/listingService';
 import userService from '../services/userService';
+import dealRequestService from '../services/dealRequestService';
 
 const formatMessageTime = (value) =>
     new Date(value).toLocaleString('tr-TR', {
@@ -31,6 +32,7 @@ const Messages = () => {
     const [isSending, setIsSending] = useState(false);
     const [error, setError] = useState(null);
     const [conversationMeta, setConversationMeta] = useState(null);
+    const [isUpdatingDealRequest, setIsUpdatingDealRequest] = useState(false);
 
     useEffect(() => {
         if (!isAuthenticated) {
@@ -205,6 +207,50 @@ const Messages = () => {
         }
     };
 
+    const updateThreadDealStatus = (requestId, statusName) => {
+        const statusValue = statusName === 'Accepted' ? 2 : 3;
+
+        setThreads((prev) =>
+            prev.map((thread) =>
+                Number(thread.dealRequestId) === Number(requestId)
+                    ? {
+                        ...thread,
+                        dealRequestStatus: statusValue,
+                        dealRequestStatusName: statusName,
+                        canRespondToDealRequest: false,
+                    }
+                    : thread
+            )
+        );
+    };
+
+    const handleDealRequestAction = async (action) => {
+        if (!activeConversation?.dealRequestId) return;
+
+        setIsUpdatingDealRequest(true);
+        setError(null);
+
+        try {
+            if (action === 'accept') {
+                await dealRequestService.acceptDealRequest(activeConversation.dealRequestId);
+                updateThreadDealStatus(activeConversation.dealRequestId, 'Accepted');
+            } else {
+                await dealRequestService.rejectDealRequest(activeConversation.dealRequestId);
+                updateThreadDealStatus(activeConversation.dealRequestId, 'Rejected');
+            }
+        } catch (err) {
+            setError(err.response?.data?.error || 'Anlaşma isteği güncellenemedi.');
+        } finally {
+            setIsUpdatingDealRequest(false);
+        }
+    };
+
+    const dealStatusTone = {
+        Pending: 'bg-amber-50 text-amber-700 border-amber-200',
+        Accepted: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        Rejected: 'bg-rose-50 text-rose-700 border-rose-200',
+    };
+
     if (!isAuthenticated) {
         return (
             <div className="min-h-[70vh] flex items-center justify-center px-4">
@@ -264,6 +310,11 @@ const Messages = () => {
                                                     <span className="text-[11px] text-gray-400 whitespace-nowrap">{formatMessageTime(thread.lastMessageAt)}</span>
                                                 </div>
                                                 <p className="text-xs font-semibold text-blue-600 truncate mt-0.5">{thread.listingTitle}</p>
+                                                {thread.dealRequestStatusName && (
+                                                    <span className={`inline-flex mt-2 px-2.5 py-1 rounded-full text-[11px] font-bold border ${dealStatusTone[thread.dealRequestStatusName] || 'bg-gray-50 text-gray-600 border-gray-200'}`}>
+                                                        {thread.dealRequestStatusName === 'Pending' ? 'Anlaşma bekliyor' : thread.dealRequestStatusName === 'Accepted' ? 'Anlaşma kabul edildi' : 'Anlaşma reddedildi'}
+                                                    </span>
+                                                )}
                                                 <p className="text-sm text-gray-600 truncate mt-1">
                                                     {thread.isLastMessageMine ? 'Sen: ' : ''}
                                                     {thread.lastMessage}
@@ -292,16 +343,48 @@ const Messages = () => {
                                         ? `${activeConversation.listingTitle} ilanı hakkında konuşuyorsun.`
                                         : 'Sol taraftan bir konuşma seç ya da ilan detayından yeni mesaj başlat.'}
                                 </p>
+                                {activeConversation?.dealRequestStatusName && (
+                                    <div className="flex flex-wrap items-center gap-2 mt-3">
+                                        <span className={`inline-flex px-3 py-1 rounded-full text-xs font-bold border ${dealStatusTone[activeConversation.dealRequestStatusName] || 'bg-gray-50 text-gray-600 border-gray-200'}`}>
+                                            {activeConversation.dealRequestStatusName === 'Pending' ? 'Anlaşma isteği beklemede' : activeConversation.dealRequestStatusName === 'Accepted' ? 'Anlaşma kabul edildi' : 'Anlaşma reddedildi'}
+                                        </span>
+                                        {activeConversation.dealRequestNote && (
+                                            <span className="text-xs text-gray-500">Not: {activeConversation.dealRequestNote}</span>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                             {activeConversation && (
-                                <button
-                                    type="button"
-                                    onClick={() => navigate(`/profile/${activeConversation.otherUserId}`)}
-                                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors font-semibold text-sm"
-                                >
-                                    <User className="w-4 h-4" />
-                                    Profili Gör
-                                </button>
+                                <div className="flex flex-wrap items-center gap-3">
+                                    {activeConversation.canRespondToDealRequest && (
+                                        <>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDealRequestAction('reject')}
+                                                disabled={isUpdatingDealRequest}
+                                                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl border border-rose-200 text-rose-700 hover:bg-rose-50 transition-colors font-semibold text-sm disabled:opacity-60"
+                                            >
+                                                Reddet
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDealRequestAction('accept')}
+                                                disabled={isUpdatingDealRequest}
+                                                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white transition-colors font-semibold text-sm disabled:opacity-60"
+                                            >
+                                                {isUpdatingDealRequest ? 'Güncelleniyor...' : 'Anlaşmayı Kabul Et'}
+                                            </button>
+                                        </>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={() => navigate(`/profile/${activeConversation.otherUserId}`)}
+                                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors font-semibold text-sm"
+                                    >
+                                        <User className="w-4 h-4" />
+                                        Profili Gör
+                                    </button>
+                                </div>
                             )}
                         </div>
                     </div>

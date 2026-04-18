@@ -36,13 +36,13 @@ public class ListingsController(
     [AllowAnonymous]
     public async Task<ActionResult<ListingResponseDto>> GetById(int id)
     {
-        var listing = await listingService.GetListingByIdAsync(id);
+        int? callerId = User.GetUserId();
+        var listing = await listingService.GetListingByIdAsync(id, callerId);
 
         if (listing is null)
             return NotFound(new { error = "İlan bulunamadı." });
 
         // Giriş yapmış kullanıcı ise görüntüleme geçmişine kaydet
-        int? callerId = User.GetUserId();
         if (callerId is not null)
         {
             await recommendationService.TrackViewAsync(callerId.Value, id);
@@ -60,6 +60,18 @@ public class ListingsController(
             return Unauthorized(new { error = "Geçersiz token." });
 
         var listings = await listingService.GetUserListingsAsync(callerId.Value);
+        return Ok(listings);
+    }
+
+    [HttpGet("purchases")]
+    [Authorize]
+    public async Task<ActionResult<IEnumerable<ListingResponseDto>>> GetPurchases()
+    {
+        int? callerId = User.GetUserId();
+        if (callerId is null)
+            return Unauthorized(new { error = "Geçersiz token." });
+
+        var listings = await listingService.GetPurchasedListingsAsync(callerId.Value);
         return Ok(listings);
     }
 
@@ -156,6 +168,10 @@ public class ListingsController(
                 return NotFound(new { error = "İlan bulunamadı." });
 
             return Ok(updatedListing);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
         }
         catch (UnauthorizedAccessException ex)
         {

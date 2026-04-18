@@ -18,7 +18,16 @@ public class MessageService(PauMarketDbContext context) : IMessageService
             .OrderByDescending(m => m.SentAt)
             .ToListAsync();
 
-        var threads = rawMessages
+        var dealRequests = await context.DealRequests
+            .AsNoTracking()
+            .Include(item => item.Listing)
+            .Include(item => item.Buyer)
+            .Include(item => item.Seller)
+            .Where(item => item.BuyerId == currentUserId || item.SellerId == currentUserId)
+            .OrderByDescending(item => item.RequestedAt)
+            .ToListAsync();
+
+        var messageThreads = rawMessages
             .GroupBy(m => new
             {
                 m.ListingId,
@@ -28,6 +37,10 @@ public class MessageService(PauMarketDbContext context) : IMessageService
             {
                 var latest = group.OrderByDescending(m => m.SentAt).First();
                 var otherUser = latest.SenderId == currentUserId ? latest.Receiver : latest.Sender;
+                var dealRequest = dealRequests.FirstOrDefault(item =>
+                    item.ListingId == latest.ListingId &&
+                    ((item.BuyerId == currentUserId && item.SellerId == otherUser.Id) ||
+                     (item.SellerId == currentUserId && item.BuyerId == otherUser.Id)));
 
                 return new MessageThreadDto
                 {
@@ -39,16 +52,73 @@ public class MessageService(PauMarketDbContext context) : IMessageService
                     LastMessage = latest.Content,
                     LastMessageAt = latest.SentAt,
                     IsLastMessageMine = latest.SenderId == currentUserId,
-                    UnreadCount = group.Count(m => m.ReceiverId == currentUserId && !m.IsRead)
+                    UnreadCount = group.Count(m => m.ReceiverId == currentUserId && !m.IsRead),
+                    ListingIsSold = latest.Listing.IsSold,
+                    DealRequestId = dealRequest?.Id,
+                    DealRequestStatus = dealRequest is null ? null : (int)dealRequest.Status,
+                    DealRequestStatusName = dealRequest?.Status.ToString(),
+                    DealRequestNote = dealRequest?.Note,
+                    CanRespondToDealRequest = dealRequest is not null &&
+                                              dealRequest.SellerId == currentUserId &&
+                                              dealRequest.Status == DealRequestStatus.Pending
                 };
             })
-            .OrderByDescending(t => t.LastMessageAt);
+            .Where(thread => CanAccessThread(thread.ListingIsSold, currentUserId, thread.OtherUserId, rawMessages.First(item => item.ListingId == thread.ListingId).Listing))
+            .ToList();
 
-        return threads;
+        foreach (var request in dealRequests)
+        {
+            var otherUser = request.BuyerId == currentUserId ? request.Seller : request.Buyer;
+            var existingThread = messageThreads.FirstOrDefault(item =>
+                item.ListingId == request.ListingId && item.OtherUserId == otherUser.Id);
+
+            if (!CanAccessSoldListing(request.Listing, currentUserId, otherUser.Id))
+                continue;
+
+            if (existingThread is not null)
+                continue;
+
+            messageThreads.Add(new MessageThreadDto
+            {
+                OtherUserId = otherUser.Id,
+                OtherUserName = $"{otherUser.FirstName} {otherUser.LastName}".Trim(),
+                ListingId = request.ListingId,
+                ListingTitle = request.Listing.Title,
+                ListingImageUrl = request.Listing.ImageUrl,
+                LastMessage = string.IsNullOrWhiteSpace(request.Note) ? "Anlaşma isteği gönderildi." : request.Note!,
+                LastMessageAt = request.RequestedAt,
+                IsLastMessageMine = request.BuyerId == currentUserId,
+                UnreadCount = 0,
+                ListingIsSold = request.Listing.IsSold,
+                DealRequestId = request.Id,
+                DealRequestStatus = (int)request.Status,
+                DealRequestStatusName = request.Status.ToString(),
+                DealRequestNote = request.Note,
+                CanRespondToDealRequest = request.SellerId == currentUserId && request.Status == DealRequestStatus.Pending
+            });
+        }
+
+        return messageThreads.OrderByDescending(item => item.LastMessageAt);
     }
 
     public async Task<MessageResponseDto> SendMessageAsync(SendMessageDto dto, int senderId)
     {
+        var listing = await context.Listings
+            .AsNoTracking()
+            .FirstOrDefaultAsync(item => item.Id == dto.ListingId);
+
+        if (listing is null)
+            throw new InvalidOperationException("Mesaj gönderilecek ilan bulunamadı.");
+
+        if (senderId == dto.ReceiverId)
+            throw new InvalidOperationException("Kendi kendinize mesaj gönderemezsiniz.");
+
+        if (listing.UserId != senderId && listing.UserId != dto.ReceiverId)
+            throw new InvalidOperationException("Mesajlar yalnızca satıcı ile alıcı arasında gönderilebilir.");
+
+        if (!CanAccessSoldListing(listing, senderId, dto.ReceiverId))
+            throw new UnauthorizedAccessException("Bu satılmış ilan için yalnızca satıcı ve alıcı mesajlaşabilir.");
+
         var message = new Message
         {
             SenderId   = senderId,
@@ -68,6 +138,16 @@ public class MessageService(PauMarketDbContext context) : IMessageService
     public async Task<IEnumerable<MessageResponseDto>> GetConversationAsync(
         int currentUserId, int otherUserId, int listingId)
     {
+        var listing = await context.Listings
+            .AsNoTracking()
+            .FirstOrDefaultAsync(item => item.Id == listingId);
+
+        if (listing is null)
+            throw new InvalidOperationException("Konuşma ilanı bulunamadı.");
+
+        if (!CanAccessSoldListing(listing, currentUserId, otherUserId))
+            throw new UnauthorizedAccessException("Bu satılmış ilana ait konuşmayı görüntüleyemezsiniz.");
+
         var messages = await context.Messages
             .AsNoTracking()
             .Where(m =>
@@ -108,4 +188,24 @@ public class MessageService(PauMarketDbContext context) : IMessageService
         IsRead     = m.IsRead,
         SentAt     = m.SentAt
     };
+
+    private static bool CanAccessThread(bool listingIsSold, int currentUserId, int otherUserId, Listing listing)
+    {
+        if (!listingIsSold)
+            return true;
+
+        return CanAccessSoldListing(listing, currentUserId, otherUserId);
+    }
+
+    private static bool CanAccessSoldListing(Listing listing, int currentUserId, int otherUserId)
+    {
+        if (!listing.IsSold)
+            return true;
+
+        if (listing.SoldToUserId is null)
+            return false;
+
+        var allowedUsers = new[] { listing.UserId, listing.SoldToUserId.Value };
+        return allowedUsers.Contains(currentUserId) && allowedUsers.Contains(otherUserId);
+    }
 }

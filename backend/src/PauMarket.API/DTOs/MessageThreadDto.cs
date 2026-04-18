@@ -11,4 +11,10 @@ public class MessageThreadDto
     public DateTime LastMessageAt { get; set; }
     public bool IsLastMessageMine { get; set; }
     public int UnreadCount { get; set; }
+    public bool ListingIsSold { get; set; }
+    public int? DealRequestId { get; set; }
+    public int? DealRequestStatus { get; set; }
+    public string? DealRequestStatusName { get; set; }
+    public string? DealRequestNote { get; set; }
+    public bool CanRespondToDealRequest { get; set; }
 }

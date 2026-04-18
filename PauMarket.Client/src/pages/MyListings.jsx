@@ -190,7 +190,7 @@ const MyListings = () => {
         try {
             const threads = await messageService.getThreads();
             const candidates = threads
-                .filter((thread) => Number(thread.listingId) === Number(listing.id))
+                .filter((thread) => Number(thread.listingId) === Number(listing.id) && thread.dealRequestStatusName === 'Accepted')
                 .map((thread) => ({
                     userId: thread.otherUserId,
                     name: thread.otherUserName,
@@ -339,6 +339,11 @@ const MyListings = () => {
 
                                             <div className="flex flex-wrap items-center gap-2 mb-6 text-xs font-semibold text-gray-500">
                                                 <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-700">{listing.condition}</span>
+                                                {(listing.soldToUserName || listing.acceptedBuyerName) && (
+                                                    <span className="px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                                        {listing.isSold ? `Alıcı: ${listing.soldToUserName}` : `Anlaşılan öğrenci: ${listing.acceptedBuyerName}`}
+                                                    </span>
+                                                )}
                                             </div>
 
                                             <div className="mt-auto flex flex-wrap items-center gap-3 border-t border-gray-100 pt-5">
@@ -464,7 +469,7 @@ const MyListings = () => {
                             <div>
                                 <h3 className="text-xl font-extrabold text-gray-900">Alışverişi Tamamla</h3>
                                 <p className="text-sm text-gray-500 mt-1">
-                                    Bu ilanı satıldı yaparken alıcıyı seçersen yalnızca o kullanıcı satıcı değerlendirmesi bırakabilir.
+                                    İlanı satıldı yapmak için önce mesajlar ekranında bir anlaşma isteğini kabul etmelisin.
                                 </p>
                             </div>
                             <button type="button" onClick={closeSaleModal} className="text-sm font-semibold text-gray-500 hover:text-gray-800 transition-colors">
@@ -475,14 +480,14 @@ const MyListings = () => {
                         <div className="p-6 space-y-5">
                             <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3">
                                 <p className="text-sm font-semibold text-blue-900">{saleModalListing.title}</p>
-                                <p className="text-xs text-blue-700 mt-1">Alıcı seçimi, sahte değerlendirme bırakılmasını önler.</p>
+                                <p className="text-xs text-blue-700 mt-1">Satış tamamlandığında yalnızca seçilen alıcı değerlendirme bırakabilir ve ilan sadece iki tarafa açık kalır.</p>
                             </div>
 
                             {isLoadingSaleCandidates ? (
-                                <div className="text-center text-gray-500 py-10">Mesajlaşan kullanıcılar yükleniyor...</div>
+                                <div className="text-center text-gray-500 py-10">Anlaşma kayıtları yükleniyor...</div>
                             ) : saleCandidates.length > 0 ? (
                                 <div className="space-y-3">
-                                    <p className="text-sm font-semibold text-gray-700">Bu ilanla ilgilenen kullanıcılar</p>
+                                    <p className="text-sm font-semibold text-gray-700">Kabul edilmiş anlaşma isteği olan kullanıcılar</p>
                                     {saleCandidates.map((candidate) => (
                                         <button
                                             key={candidate.userId}
@@ -508,9 +513,9 @@ const MyListings = () => {
                                 </div>
                             ) : (
                                 <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-5 py-8 text-center">
-                                    <p className="text-sm font-semibold text-gray-700">Bu ilan için kayıtlı alıcı bulunamadı</p>
+                                    <p className="text-sm font-semibold text-gray-700">Henüz kabul edilmiş anlaşma isteği yok</p>
                                     <p className="text-sm text-gray-500 mt-2">
-                                        Mesajlaşma geçmişinden bir alıcı seçilmediği için satıcı değerlendirmesi de açılmayacak.
+                                        Önce mesajlar ekranında bir öğrencinin anlaşma isteğini kabul etmelisin. Sonra bu öğrenci burada alıcı olarak seçilebilir.
                                     </p>
                                 </div>
                             )}
@@ -522,7 +527,7 @@ const MyListings = () => {
                                 <button
                                     type="button"
                                     onClick={confirmSoldStatus}
-                                    disabled={isLoadingSaleCandidates || savingListingId === saleModalListing.id || (saleCandidates.length > 0 && !selectedBuyerId)}
+                                    disabled={isLoadingSaleCandidates || savingListingId === saleModalListing.id || saleCandidates.length === 0 || !selectedBuyerId}
                                     className="px-5 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold transition-colors disabled:opacity-60"
                                 >
                                     {savingListingId === saleModalListing.id ? 'Kaydediliyor...' : 'Satışı Tamamla'}

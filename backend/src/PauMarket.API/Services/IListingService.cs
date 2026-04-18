@@ -6,8 +6,9 @@ public interface IListingService
 {
     // ── Herkese açık ──────────────────────────────────────────────────────────
     Task<PagedResult<ListingResponseDto>> GetAllListingsAsync(ListingQueryParameters parameters);
-    Task<ListingResponseDto?> GetListingByIdAsync(int id);
+    Task<ListingResponseDto?> GetListingByIdAsync(int id, int? callerId = null);
     Task<IEnumerable<ListingResponseDto>> GetUserListingsAsync(int userId);
+    Task<IEnumerable<ListingResponseDto>> GetPurchasedListingsAsync(int buyerId);
 
     // ── Kimlik doğrulaması ve Yetki gerekli ────────────────────────────────────
 

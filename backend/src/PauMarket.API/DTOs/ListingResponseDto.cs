@@ -5,6 +5,8 @@ public class ListingResponseDto
     public int Id { get; set; }
     public int UserId { get; set; }
     public string? SellerName { get; set; }
+    public int? AcceptedBuyerId { get; set; }
+    public string? AcceptedBuyerName { get; set; }
     public string Title { get; set; } = null!;
     public string? Description { get; set; }
     public decimal Price { get; set; }
@@ -16,5 +18,6 @@ public class ListingResponseDto
     public bool IsSold { get; set; }
     public DateTime? SoldAt { get; set; }
     public int? SoldToUserId { get; set; }
+    public string? SoldToUserName { get; set; }
     public DateTime CreatedAt { get; set; }
 }

@@ -120,6 +120,7 @@ builder.Services.AddScoped<IPhotoService, PhotoService>();
 builder.Services.AddScoped<IListingService, ListingService>();
 builder.Services.AddScoped<IInteractionService, InteractionService>();
 builder.Services.AddScoped<IMessageService, MessageService>();
+builder.Services.AddScoped<IDealRequestService, DealRequestService>();
 builder.Services.AddHttpClient<IRecommendationService, RecommendationService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
@@ -145,6 +146,24 @@ if (app.Environment.IsDevelopment())
 
         IF COL_LENGTH('Listings', 'SoldToUserId') IS NULL
             ALTER TABLE Listings ADD SoldToUserId int NULL;
+
+        IF OBJECT_ID('DealRequests', 'U') IS NULL
+        BEGIN
+            CREATE TABLE DealRequests
+            (
+                Id int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+                ListingId int NOT NULL,
+                BuyerId int NOT NULL,
+                SellerId int NOT NULL,
+                Note nvarchar(500) NULL,
+                Status int NOT NULL CONSTRAINT DF_DealRequests_Status DEFAULT(1),
+                RequestedAt datetime2 NOT NULL CONSTRAINT DF_DealRequests_RequestedAt DEFAULT(GETUTCDATE()),
+                RespondedAt datetime2 NULL
+            );
+
+            CREATE UNIQUE INDEX UX_DealRequests_Listing_Buyer ON DealRequests(ListingId, BuyerId);
+            CREATE INDEX IX_DealRequests_Seller_Status ON DealRequests(SellerId, Status);
+        END
         """);
 
     // ─── EĞER VERİTABANI BOŞSA VİTRİN/TEST İÇİN 12 ADET KOPYA İLAN EKLE ───

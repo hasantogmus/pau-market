@@ -171,6 +171,10 @@ const Profile = () => {
                                     <MessageCircle className="w-4 h-4" />
                                     Mesajlara Git
                                 </Link>
+                                <Link to="/purchases" className="inline-flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-200 hover:bg-gray-50 text-gray-700 font-semibold rounded-2xl transition-colors">
+                                    <Package className="w-4 h-4" />
+                                    Satın Aldıklarım
+                                </Link>
                             </>
                         ) : (
                             <button

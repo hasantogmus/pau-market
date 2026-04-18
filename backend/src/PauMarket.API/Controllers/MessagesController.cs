@@ -48,10 +48,21 @@ public class MessagesController(IMessageService messageService) : ControllerBase
         if (senderId is null)
             return Unauthorized(new { error = "Geçersiz token." });
 
-        var message = await messageService.SendMessageAsync(dto, senderId.Value);
-        return CreatedAtAction(nameof(GetConversation),
-            new { otherUserId = dto.ReceiverId, listingId = dto.ListingId },
-            message);
+        try
+        {
+            var message = await messageService.SendMessageAsync(dto, senderId.Value);
+            return CreatedAtAction(nameof(GetConversation),
+                new { otherUserId = dto.ReceiverId, listingId = dto.ListingId },
+                message);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message });
+        }
     }
 
     /// <summary>
@@ -68,8 +79,19 @@ public class MessagesController(IMessageService messageService) : ControllerBase
         if (currentUserId is null)
             return Unauthorized(new { error = "Geçersiz token." });
 
-        var messages = await messageService.GetConversationAsync(currentUserId.Value, otherUserId, listingId);
-        return Ok(messages);
+        try
+        {
+            var messages = await messageService.GetConversationAsync(currentUserId.Value, otherUserId, listingId);
+            return Ok(messages);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message });
+        }
     }
 
     /// <summary>

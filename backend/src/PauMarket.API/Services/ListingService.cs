@@ -64,33 +64,57 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
 
         return new PagedResult<ListingResponseDto>
         {
-            Items = items.Select(MapToResponseDto),
+            Items = items.Select(item => MapToResponseDto(item)),
             TotalCount = totalCount,
             PageNumber = parameters.PageNumber,
             PageSize = parameters.PageSize
         };
     }
 
-    public async Task<ListingResponseDto?> GetListingByIdAsync(int id)
+    public async Task<ListingResponseDto?> GetListingByIdAsync(int id, int? callerId = null)
     {
         var listing = await context.Listings
             .Include(item => item.User)
+            .Include(item => item.DealRequests)
+                .ThenInclude(item => item.Buyer)
             .AsNoTracking()
             .FirstOrDefaultAsync(l => l.Id == id);
 
-        return listing is null ? null : MapToResponseDto(listing);
+        if (listing is null)
+            return null;
+
+        if (listing.IsSold && !CanAccessSoldListing(listing, callerId))
+            return null;
+
+        return MapToResponseDto(listing, callerId);
+    }
+
+    public async Task<IEnumerable<ListingResponseDto>> GetPurchasedListingsAsync(int buyerId)
+    {
+        var listings = await context.Listings
+            .Include(item => item.User)
+            .Include(item => item.DealRequests)
+                .ThenInclude(item => item.Buyer)
+            .AsNoTracking()
+            .Where(item => item.IsSold && item.SoldToUserId == buyerId)
+            .OrderByDescending(item => item.SoldAt ?? item.CreatedAt)
+            .ToListAsync();
+
+        return listings.Select(item => MapToResponseDto(item, buyerId));
     }
 
     public async Task<IEnumerable<ListingResponseDto>> GetUserListingsAsync(int userId)
     {
         var listings = await context.Listings
             .Include(item => item.User)
+            .Include(item => item.DealRequests)
+                .ThenInclude(item => item.Buyer)
             .AsNoTracking()
             .Where(l => l.UserId == userId)
             .OrderByDescending(l => l.CreatedAt)
             .ToListAsync();
 
-        return listings.Select(MapToResponseDto);
+        return listings.Select(item => MapToResponseDto(item, userId));
     }
 
     // ── Kimlik doğrulaması ve Yetki gerekli ────────────────────────────────────
@@ -122,7 +146,7 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
         // Cache Invalidation: Yeni ilan eklendi, eski önbelleği temizle
         cache.Remove("AllListings");
 
-        return MapToResponseDto(listing);
+        return MapToResponseDto(listing, callerId);
     }
 
     /// <summary>
@@ -154,7 +178,7 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
         // Cache Invalidation: İlan güncellendi, eski önbelleği temizle
         cache.Remove("AllListings");
 
-        return MapToResponseDto(listing);
+        return MapToResponseDto(listing, callerId);
     }
 
     /// <summary>
@@ -181,11 +205,33 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
 
     public async Task<ListingResponseDto?> MarkListingSoldAsync(int id, bool isSold, int callerId, int? soldToUserId = null)
     {
-        var listing = await context.Listings.FindAsync(id);
+        var listing = await context.Listings
+            .Include(item => item.User)
+            .Include(item => item.DealRequests)
+                .ThenInclude(item => item.Buyer)
+            .FirstOrDefaultAsync(item => item.Id == id);
+
         if (listing is null) return null;
 
         if (listing.UserId != callerId)
             throw new UnauthorizedAccessException("Bu ilanın satış durumunu değiştirmeye yetkiniz yok.");
+
+        if (isSold)
+        {
+            if (soldToUserId is null)
+                throw new InvalidOperationException("İlanı satıldı yapmak için önce kabul edilmiş bir anlaşma isteği seçmelisiniz.");
+
+            if (soldToUserId == callerId)
+                throw new InvalidOperationException("Satıcı kendi ilanını kendine satılmış olarak işaretleyemez.");
+
+            var acceptedRequest = listing.DealRequests.FirstOrDefault(item =>
+                item.BuyerId == soldToUserId &&
+                item.SellerId == callerId &&
+                item.Status == DealRequestStatus.Accepted);
+
+            if (acceptedRequest is null)
+                throw new InvalidOperationException("İlan ancak kabul edilmiş bir anlaşma isteği üzerinden satıldı yapılabilir.");
+        }
 
         listing.IsSold = isSold;
         listing.SoldAt = isSold ? DateTime.UtcNow : null;
@@ -193,7 +239,6 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
         listing.IsActive = !isSold;
 
         await context.SaveChangesAsync();
-        await context.Entry(listing).Reference(item => item.User).LoadAsync();
         cache.Remove("AllListings");
 
         if (isSold && soldToUserId is int buyerId)
@@ -222,21 +267,52 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
 
     // ── Helper ───────────────────────────────────────────────────────────────
 
-    private static ListingResponseDto MapToResponseDto(Listing listing) => new()
+    private static ListingResponseDto MapToResponseDto(Listing listing, int? viewerId = null)
     {
-        Id          = listing.Id,
-        UserId      = listing.UserId,
-        SellerName  = listing.User is null ? null : $"{listing.User.FirstName} {listing.User.LastName}".Trim(),
-        Title       = listing.Title,
-        Description = listing.Description,
-        Price       = listing.Price,
-        Category    = listing.Category,
-        Condition   = listing.Condition,
-        ImageUrl    = listing.ImageUrl, // Berke'nin eklediği alan
-        IsActive    = listing.IsActive,
-        IsSold      = listing.IsSold,
-        SoldAt      = listing.SoldAt,
-        SoldToUserId = listing.SoldToUserId,
-        CreatedAt   = listing.CreatedAt
-    };
+        var acceptedRequest = listing.DealRequests?.FirstOrDefault(item => item.Status == DealRequestStatus.Accepted);
+        var canSeeAcceptedBuyer = acceptedRequest is not null &&
+                                  viewerId is not null &&
+                                  (viewerId == listing.UserId || viewerId == acceptedRequest.BuyerId);
+        var canSeeSoldBuyer = listing.IsSold &&
+                              viewerId is not null &&
+                              listing.SoldToUserId is not null &&
+                              (viewerId == listing.UserId || viewerId == listing.SoldToUserId);
+        var soldBuyerName = listing.IsSold
+            ? listing.DealRequests?.FirstOrDefault(item => item.BuyerId == listing.SoldToUserId)?.Buyer is User soldBuyer
+                ? $"{soldBuyer.FirstName} {soldBuyer.LastName}".Trim()
+                : null
+            : null;
+
+        return new ListingResponseDto
+        {
+            Id = listing.Id,
+            UserId = listing.UserId,
+            SellerName = listing.User is null ? null : $"{listing.User.FirstName} {listing.User.LastName}".Trim(),
+            AcceptedBuyerId = canSeeAcceptedBuyer ? acceptedRequest?.BuyerId : null,
+            AcceptedBuyerName = canSeeAcceptedBuyer && acceptedRequest?.Buyer is not null ? $"{acceptedRequest.Buyer.FirstName} {acceptedRequest.Buyer.LastName}".Trim() : null,
+            Title = listing.Title,
+            Description = listing.Description,
+            Price = listing.Price,
+            Category = listing.Category,
+            Condition = listing.Condition,
+            ImageUrl = listing.ImageUrl,
+            IsActive = listing.IsActive,
+            IsSold = listing.IsSold,
+            SoldAt = listing.SoldAt,
+            SoldToUserId = listing.SoldToUserId,
+            SoldToUserName = canSeeSoldBuyer ? soldBuyerName : null,
+            CreatedAt = listing.CreatedAt
+        };
+    }
+
+    private static bool CanAccessSoldListing(Listing listing, int? callerId)
+    {
+        if (!listing.IsSold)
+            return true;
+
+        if (callerId is null || listing.SoldToUserId is null)
+            return false;
+
+        return callerId == listing.UserId || callerId == listing.SoldToUserId;
+    }
 }

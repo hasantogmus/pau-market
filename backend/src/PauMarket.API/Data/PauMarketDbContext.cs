@@ -15,6 +15,7 @@ public class PauMarketDbContext(DbContextOptions<PauMarketDbContext> options) : 
     public DbSet<Message> Messages => Set<Message>();
     public DbSet<UserView> UserViews => Set<UserView>();
     public DbSet<Review> Reviews => Set<Review>();
+    public DbSet<DealRequest> DealRequests => Set<DealRequest>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -159,6 +160,46 @@ public class PauMarketDbContext(DbContextOptions<PauMarketDbContext> options) : 
             // Konusma sorguları için index
             entity.HasIndex(m => new { m.ListingId, m.SenderId, m.ReceiverId })
                   .HasDatabaseName("IX_Messages_ListingId_SenderId_ReceiverId");
+        });
+
+        // ═══════════════════════════════════════════════════════════
+        // DEAL REQUEST
+        // ═══════════════════════════════════════════════════════════
+        modelBuilder.Entity<DealRequest>(entity =>
+        {
+            entity.ToTable("DealRequests");
+            entity.HasKey(request => request.Id);
+
+            entity.Property(request => request.Note).HasMaxLength(500);
+            entity.Property(request => request.Status)
+                  .HasConversion<int>()
+                  .HasDefaultValue(DealRequestStatus.Pending);
+            entity.Property(request => request.RequestedAt).HasDefaultValueSql("GETUTCDATE()");
+
+            entity.HasOne(request => request.Listing)
+                  .WithMany(listing => listing.DealRequests)
+                  .HasForeignKey(request => request.ListingId)
+                  .OnDelete(DeleteBehavior.Cascade)
+                  .HasConstraintName("FK_DealRequests_Listings_ListingId");
+
+            entity.HasOne(request => request.Buyer)
+                  .WithMany()
+                  .HasForeignKey(request => request.BuyerId)
+                  .OnDelete(DeleteBehavior.Restrict)
+                  .HasConstraintName("FK_DealRequests_Users_BuyerId");
+
+            entity.HasOne(request => request.Seller)
+                  .WithMany()
+                  .HasForeignKey(request => request.SellerId)
+                  .OnDelete(DeleteBehavior.Restrict)
+                  .HasConstraintName("FK_DealRequests_Users_SellerId");
+
+            entity.HasIndex(request => new { request.ListingId, request.BuyerId })
+                  .IsUnique()
+                  .HasDatabaseName("UX_DealRequests_Listing_Buyer");
+
+            entity.HasIndex(request => new { request.SellerId, request.Status })
+                  .HasDatabaseName("IX_DealRequests_Seller_Status");
         });
 
         // ═══════════════════════════════════════════════════════════

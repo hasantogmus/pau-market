@@ -56,6 +56,11 @@ const listingService = {
         return normalizeListingCollection(response.data);
     },
 
+    getPurchasedListings: async () => {
+        const response = await api.get('/listings/purchases');
+        return normalizeListingCollection(response.data);
+    },
+
     updateListing: async (id, payload) => {
         const response = await api.put(`/listings/${id}`, payload);
         return normalizeListing(response.data);
