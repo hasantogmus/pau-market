@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { BadgeCheck, CheckCircle2, Eye, Package, Pencil, PlusCircle, Power, Tag, Trash2 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { BadgeCheck, CheckCircle2, Package, Pencil, PlusCircle, Power, Tag, Trash2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import listingService from '../services/listingService';
 
@@ -33,6 +33,7 @@ const SummaryCard = ({ icon: Icon, label, value, tone }) => (
 );
 
 const MyListings = () => {
+    const navigate = useNavigate();
     const { isAuthenticated } = useAuth();
     const [listings, setListings] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -124,34 +125,6 @@ const MyListings = () => {
         }
     };
 
-    const handleToggleActive = async (listing) => {
-        setSavingListingId(listing.id);
-        setFeedback(null);
-
-        try {
-            const updatedListing = await listingService.updateListing(listing.id, {
-                title: listing.title,
-                description: listing.description,
-                price: Number(listing.price),
-                category: listing.category,
-                condition: listing.condition,
-                isActive: listing.isSold ? false : !listing.isActive,
-                isSold: listing.isSold ?? false,
-                soldToUserId: listing.soldToUserId ?? null,
-            });
-
-            updateListingInState(updatedListing);
-            setFeedback({
-                type: 'success',
-                text: updatedListing.isActive ? 'İlan yeniden yayına alındı.' : 'İlan yayından kaldırıldı.',
-            });
-        } catch (err) {
-            setFeedback({ type: 'error', text: err.response?.data?.error || 'İlan durumu güncellenemedi.' });
-        } finally {
-            setSavingListingId(null);
-        }
-    };
-
     const handleDelete = async (listing) => {
         const confirmed = window.confirm(`"${listing.title}" ilanını silmek istediğine emin misin? Bu işlem geri alınamaz.`);
         if (!confirmed) return;
@@ -191,6 +164,17 @@ const MyListings = () => {
         }
     };
 
+    const openListingDetail = (listingId) => {
+        navigate(`/listings/${listingId}`);
+    };
+
+    const handleCardKeyDown = (event, listingId) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            openListingDetail(listingId);
+        }
+    };
+
     if (!isAuthenticated) {
         return (
             <div className="min-h-[70vh] flex items-center justify-center px-4">
@@ -211,7 +195,7 @@ const MyListings = () => {
                 <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5 mb-8">
                     <div>
                         <h1 className="text-3xl font-extrabold tracking-tight text-gray-900">İlan Yönetimi</h1>
-                        <p className="text-gray-500 mt-1">İlanlarını düzenle, yayından kaldır, tekrar yayınla ve performansını hızlıca takip et.</p>
+                        <p className="text-gray-500 mt-1">İlanlarını düzenle, satış durumunu yönet ve performansını tek ekrandan takip et.</p>
                     </div>
                     <Link to="/listings/new" className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-2xl transition-colors">
                         <PlusCircle className="w-4 h-4" />
@@ -255,11 +239,18 @@ const MyListings = () => {
                             const isBusy = savingListingId === listing.id || deletingListingId === listing.id;
 
                             return (
-                                <article key={listing.id} className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+                                <article
+                                    key={listing.id}
+                                    role="link"
+                                    tabIndex={0}
+                                    onClick={() => openListingDetail(listing.id)}
+                                    onKeyDown={(event) => handleCardKeyDown(event, listing.id)}
+                                    className="group bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:border-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-offset-2"
+                                >
                                     <div className="grid grid-cols-1 md:grid-cols-[220px_minmax(0,1fr)]">
                                         <div className="aspect-[4/3] md:aspect-auto bg-gray-100">
                                             {listing.imageUrl ? (
-                                                <img src={listing.imageUrl} alt={listing.title} className="w-full h-full object-cover" />
+                                                <img src={listing.imageUrl} alt={listing.title} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.01]" />
                                             ) : (
                                                 <div className="w-full h-full flex items-center justify-center text-gray-400 font-bold">Görsel Yok</div>
                                             )}
@@ -297,50 +288,46 @@ const MyListings = () => {
                                                 <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-700">İlan No: #{listing.id}</span>
                                             </div>
 
-                                            <div className="mt-auto grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-2">
-                                                <Link
-                                                    to={`/listings/${listing.id}`}
-                                                    className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors text-sm font-semibold"
-                                                >
-                                                    <Eye className="w-4 h-4" />
-                                                    Görüntüle
-                                                </Link>
+                                            <div className="mt-auto flex flex-wrap items-center gap-3 border-t border-gray-100 pt-5">
                                                 <button
                                                     type="button"
-                                                    onClick={() => openEditModal(listing)}
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
+                                                        openEditModal(listing);
+                                                    }}
                                                     disabled={isBusy}
-                                                    className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border border-blue-200 text-blue-700 hover:bg-blue-50 transition-colors text-sm font-semibold disabled:opacity-60"
+                                                    className="inline-flex min-w-[110px] items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors text-sm font-semibold disabled:opacity-60"
                                                 >
                                                     <Pencil className="w-4 h-4" />
                                                     Düzenle
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    onClick={() => handleToggleSold(listing)}
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
+                                                        handleToggleSold(listing);
+                                                    }}
                                                     disabled={isBusy}
-                                                    className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border border-emerald-200 text-emerald-700 hover:bg-emerald-50 transition-colors text-sm font-semibold disabled:opacity-60"
+                                                    className="inline-flex min-w-[110px] items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors text-sm font-semibold disabled:opacity-60"
                                                 >
                                                     <CheckCircle2 className="w-4 h-4" />
-                                                    {savingListingId === listing.id ? 'Kaydediliyor...' : listing.isSold ? 'Satışı Geri Al' : 'Satıldı Yap'}
+                                                    {savingListingId === listing.id ? 'Kaydediliyor...' : listing.isSold ? 'Satışı Aç' : 'Satıldı'}
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    onClick={() => handleToggleActive(listing)}
-                                                    disabled={isBusy || listing.isSold}
-                                                    className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border border-amber-200 text-amber-700 hover:bg-amber-50 transition-colors text-sm font-semibold disabled:opacity-60"
-                                                >
-                                                    <Power className="w-4 h-4" />
-                                                    {savingListingId === listing.id ? 'Kaydediliyor...' : listing.isSold ? 'Önce Satışı Geri Al' : listing.isActive ? 'Pasife Al' : 'Yayına Al'}
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleDelete(listing)}
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
+                                                        handleDelete(listing);
+                                                    }}
                                                     disabled={isBusy}
-                                                    className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border border-red-200 text-red-600 hover:bg-red-50 transition-colors text-sm font-semibold disabled:opacity-60"
+                                                    className="inline-flex min-w-[96px] items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-red-50 text-red-600 hover:bg-red-100 transition-colors text-sm font-semibold disabled:opacity-60"
                                                 >
                                                     <Trash2 className="w-4 h-4" />
                                                     {deletingListingId === listing.id ? 'Siliniyor...' : 'Sil'}
                                                 </button>
+                                                <span className="ml-auto text-xs font-medium text-gray-400">
+                                                    Detaya gitmek için karta tıkla
+                                                </span>
                                             </div>
                                         </div>
                                     </div>
