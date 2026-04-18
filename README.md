@@ -137,6 +137,7 @@ docker compose config
 - [.env.example](/Users/hasantogmus/Desktop/pau-market/.env.example)
 - [backend/src/PauMarket.API/Program.cs](/Users/hasantogmus/Desktop/pau-market/backend/src/PauMarket.API/Program.cs)
 - [docs/project_requirements.md](/Users/hasantogmus/Desktop/pau-market/docs/project_requirements.md)
+- [docs/smoke_test_checklist.md](/Users/hasantogmus/Desktop/pau-market/docs/smoke_test_checklist.md)
 - [docs/project_audit_report.md](/Users/hasantogmus/Desktop/pau-market/docs/project_audit_report.md)
 - [docs/recommender_system_report.md](/Users/hasantogmus/Desktop/pau-market/docs/recommender_system_report.md)
 
