@@ -20,8 +20,7 @@ public class AuthController : ControllerBase
 
     /// <summary>
     /// Yeni kullanıcı kaydeder.
-    /// E-posta ^[a-z]+\d{2}@posta\.pau\.edu\.tr$ formatına uymalıdır (örn: htogmus21@posta.pau.edu.tr).
-    /// Kayıt başarılıysa konsola 6 haneli doğrulama kodu yazılır (e-posta simülasyonu).
+    /// Geliştirme aşamasında hesap otomatik olarak onaylanır; doğrulama kodu sadece konsola yazılır.
     /// </summary>
     [HttpPost("register")]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -44,7 +43,7 @@ public class AuthController : ControllerBase
 
     /// <summary>
     /// Kullanıcı girişini doğrular ve başarı durumunda JWT token döner.
-    /// E-posta henüz doğrulanmadıysa 403 Forbidden döner.
+    /// Geçersiz girişlerde 401 döner; ileride manuel e-posta doğrulaması açılırsa 403 de dönebilir.
     /// </summary>
     [HttpPost("login")]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -66,7 +65,7 @@ public class AuthController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            // E-posta doğrulanmamış — 403 Forbidden ile hata mesajını döndür
+            // İleride doğrulama zorunlu hale getirilirse aynı endpoint 403 döndürmeye devam edebilir.
             return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message });
         }
     }

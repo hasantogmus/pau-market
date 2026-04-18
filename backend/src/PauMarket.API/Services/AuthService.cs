@@ -15,10 +15,8 @@ namespace PauMarket.API.Services;
 
 /// <summary>
 /// IAuthService implementasyonu.
-/// Kayıt: PAÜ e-posta regex + ad/soyad eşleşmesi + öğrenci no yıl eşleşmesi
-///        + canlı SMTP kutusu kontrolü + BCrypt hash + 6 haneli doğrulama kodu.
-/// Giriş: E-posta doğrulama kontrolü + JWT üretimi.
-/// Doğrulama: 6 haneli kodu eşleştirme + hesap onaylama.
+/// Geliştirme ortamında kayıt olan kullanıcılar otomatik olarak onaylanır.
+/// Doğrulama kodu yine üretilir ve konsola yazılır; böylece ileride manuel doğrulamaya dönmek kolay kalır.
 /// </summary>
 public class AuthService : IAuthService
 {

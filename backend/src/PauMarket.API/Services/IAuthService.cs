@@ -8,8 +8,8 @@ namespace PauMarket.API.Services;
 public interface IAuthService
 {
     /// <summary>
-    /// Yeni kullanıcı kaydeder. E-posta ^[a-z]+\d{2}@posta\.pau\.edu\.tr$ kuralına uymalıdır.
-    /// Şifre BCrypt ile hashlenir; 6 haneli doğrulama kodu üretilerek konsola yazılır.
+    /// Yeni kullanıcı kaydeder. Geliştirme ortamında hesap otomatik onaylanır;
+    /// 6 haneli doğrulama kodu ise sadece konsola yazılan bir simülasyon olarak tutulur.
     /// </summary>
     /// <param name="dto">Kayıt bilgileri</param>
     /// <returns>İşlem mesajı (başarı veya hata detayı)</returns>
@@ -17,7 +17,6 @@ public interface IAuthService
 
     /// <summary>
     /// Kullanıcı girişini doğrular ve başarı durumunda JWT token döner.
-    /// E-posta henüz doğrulanmadıysa InvalidOperationException fırlatır.
     /// </summary>
     /// <param name="dto">Giriş bilgileri</param>
     /// <returns>JWT token string'i; başarısız girişte null</returns>

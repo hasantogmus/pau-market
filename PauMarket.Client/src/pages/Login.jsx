@@ -17,6 +17,8 @@ const Login = () => {
 
     // Kayıt sonrası mı geliniyoruz?
     const justRegistered = new URLSearchParams(location.search).get('registered') === 'true';
+    const registrationMessage = location.state?.registrationMessage
+        || 'Hesabın oluşturuldu. Giriş yapıp onboarding adımına geçebilirsin.';
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -71,7 +73,7 @@ const Login = () => {
                     >
                         <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5 shrink-0" />
                         <p className="text-sm text-green-800 font-medium">
-                            Hesabın oluşturuldu! 🎉 Lütfen e-postana gönderilen doğrulama kodunu kullanarak hesabını aktif et, ardından giriş yap.
+                            {registrationMessage}
                         </p>
                     </motion.div>
                 )}

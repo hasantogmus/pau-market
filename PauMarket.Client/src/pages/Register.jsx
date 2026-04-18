@@ -38,11 +38,14 @@ const Register = () => {
         setIsLoading(true);
 
         try {
-            await authService.register(firstName, lastName, studentNumber, email, password);
-            // Kayıt başarılı: Kullanıcıyı önce login'e değil, onboarding'e yönlendir.
-            // Onboarding ekranında tercihlerini seçip token almadan kaydet butonu çalışmaz,
-            // bu yüzden önce login yaptırıp sonra /onboarding'e yönlendiriyoruz.
-            navigate('/login?registered=true');
+            const result = await authService.register(firstName, lastName, studentNumber, email, password);
+
+            // Onboarding akışı token gerektirdiği için kullanıcıyı önce login ekranına alıyoruz.
+            navigate('/login?registered=true', {
+                state: {
+                    registrationMessage: result.message
+                }
+            });
         } catch (err) {
             // Backend'den gelen detaylı hata mesajlarını yakalama (ValidationErrors veya Message veya error key'i)
             let errorMessage = 'Kayıt işlemi sırasında bir hata oluştu. Bilgilerinizi kontrol edip tekrar deneyin.';
