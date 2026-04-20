@@ -245,13 +245,15 @@ class PauMarketPreprocessor:
         n_users = len(self.user_id_map)
         n_items = len(self.item_id_map)
         n_interactions = len(self.events_df)
-        sparsity = 1 - (n_interactions / max(n_users * n_items, 1))
+        n_observed_pairs = self.events_df[["user_idx", "item_idx"]].drop_duplicates().shape[0]
+        sparsity = 1 - (n_observed_pairs / max(n_users * n_items, 1))
 
         self.stats = {
             "source": "paumarket",
             "n_users": n_users,
             "n_items": n_items,
             "n_interactions": n_interactions,
+            "n_observed_pairs": n_observed_pairs,
             "n_train": len(self.train_df),
             "n_test": len(self.test_df),
             "sparsity": sparsity,
@@ -266,6 +268,7 @@ class PauMarketPreprocessor:
         print(f"   Kullanıcı sayısı    : {s['n_users']:,}")
         print(f"   İlan sayısı         : {s['n_items']:,}")
         print(f"   Toplam etkileşim    : {s['n_interactions']:,}")
+        print(f"   User-listing çifti  : {s['n_observed_pairs']:,}")
         print(f"   Train etkileşim     : {s['n_train']:,}")
         print(f"   Test etkileşim      : {s['n_test']:,}")
         print(f"   Seyreklik (sparsity): {s['sparsity']:.4%}")
