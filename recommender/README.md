@@ -128,20 +128,15 @@ Bu endpointler admin JWT gerektirir ve Python tarafındaki varsayılan dosya adl
 Docker/demo akışı:
 
 ```bash
-# 1. Backend'den gerçek PAÜ verisini indir
-curl -H "Authorization: Bearer $ADMIN_TOKEN" \
-  http://localhost:5251/api/recommender-export/interactions \
-  -o recommender/app/data/datasets/paumarket_interactions.csv
-
-curl -H "Authorization: Bearer $ADMIN_TOKEN" \
-  http://localhost:5251/api/recommender-export/listings \
-  -o recommender/app/data/datasets/paumarket_listings.csv
-
-# 2. Recommender'ı PAÜ verisiyle eğit
-curl -X POST "http://localhost:8000/train?source=paumarket"
-
-# 3. Metrikleri al
-curl http://localhost:8000/metrics
+# Tek komutla:
+# 1. Backend'den gerçek PAÜ interaction/listing CSV exportlarını indirir.
+# 2. CSV'leri recommender/app/data/datasets içine koyar.
+# 3. Recommender'ı source=paumarket ile yeniden eğitir.
+# 4. /metrics çıktısını ekrana basar.
+ADMIN_TOKEN="admin-jwt-token" ./recommender/scripts/export_and_train_paumarket.sh
 ```
+
+Varsayılan adresler `http://localhost:5251` ve `http://localhost:8000` olarak ayarlanmıştır.
+Gerekirse `BACKEND_URL`, `RECOMMENDER_URL`, `DATASET_DIR` ve `METRICS_OUTPUT` değişkenleriyle override edilebilir.
 
 `source=auto` modunda `paumarket_interactions.csv` eğitim için hazırsa PAÜ verisi seçilir; dosya yoksa veya çok küçükse sistem RetailRocket benchmark verisine kontrollü şekilde düşer.
