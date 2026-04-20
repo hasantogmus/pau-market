@@ -124,6 +124,7 @@ builder.Services.AddScoped<IDealRequestService, DealRequestService>();
 builder.Services.AddHttpClient<IRecommendationService, RecommendationService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddScoped<IRecommenderExportService, RecommenderExportService>();
 
 var app = builder.Build();
 

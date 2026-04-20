@@ -105,3 +105,12 @@ preprocessor.run()
 ```
 
 Bu adapter gerçek `User.Id` ve `Listing.Id` değerlerini model içi `user_idx` / `item_idx` indekslerine çevirir. Model öneri üretirken `reverse_item_map` sayesinde tekrar gerçek `Listing.Id` döndürülebilir.
+
+Backend export endpointleri:
+
+```http
+GET /api/recommender-export/interactions
+GET /api/recommender-export/listings
+```
+
+Bu endpointler admin JWT gerektirir ve Python tarafındaki varsayılan dosya adlarıyla uyumlu CSV döndürür.
