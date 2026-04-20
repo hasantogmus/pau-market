@@ -32,6 +32,8 @@ MERCARI_TEST_FILE = DATA_DIR / "test_stg2.tsv"
 # ─── PAÜ Market Export Ayarları ─────────────────────────────────────
 PAUMARKET_INTERACTIONS_FILE = DATA_DIR / "paumarket_interactions.csv"
 PAUMARKET_LISTINGS_FILE = DATA_DIR / "paumarket_listings.csv"
+RECOMMENDER_DATA_SOURCE = os.getenv("RS_DATA_SOURCE", "auto").strip().lower()
+PAUMARKET_MIN_TRAINING_INTERACTIONS = int(os.getenv("PAUMARKET_MIN_TRAINING_INTERACTIONS", "2"))
 
 # ─── Etkileşim Ağırlıkları ───────────────────────────────────────────
 # RetailRocket simülasyon eventleri.

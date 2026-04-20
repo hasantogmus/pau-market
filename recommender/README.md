@@ -34,7 +34,8 @@ pip install -r requirements.txt
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 # 5. Modeli eğit (ilk seferde)
-curl -X POST http://localhost:8000/train
+# auto: PAÜ CSV varsa onu, yoksa RetailRocket benchmark verisini kullanır
+curl -X POST "http://localhost:8000/train?source=auto"
 ```
 
 ## API Dokümantasyonu
@@ -52,7 +53,9 @@ Swagger UI: http://localhost:8000/docs
 ## Değerlendirme
 
 ```
-POST /train → otomatik olarak 3 modeli eğitir + değerlendirir
+POST /train?source=auto → PAÜ CSV varsa gerçek veriyle, yoksa benchmark veriyle eğitir
+POST /train?source=paumarket → yalnızca PAÜ CSV ile eğitir
+POST /train?source=retailrocket → yalnızca RetailRocket benchmark verisiyle eğitir
 GET /metrics → sonuçları JSON olarak döndürür
 ```
 
@@ -114,3 +117,24 @@ GET /api/recommender-export/listings
 ```
 
 Bu endpointler admin JWT gerektirir ve Python tarafındaki varsayılan dosya adlarıyla uyumlu CSV döndürür.
+
+Docker/demo akışı:
+
+```bash
+# 1. Backend'den gerçek PAÜ verisini indir
+curl -H "Authorization: Bearer $ADMIN_TOKEN" \
+  http://localhost:5251/api/recommender-export/interactions \
+  -o recommender/app/data/datasets/paumarket_interactions.csv
+
+curl -H "Authorization: Bearer $ADMIN_TOKEN" \
+  http://localhost:5251/api/recommender-export/listings \
+  -o recommender/app/data/datasets/paumarket_listings.csv
+
+# 2. Recommender'ı PAÜ verisiyle eğit
+curl -X POST "http://localhost:8000/train?source=paumarket"
+
+# 3. Metrikleri al
+curl http://localhost:8000/metrics
+```
+
+`source=auto` modunda `paumarket_interactions.csv` eğitim için hazırsa PAÜ verisi seçilir; dosya yoksa veya çok küçükse sistem RetailRocket benchmark verisine kontrollü şekilde düşer.

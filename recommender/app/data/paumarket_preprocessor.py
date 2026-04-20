@@ -183,6 +183,12 @@ class PauMarketPreprocessor:
 
         print(f"  → {current_len:,} etkileşim kaldı")
 
+        if current_len == 0:
+            raise ValueError(
+                "PAÜ Market export'u eğitim için yeterli etkileşim içermiyor. "
+                "Filtrelerden sonra 0 kayıt kaldı."
+            )
+
     def _create_id_maps(self):
         print("[7/8] Gerçek ID → model index eşlemeleri oluşturuluyor...")
 
@@ -235,6 +241,12 @@ class PauMarketPreprocessor:
 
         self.train_df = self.events_df.iloc[:split_idx].copy()
         self.test_df = self.events_df.iloc[split_idx:].copy()
+
+        if self.train_df.empty:
+            raise ValueError(
+                "PAÜ Market export'u eğitim seti oluşturmak için yeterli değil. "
+                "En az birkaç zaman sıralı etkileşim gerekir."
+            )
 
         print(
             f"  → Train: {len(self.train_df):,} etkileşim | "

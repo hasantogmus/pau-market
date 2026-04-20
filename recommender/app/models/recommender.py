@@ -22,9 +22,9 @@ Kullanım:
 
 import joblib
 from pathlib import Path
+from typing import Any
 
 from app.config import COLD_START_THRESHOLD, MODEL_DIR
-from app.data.preprocessor import RetailRocketPreprocessor
 from app.models.content_based import ContentBasedModel
 from app.models.collaborative import CollaborativeFilteringModel
 from app.models.hybrid import HybridLightFMModel
@@ -41,18 +41,24 @@ class HybridRecommender:
         self.cb_model = ContentBasedModel()
         self.cf_model = CollaborativeFilteringModel()
         self.hybrid_model = HybridLightFMModel()
-        self.preprocessor: RetailRocketPreprocessor | None = None
+        self.preprocessor: Any | None = None
         self.is_trained = False
         self.training_stats: dict = {}
         self.cb_evaluation: dict = {}
 
-    def train_all(self, preprocessor: RetailRocketPreprocessor, mercari_df) -> dict:
+    def train_all(
+        self,
+        preprocessor,
+        mercari_df,
+        interaction_source_label: str = "RetailRocket",
+    ) -> dict:
         """
         Tüm modelleri farklı veri kaynaklarıyla eğitir.
 
         Args:
-            preprocessor: RetailRocket ön-işlenmiş verisi (CF + Hibrit için)
+            preprocessor: Ön-işlenmiş etkileşim verisi (CF + Hibrit için)
             mercari_df: Mercari DataFrame'i (Content-Based NLP için)
+            interaction_source_label: CF + Hibrit modellerinin veri kaynağı etiketi
 
         Returns:
             dict: Tüm modellerin eğitim istatistikleri
@@ -61,7 +67,7 @@ class HybridRecommender:
 
         print("\n" + "=" * 60)
         print("  Hibrit Recommender — Tüm Modeller Eğitiliyor")
-        print("  📊 RetailRocket: CF + Hibrit | Mercari: Content-Based NLP")
+        print(f"  📊 {interaction_source_label}: CF + Hibrit | Mercari: Content-Based NLP")
         print("=" * 60)
 
         # ── Model 1: Content-Based (MERCARI verisiyle) ──
@@ -88,8 +94,8 @@ class HybridRecommender:
             "cold_start_threshold": COLD_START_THRESHOLD,
             "data_sources": {
                 "content_based": "Mercari C2C (NLP)",
-                "collaborative": "RetailRocket (CF)",
-                "hybrid": "RetailRocket (Hybrid + Features)",
+                "collaborative": f"{interaction_source_label} (CF)",
+                "hybrid": f"{interaction_source_label} (Hybrid + Features)",
             },
         }
 
@@ -100,7 +106,7 @@ class HybridRecommender:
         return self.training_stats
 
     # ── Geriye dönük uyumluluk (eski API desteği) ──
-    def train(self, preprocessor: RetailRocketPreprocessor) -> dict:
+    def train(self, preprocessor) -> dict:
         """
         Eski API uyumluluğu. Mercari olmadan sadece RetailRocket ile eğitir.
         Content-Based model bu durumda eğitilemez.

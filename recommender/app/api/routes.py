@@ -12,6 +12,8 @@ Endpoints:
     GET  /health                → Sağlık kontrolü
 """
 
+import csv
+
 from fastapi import APIRouter, HTTPException, Query
 from app.api.schemas import (
     RecommendationResponse,
@@ -20,6 +22,11 @@ from app.api.schemas import (
     TrainResponse,
     MetricsResponse,
     HealthResponse,
+)
+from app.config import (
+    PAUMARKET_INTERACTIONS_FILE,
+    PAUMARKET_MIN_TRAINING_INTERACTIONS,
+    RECOMMENDER_DATA_SOURCE,
 )
 
 router = APIRouter()
@@ -43,6 +50,75 @@ def set_preprocessor(preprocessor):
 def set_evaluator_results(results):
     global _evaluator_results
     _evaluator_results = results
+
+
+def _normalize_training_source(source: str) -> str:
+    normalized = source.strip().lower()
+    valid_sources = {"auto", "paumarket", "retailrocket"}
+
+    if normalized not in valid_sources:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Geçersiz source değeri. "
+                "Kullanılabilir seçenekler: auto, paumarket, retailrocket."
+            ),
+        )
+
+    return normalized
+
+
+def _inspect_paumarket_export() -> tuple[bool, str]:
+    if not PAUMARKET_INTERACTIONS_FILE.exists():
+        return False, f"PAÜ interaction CSV bulunamadı: {PAUMARKET_INTERACTIONS_FILE}"
+
+    required_columns = {"user_id", "listing_id", "event", "timestamp"}
+
+    try:
+        with PAUMARKET_INTERACTIONS_FILE.open("r", encoding="utf-8", newline="") as handle:
+            reader = csv.DictReader(handle)
+            columns = set(reader.fieldnames or [])
+            missing_columns = required_columns - columns
+
+            if missing_columns:
+                missing = ", ".join(sorted(missing_columns))
+                return False, f"PAÜ interaction CSV eksik kolon içeriyor: {missing}"
+
+            row_count = sum(1 for _ in reader)
+    except OSError as exc:
+        return False, f"PAÜ interaction CSV okunamadı: {exc}"
+
+    if row_count < PAUMARKET_MIN_TRAINING_INTERACTIONS:
+        return (
+            False,
+            "PAÜ interaction CSV eğitim için çok küçük "
+            f"({row_count}/{PAUMARKET_MIN_TRAINING_INTERACTIONS} kayıt).",
+        )
+
+    return True, f"PAÜ interaction CSV hazır ({row_count:,} kayıt)."
+
+
+def _build_training_preprocessor(source: str):
+    from app.data.paumarket_preprocessor import PauMarketPreprocessor
+    from app.data.preprocessor import RetailRocketPreprocessor
+
+    selected_source = _normalize_training_source(source)
+
+    if selected_source == "auto":
+        is_ready, reason = _inspect_paumarket_export()
+        if is_ready:
+            return PauMarketPreprocessor(), "PAÜ Market", reason
+
+        return RetailRocketPreprocessor(), "RetailRocket", f"Auto fallback: {reason}"
+
+    if selected_source == "paumarket":
+        is_ready, reason = _inspect_paumarket_export()
+        if not is_ready:
+            raise HTTPException(status_code=400, detail=reason)
+
+        return PauMarketPreprocessor(), "PAÜ Market", reason
+
+    return RetailRocketPreprocessor(), "RetailRocket", "RetailRocket benchmark verisi seçildi."
 
 
 # ─── Endpoints ───────────────────────────────────────────────────
@@ -124,25 +200,30 @@ async def get_similar_items(
 
 
 @router.post("/train", response_model=TrainResponse)
-async def train_models():
+async def train_models(
+    source: str = Query(
+        default=RECOMMENDER_DATA_SOURCE,
+        description="Etkileşim veri kaynağı: auto, paumarket veya retailrocket",
+    ),
+):
     """
     Tüm modelleri yeniden eğitir:
     - Content-Based NLP (Mercari ~4.9M ilan)
-    - Collaborative Filtering SVD (RetailRocket ~2.7M event)
-    - Hybrid LightFM WARP (RetailRocket + item features)
+    - Collaborative Filtering SVD (PAÜ CSV veya RetailRocket)
+    - Hybrid LightFM WARP (PAÜ CSV veya RetailRocket + item features)
 
     ⚠️ Bu işlem ~8 dakika sürebilir!
     """
-    from app.data.preprocessor import RetailRocketPreprocessor
     from app.data.loader import load_mercari
     from app.evaluation.evaluator import ModelEvaluator
 
     global _recommender, _preprocessor, _evaluator_results
 
     try:
-        # 1. RetailRocket veri ön-işleme (CF + Hibrit modeller için)
-        print("\n🚀 [Train] Adım 1/5: RetailRocket verisi ön-işleniyor...")
-        preprocessor = RetailRocketPreprocessor()
+        # 1. Etkileşim veri kaynağını seç ve ön-işle (CF + Hibrit modeller için)
+        preprocessor, interaction_source_label, source_note = _build_training_preprocessor(source)
+        print(f"\n🚀 [Train] Adım 1/5: {interaction_source_label} verisi ön-işleniyor...")
+        print(f"   → {source_note}")
         preprocessor.run()
         _preprocessor = preprocessor
         set_preprocessor(preprocessor)
@@ -155,7 +236,11 @@ async def train_models():
         print("\n🚀 [Train] Adım 3/5: 3 model eğitiliyor...")
         from app.models.recommender import HybridRecommender
         recommender = HybridRecommender()
-        training_stats = recommender.train_all(preprocessor, mercari_df)
+        training_stats = recommender.train_all(
+            preprocessor,
+            mercari_df,
+            interaction_source_label=interaction_source_label,
+        )
         _recommender = recommender
         set_recommender(recommender)
 
@@ -175,7 +260,7 @@ async def train_models():
             training_stats=training_stats,
             message=(
                 f"✅ Tüm modeller eğitildi! "
-                f"RetailRocket: {preprocessor.stats['n_interactions']:,} etkileşim, "
+                f"{interaction_source_label}: {preprocessor.stats['n_interactions']:,} etkileşim, "
                 f"Mercari: {len(mercari_df):,} ilan"
             ),
         )

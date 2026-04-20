@@ -56,7 +56,7 @@ app = FastAPI(
         "- Content-Based (TF-IDF + Cosine Similarity)\n"
         "- Collaborative Filtering (Surprise SVD)\n"
         "- Hybrid (LightFM + WARP Loss) ⭐\n\n"
-        "**Veri:** Retailrocket E-Commerce Dataset (Kaggle)"
+        "**Veri:** PAÜ Market CSV export'u veya RetailRocket benchmark verisi"
     ),
     version="1.0.0",
     lifespan=lifespan,
