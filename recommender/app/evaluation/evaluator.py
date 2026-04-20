@@ -17,11 +17,9 @@ Kullanım:
 
 import time
 import numpy as np
-import pandas as pd
-from typing import Optional
+from typing import Any, Optional
 
 from app.config import EVAL_K_VALUES, PRIMARY_K
-from app.data.preprocessor import RetailRocketPreprocessor
 from app.models.recommender import HybridRecommender
 from app.evaluation.metrics import (
     precision_at_k,
@@ -41,7 +39,7 @@ class ModelEvaluator:
     def __init__(
         self,
         recommender: HybridRecommender,
-        preprocessor: RetailRocketPreprocessor,
+        preprocessor: Any,
         max_users: int = 500,
     ):
         """
@@ -307,5 +305,115 @@ class ModelEvaluator:
         output["comparison_table"] = self.results.get("comparison_table", [])
         output["k_values"] = EVAL_K_VALUES
         output["primary_k"] = PRIMARY_K
+        output["dataset_summary"] = self._build_dataset_summary()
+        output["training_summary"] = self._build_training_summary()
+        output["thesis_notes"] = self._build_thesis_notes()
 
         return output
+
+    def _build_dataset_summary(self) -> dict:
+        stats = getattr(self.preprocessor, "stats", {}) or {}
+        n_interactions = int(stats.get("n_interactions", 0) or 0)
+        n_train = int(stats.get("n_train", 0) or 0)
+        n_test = int(stats.get("n_test", 0) or 0)
+        sparsity = float(stats.get("sparsity", 0.0) or 0.0)
+
+        summary = {
+            "source": stats.get("source", self._infer_dataset_source()),
+            "interaction_source": self.recommender.training_stats.get("interaction_source"),
+            "n_users": int(stats.get("n_users", 0) or 0),
+            "n_items": int(stats.get("n_items", 0) or 0),
+            "n_interactions": n_interactions,
+            "n_observed_pairs": int(stats.get("n_observed_pairs", n_interactions) or 0),
+            "n_train": n_train,
+            "n_test": n_test,
+            "train_ratio": round(n_train / max(n_interactions, 1), 4),
+            "test_ratio": round(n_test / max(n_interactions, 1), 4),
+            "sparsity": round(sparsity, 6),
+            "sparsity_percent": round(sparsity * 100, 4),
+            "n_categories": int(stats.get("n_categories", 0) or 0),
+            "event_distribution": self._json_safe_distribution(
+                stats.get("event_distribution", {})
+            ),
+        }
+
+        if "weight_distribution" in stats:
+            summary["weight_distribution"] = self._json_safe_distribution(
+                stats.get("weight_distribution", {})
+            )
+
+        return summary
+
+    def _build_training_summary(self) -> dict:
+        training_stats = self.recommender.training_stats or {}
+
+        return {
+            "interaction_source": training_stats.get("interaction_source"),
+            "data_sources": training_stats.get("data_sources", {}),
+            "cold_start_threshold": training_stats.get("cold_start_threshold"),
+            "evaluated_models": [
+                model_name
+                for model_name in ["content_based", "collaborative", "hybrid_lightfm"]
+                if model_name in self.results
+            ],
+            "ranking_metrics": [f"precision@{k}" for k in EVAL_K_VALUES]
+            + [f"recall@{k}" for k in EVAL_K_VALUES]
+            + [f"ndcg@{k}" for k in EVAL_K_VALUES],
+            "rating_metric": "rmse",
+        }
+
+    def _build_thesis_notes(self) -> list[str]:
+        dataset_source = self._infer_dataset_source()
+
+        notes = [
+            (
+                "Precision, Recall, NDCG, HitRate and MRR evaluate the ranking "
+                "quality of the generated recommendation list."
+            ),
+            (
+                "RMSE is reported only for models that can predict an explicit "
+                "user-item score; content-based similarity does not receive a fake RMSE."
+            ),
+        ]
+
+        if dataset_source == "paumarket":
+            notes.append(
+                "This run uses PAÜ Market interaction exports, so event distribution "
+                "and sparsity describe the real platform pilot data."
+            )
+        else:
+            notes.append(
+                "This run uses benchmark interaction data, so the metrics validate "
+                "the algorithmic pipeline before enough PAÜ Market pilot data exists."
+            )
+
+        return notes
+
+    def _infer_dataset_source(self) -> str:
+        stats = getattr(self.preprocessor, "stats", {}) or {}
+        if stats.get("source"):
+            return str(stats["source"])
+
+        interaction_source = str(
+            self.recommender.training_stats.get("interaction_source", "")
+        ).lower()
+
+        if "paü" in interaction_source or "pau" in interaction_source:
+            return "paumarket"
+
+        return "retailrocket"
+
+    @staticmethod
+    def _json_safe_distribution(distribution: dict) -> dict:
+        safe_distribution = {}
+
+        for key, value in distribution.items():
+            if hasattr(value, "item"):
+                value = value.item()
+
+            if isinstance(value, float):
+                safe_distribution[str(key)] = round(value, 6)
+            else:
+                safe_distribution[str(key)] = int(value)
+
+        return safe_distribution

@@ -56,8 +56,15 @@ Swagger UI: http://localhost:8000/docs
 POST /train?source=auto → PAÜ CSV varsa gerçek veriyle, yoksa benchmark veriyle eğitir
 POST /train?source=paumarket → yalnızca PAÜ CSV ile eğitir
 POST /train?source=retailrocket → yalnızca RetailRocket benchmark verisiyle eğitir
-GET /metrics → sonuçları JSON olarak döndürür
+GET /metrics → metrikleri, veri seti özetini ve tez/demo notlarını JSON olarak döndürür
 ```
+
+`GET /metrics` çıktısında şu alanlar özellikle jüri/demo için tasarlandı:
+
+- `comparison_table`: model bazlı Precision@K, Recall@K, NDCG@K, HitRate@K, MRR ve RMSE karşılaştırması.
+- `dataset_summary`: kullanılan veri kaynağı, kullanıcı/ilan/etkileşim sayıları, train/test ayrımı, sparsity ve event dağılımı.
+- `training_summary`: CF/LightFM için hangi interaction kaynağının kullanıldığı ve cold-start eşiği.
+- `thesis_notes`: metriklerin nasıl yorumlanması gerektiğini açıklayan kısa savunma notları.
 
 ## PAÜ Market Etkileşim Sözleşmesi
 

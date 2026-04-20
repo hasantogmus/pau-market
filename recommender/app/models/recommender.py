@@ -92,6 +92,7 @@ class HybridRecommender:
             "collaborative": cf_stats,
             "hybrid_lightfm": hybrid_stats,
             "cold_start_threshold": COLD_START_THRESHOLD,
+            "interaction_source": interaction_source_label,
             "data_sources": {
                 "content_based": "Mercari C2C (NLP)",
                 "collaborative": f"{interaction_source_label} (CF)",
