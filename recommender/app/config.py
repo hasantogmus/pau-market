@@ -29,6 +29,10 @@ MERCARI_KAGGLE_DATASET = "c/mercari-price-suggestion-challenge"
 MERCARI_TRAIN_FILE = DATA_DIR / "train.tsv"
 MERCARI_TEST_FILE = DATA_DIR / "test_stg2.tsv"
 
+# ─── PAÜ Market Export Ayarları ─────────────────────────────────────
+PAUMARKET_INTERACTIONS_FILE = DATA_DIR / "paumarket_interactions.csv"
+PAUMARKET_LISTINGS_FILE = DATA_DIR / "paumarket_listings.csv"
+
 # ─── Etkileşim Ağırlıkları ───────────────────────────────────────────
 # RetailRocket simülasyon eventleri.
 # PAÜ Market karşılığı:

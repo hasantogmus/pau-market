@@ -70,3 +70,38 @@ Gerçek platform verisi biriktiğinde recommender modeli aşağıdaki davranış
 | `purchase` | 5.0 | Satışın tamamlanması |
 
 RetailRocket tarafındaki `addtocart` olayı, PAÜ Market'te `deal_request` davranışına karşılık gelen güçlü satın alma niyeti olarak yorumlanır.
+
+## PAÜ Market Verisiyle Eğitim Geçişi
+
+Gerçek platform verisi yeterli seviyeye geldiğinde `PauMarketPreprocessor`, SQL export'unu mevcut SVD/LightFM pipeline'ının beklediği formata dönüştürür.
+
+Beklenen interaction export formatı:
+
+```csv
+user_id,listing_id,event,timestamp
+12,1003,view,2026-04-20T12:00:00Z
+12,1003,message,2026-04-20T12:01:00Z
+12,1003,deal_request,2026-04-20T12:04:00Z
+12,1003,purchase,2026-04-20T12:30:00Z
+```
+
+Opsiyonel listing metadata export formatı:
+
+```csv
+listing_id,category,condition,price,title,description
+1003,Elektronik,Sıfır,12000,PlayStation 5,Temiz cihaz
+```
+
+Adapter kullanım örneği:
+
+```python
+from app.data.paumarket_preprocessor import PauMarketPreprocessor
+
+preprocessor = PauMarketPreprocessor(
+    interactions_path="app/data/datasets/paumarket_interactions.csv",
+    listings_path="app/data/datasets/paumarket_listings.csv",
+)
+preprocessor.run()
+```
+
+Bu adapter gerçek `User.Id` ve `Listing.Id` değerlerini model içi `user_idx` / `item_idx` indekslerine çevirir. Model öneri üretirken `reverse_item_map` sayesinde tekrar gerçek `Listing.Id` döndürülebilir.
