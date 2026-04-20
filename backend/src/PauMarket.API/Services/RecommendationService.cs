@@ -29,7 +29,7 @@ public class RecommendationService(
             // Port 8000 varsayılan Python fastapi portu
             // URL'yi appsettings'den veya Docker ENV vars'dan al (Yoksa varsayılan Docker hostu veya localhost'u dene)
             var recommenderUrl = configuration["RecommenderApiUrl"] ?? "http://recommender:8000";
-            var response = await httpClient.GetAsync($"{recommenderUrl}/recommend/{userId}?n={count * 2}");
+            var response = await httpClient.GetAsync($"{recommenderUrl}/recommend/by-user-id/{userId}?n={count * 2}");
             
             if (response.IsSuccessStatusCode)
             {
@@ -38,9 +38,13 @@ public class RecommendationService(
                 
                 if (aiData?.Recommendations != null && aiData.Recommendations.Count > 0)
                 {
-                    // "original_item_id" Kaggle RetailRocket datasında gerçek İlan ID'si olarak kullanıldı diye varsayıyoruz.
-                    // Ya da item_idx python tarafındaki indeks. Gerçek üretim ortamında bunlar SQL DB'deki Id'ler olacak.
-                    var pythonItemIds = aiData.Recommendations.Select(r => r.ItemIdx).ToList();
+                    // Python tarafında item_idx model içi index, original_item_id ise SQL Listing.Id karşılığıdır.
+                    // PAÜ Market verisiyle eğitimden sonra SQL eşleşmesi bu gerçek ID üzerinden yapılmalıdır.
+                    var pythonItemIds = aiData.Recommendations
+                        .Select(r => r.OriginalItemId)
+                        .Where(id => id > 0)
+                        .Distinct()
+                        .ToList();
 
                     // 2. Python'dan gelen ID'leri SQL DB'den bul ve getir. Kullanıcının KENDİ ilanlarını gösterme.
                     var listings = await db.Listings

@@ -123,31 +123,46 @@ def _build_training_preprocessor(source: str):
 
 # ─── Endpoints ───────────────────────────────────────────────────
 
-
-@router.get("/recommend/{user_idx}", response_model=RecommendationResponse)
-async def get_recommendations(
-    user_idx: int,
-    n: int = Query(default=5, ge=1, le=50, description="Öneri sayısı"),
-):
-    """
-    Belirtilen kullanıcı için hibrit öneri üretir.
-
-    Anahtarlamalı strateji:
-    - Soğuk başlangıç → Content-Based
-    - Aktif kullanıcı → LightFM Hybrid
-    """
+def _ensure_recommender_ready():
     if _recommender is None or not _recommender.is_trained:
         raise HTTPException(
             status_code=503,
             detail="Model henüz eğitilmedi. POST /train endpoint'ini çağırın."
         )
 
+
+def _validate_user_idx(user_idx: int) -> None:
     n_users = _preprocessor.get_n_users()
     if user_idx < 0 or user_idx >= n_users:
         raise HTTPException(
             status_code=404,
             detail=f"Kullanıcı bulunamadı. Geçerli aralık: 0 - {n_users - 1}"
         )
+
+
+def _resolve_original_user_id(original_user_id: int) -> int:
+    user_id_map = getattr(_preprocessor, "user_id_map", {}) or {}
+    user_idx = user_id_map.get(original_user_id)
+
+    if user_idx is None:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "Bu gerçek kullanıcı ID'si eğitim verisinde bulunamadı. "
+                "Backend cold-start fallback kullanmalıdır."
+            ),
+        )
+
+    return int(user_idx)
+
+
+def _build_recommendation_response(
+    user_idx: int,
+    n: int,
+    original_user_id: int | None = None,
+) -> RecommendationResponse:
+    _ensure_recommender_ready()
+    _validate_user_idx(user_idx)
 
     try:
         result = _recommender.recommend(user_idx, n)
@@ -163,14 +178,49 @@ async def get_recommendations(
 
         return RecommendationResponse(
             user_idx=user_idx,
+            original_user_id=original_user_id,
             recommendations=recommendations,
             model_used=result["model_used"],
             interaction_count=result["interaction_count"],
             cold_start_threshold=result["cold_start_threshold"],
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Öneri üretilirken hata: {str(e)}")
+
+
+@router.get("/recommend/{user_idx}", response_model=RecommendationResponse)
+async def get_recommendations(
+    user_idx: int,
+    n: int = Query(default=5, ge=1, le=50, description="Öneri sayısı"),
+):
+    """
+    Belirtilen kullanıcı için hibrit öneri üretir.
+
+    Anahtarlamalı strateji:
+    - Soğuk başlangıç → Content-Based
+    - Aktif kullanıcı → LightFM Hybrid
+    """
+    return _build_recommendation_response(user_idx, n)
+
+
+@router.get("/recommend/by-user-id/{original_user_id}", response_model=RecommendationResponse)
+async def get_recommendations_by_original_user_id(
+    original_user_id: int,
+    n: int = Query(default=5, ge=1, le=50, description="Öneri sayısı"),
+):
+    """
+    Backend SQL kullanıcı ID'si ile öneri üretir.
+
+    PAÜ Market eğitiminde SQL User.Id değerleri önce model user_idx değerine
+    çevrilir. Kullanıcı eğitim verisinde yoksa 404 döner; backend bu durumda
+    cold-start fallback'e düşer.
+    """
+    _ensure_recommender_ready()
+    user_idx = _resolve_original_user_id(original_user_id)
+    return _build_recommendation_response(user_idx, n, original_user_id)
 
 
 @router.get("/similar/{item_idx}", response_model=SimilarItemResponse)
