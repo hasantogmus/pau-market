@@ -4,7 +4,7 @@ namespace PauMarket.API.Models;
 
 /// <summary>
 /// Recommender Sistem için kullanıcı-ilan etkileşim logu.
-/// Her kayıt, kullanıcının bir ilanla yaptığı View / Favorite / Purchase etkileşimini temsil eder.
+/// Her kayıt, kullanıcının bir ilanla yaptığı davranışsal sinyali temsil eder.
 /// </summary>
 public class Interaction
 {
@@ -18,10 +18,12 @@ public class Interaction
 
     /// <summary>
     /// Etkileşim türü (Enum):
-    ///   View     = 1 — ilan görüntüleme
-    ///   Favorite = 3 — favorileme
-    ///   Purchase = 5 — satın alma
-    /// Enum değeri aynı zamanda RS model ağırlığıdır.
+    ///   View         — ilan görüntüleme
+    ///   Message      — satıcıyla mesajlaşma
+    ///   Favorite     — ilanı favorileme
+    ///   DealRequest  — anlaşma isteği gönderme
+    ///   DealAccepted — anlaşma isteğinin kabul edilmesi
+    ///   Purchase     — satışın tamamlanması
     /// </summary>
     public InteractionType InteractionType { get; set; }
 

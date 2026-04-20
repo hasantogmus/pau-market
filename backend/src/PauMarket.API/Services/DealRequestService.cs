@@ -41,6 +41,7 @@ public class DealRequestService(PauMarketDbContext db) : IDealRequestService
             existingRequest.RequestedAt = DateTime.UtcNow;
             existingRequest.RespondedAt = null;
 
+            await UpsertInteractionAsync(buyerId, listing.Id, InteractionType.DealRequest);
             await db.SaveChangesAsync();
             return MapToDto(existingRequest);
         }
@@ -58,6 +59,7 @@ public class DealRequestService(PauMarketDbContext db) : IDealRequestService
         };
 
         db.DealRequests.Add(dealRequest);
+        await UpsertInteractionAsync(buyerId, listing.Id, InteractionType.DealRequest);
         await db.SaveChangesAsync();
 
         dealRequest.Buyer = buyer;
@@ -98,6 +100,7 @@ public class DealRequestService(PauMarketDbContext db) : IDealRequestService
 
         request.Status = DealRequestStatus.Accepted;
         request.RespondedAt = DateTime.UtcNow;
+        await UpsertInteractionAsync(request.BuyerId, request.ListingId, InteractionType.DealAccepted);
 
         var competingRequests = await db.DealRequests
             .Where(item => item.ListingId == request.ListingId && item.Id != request.Id && item.Status == DealRequestStatus.Pending)
@@ -151,4 +154,26 @@ public class DealRequestService(PauMarketDbContext db) : IDealRequestService
         RequestedAt = request.RequestedAt,
         RespondedAt = request.RespondedAt,
     };
+
+    private async Task UpsertInteractionAsync(int userId, int listingId, InteractionType interactionType)
+    {
+        var existingInteraction = await db.Interactions.FirstOrDefaultAsync(interaction =>
+            interaction.UserId == userId &&
+            interaction.ListingId == listingId &&
+            interaction.InteractionType == interactionType);
+
+        if (existingInteraction is not null)
+        {
+            existingInteraction.Timestamp = DateTime.UtcNow;
+            return;
+        }
+
+        db.Interactions.Add(new Interaction
+        {
+            UserId = userId,
+            ListingId = listingId,
+            InteractionType = interactionType,
+            Timestamp = DateTime.UtcNow
+        });
+    }
 }

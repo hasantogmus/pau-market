@@ -55,3 +55,18 @@ Swagger UI: http://localhost:8000/docs
 POST /train → otomatik olarak 3 modeli eğitir + değerlendirir
 GET /metrics → sonuçları JSON olarak döndürür
 ```
+
+## PAÜ Market Etkileşim Sözleşmesi
+
+Gerçek platform verisi biriktiğinde recommender modeli aşağıdaki davranış ağırlıklarıyla yeniden eğitilecek şekilde tasarlanmıştır:
+
+| PAÜ Market olayı | Ağırlık | Anlam |
+|---|---:|---|
+| `view` | 1.0 | İlan görüntüleme |
+| `message` | 2.0 | Satıcıyla mesajlaşma |
+| `favorite` | 3.0 | İlanı favorileme |
+| `deal_request` | 4.0 | Anlaşma isteği gönderme |
+| `deal_accepted` | 4.5 | Anlaşma isteğinin kabul edilmesi |
+| `purchase` | 5.0 | Satışın tamamlanması |
+
+RetailRocket tarafındaki `addtocart` olayı, PAÜ Market'te `deal_request` davranışına karşılık gelen güçlü satın alma niyeti olarak yorumlanır.

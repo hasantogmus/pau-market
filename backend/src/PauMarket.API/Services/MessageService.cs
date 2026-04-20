@@ -130,6 +130,11 @@ public class MessageService(PauMarketDbContext context) : IMessageService
         };
 
         context.Messages.Add(message);
+        if (senderId != listing.UserId)
+        {
+            await UpsertInteractionAsync(senderId, dto.ListingId, InteractionType.Message);
+        }
+
         await context.SaveChangesAsync();
 
         return MapToResponseDto(message);
@@ -207,5 +212,27 @@ public class MessageService(PauMarketDbContext context) : IMessageService
 
         var allowedUsers = new[] { listing.UserId, listing.SoldToUserId.Value };
         return allowedUsers.Contains(currentUserId) && allowedUsers.Contains(otherUserId);
+    }
+
+    private async Task UpsertInteractionAsync(int userId, int listingId, InteractionType interactionType)
+    {
+        var existingInteraction = await context.Interactions.FirstOrDefaultAsync(interaction =>
+            interaction.UserId == userId &&
+            interaction.ListingId == listingId &&
+            interaction.InteractionType == interactionType);
+
+        if (existingInteraction is not null)
+        {
+            existingInteraction.Timestamp = DateTime.UtcNow;
+            return;
+        }
+
+        context.Interactions.Add(new Interaction
+        {
+            UserId = userId,
+            ListingId = listingId,
+            InteractionType = interactionType,
+            Timestamp = DateTime.UtcNow
+        });
     }
 }

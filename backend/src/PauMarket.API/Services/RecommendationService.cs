@@ -119,6 +119,7 @@ public class RecommendationService(
             });
         }
 
+        await UpsertInteractionAsync(userId, listingId, InteractionType.View);
         await db.SaveChangesAsync();
     }
 
@@ -204,4 +205,26 @@ public class RecommendationService(
         SoldToUserId = listing.SoldToUserId,
         CreatedAt   = listing.CreatedAt
     };
+
+    private async Task UpsertInteractionAsync(int userId, int listingId, InteractionType interactionType)
+    {
+        var existingInteraction = await db.Interactions.FirstOrDefaultAsync(interaction =>
+            interaction.UserId == userId &&
+            interaction.ListingId == listingId &&
+            interaction.InteractionType == interactionType);
+
+        if (existingInteraction is not null)
+        {
+            existingInteraction.Timestamp = DateTime.UtcNow;
+            return;
+        }
+
+        db.Interactions.Add(new Interaction
+        {
+            UserId = userId,
+            ListingId = listingId,
+            InteractionType = interactionType,
+            Timestamp = DateTime.UtcNow
+        });
+    }
 }

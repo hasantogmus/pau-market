@@ -29,12 +29,27 @@ MERCARI_KAGGLE_DATASET = "c/mercari-price-suggestion-challenge"
 MERCARI_TRAIN_FILE = DATA_DIR / "train.tsv"
 MERCARI_TEST_FILE = DATA_DIR / "test_stg2.tsv"
 
-# ─── Etkileşim Ağırlıkları (Pau Market Eşlemesi) ──────────────────────
-# RetailRocket event → Pau Market InteractionType ağırlığı
+# ─── Etkileşim Ağırlıkları ───────────────────────────────────────────
+# RetailRocket simülasyon eventleri.
+# PAÜ Market karşılığı:
+#   view        → ilan görüntüleme
+#   addtocart   → anlaşma isteği / güçlü satın alma niyeti
+#   transaction → tamamlanmış satış
 EVENT_WEIGHTS = {
-    "view": 1,         # InteractionType.View
-    "addtocart": 3,    # InteractionType.Favorite
-    "transaction": 5,  # InteractionType.Purchase
+    "view": 1,
+    "addtocart": 3,
+    "transaction": 5,
+}
+
+# PAÜ Market gerçek etkileşim sözleşmesi.
+# Bu sözleşme, ileride SQL export'u ile model yeniden eğitilirken kullanılacak.
+PAUMARKET_EVENT_WEIGHTS = {
+    "view": 1.0,
+    "message": 2.0,
+    "favorite": 3.0,
+    "deal_request": 4.0,
+    "deal_accepted": 4.5,
+    "purchase": 5.0,
 }
 
 # ─── Veri Ön-İşleme Parametreleri ────────────────────────────────────
