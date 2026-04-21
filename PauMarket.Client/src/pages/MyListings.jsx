@@ -116,8 +116,6 @@ const MyListings = () => {
                 category: editForm.category,
                 condition: editForm.condition,
                 isActive: editForm.isActive,
-                isSold: editingListing.isSold ?? false,
-                soldToUserId: editingListing.soldToUserId ?? null,
             });
 
             updateListingInState(updatedListing);

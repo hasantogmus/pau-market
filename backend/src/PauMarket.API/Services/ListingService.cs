@@ -167,10 +167,7 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
         listing.Price       = dto.Price;
         listing.Category    = dto.Category;
         listing.Condition   = dto.Condition;
-        listing.IsSold      = dto.IsSold;
-        listing.SoldToUserId = dto.IsSold ? dto.SoldToUserId : null;
-        listing.SoldAt      = dto.IsSold ? listing.SoldAt ?? DateTime.UtcNow : null;
-        listing.IsActive    = dto.IsSold ? false : dto.IsActive;
+        listing.IsActive    = listing.IsSold ? false : dto.IsActive;
 
         await context.SaveChangesAsync();
         await context.Entry(listing).Reference(item => item.User).LoadAsync();
