@@ -22,6 +22,54 @@ namespace PauMarket.API.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("PauMarket.API.Models.DealRequest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BuyerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ListingId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("RespondedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("RequestedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<int>("SellerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1);
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BuyerId");
+
+                    b.HasIndex("ListingId", "BuyerId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_DealRequests_Listing_Buyer");
+
+                    b.HasIndex("SellerId", "Status")
+                        .HasDatabaseName("IX_DealRequests_Seller_Status");
+
+                    b.ToTable("DealRequests", (string)null);
+                });
+
             modelBuilder.Entity("PauMarket.API.Models.Interaction", b =>
                 {
                     b.Property<int>("Id")
@@ -335,6 +383,36 @@ namespace PauMarket.API.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("PauMarket.API.Models.DealRequest", b =>
+                {
+                    b.HasOne("PauMarket.API.Models.User", "Buyer")
+                        .WithMany()
+                        .HasForeignKey("BuyerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_DealRequests_Users_BuyerId");
+
+                    b.HasOne("PauMarket.API.Models.Listing", "Listing")
+                        .WithMany("DealRequests")
+                        .HasForeignKey("ListingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_DealRequests_Listings_ListingId");
+
+                    b.HasOne("PauMarket.API.Models.User", "Seller")
+                        .WithMany()
+                        .HasForeignKey("SellerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_DealRequests_Users_SellerId");
+
+                    b.Navigation("Buyer");
+
+                    b.Navigation("Listing");
+
+                    b.Navigation("Seller");
+                });
+
             modelBuilder.Entity("PauMarket.API.Models.Listing", b =>
                 {
                     b.HasOne("PauMarket.API.Models.User", "User")
@@ -429,6 +507,8 @@ namespace PauMarket.API.Migrations
 
             modelBuilder.Entity("PauMarket.API.Models.Listing", b =>
                 {
+                    b.Navigation("DealRequests");
+
                     b.Navigation("Interactions");
 
                     b.Navigation("Messages");
