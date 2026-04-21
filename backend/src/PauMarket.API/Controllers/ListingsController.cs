@@ -75,6 +75,14 @@ public class ListingsController(
         return Ok(listings);
     }
 
+    [HttpGet("user/{userId:int}")]
+    [AllowAnonymous]
+    public async Task<ActionResult<IEnumerable<ListingResponseDto>>> GetByUser(int userId)
+    {
+        var listings = await listingService.GetUserListingsAsync(userId);
+        return Ok(listings);
+    }
+
     /// <summary>
     /// Yeni ilan ekler.
     /// Kural: giriş yapan kullanıcının e-postası doğrulanmış olmalı ve fotoğraf yüklenmeli.

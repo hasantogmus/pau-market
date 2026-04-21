@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 import userService from '../services/userService';
 import dashboardService from '../services/dashboardService';
 import reviewService from '../services/reviewService';
+import listingService from '../services/listingService';
 
 const metricCards = (dashboard) => [
     { label: 'Aktif İlan', value: dashboard?.totalActiveListings ?? 0, icon: Package },
@@ -12,6 +13,9 @@ const metricCards = (dashboard) => [
     { label: 'Toplam Favori', value: dashboard?.totalFavorites ?? 0, icon: Heart },
     { label: 'Ortalama Puan', value: (dashboard?.averageRating ?? 0).toFixed(1), icon: Star },
 ];
+
+const currency = (value) =>
+    new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 }).format(value || 0);
 
 const InfoRow = ({ icon: Icon, label, value }) => (
     <div className="flex items-start gap-3 py-3 border-b border-gray-100 last:border-b-0">
@@ -43,6 +47,7 @@ const Profile = () => {
     const [profile, setProfile] = useState(null);
     const [dashboard, setDashboard] = useState(null);
     const [reviewSummary, setReviewSummary] = useState(null);
+    const [sellerListings, setSellerListings] = useState([]);
     const [error, setError] = useState(null);
     const [dashboardError, setDashboardError] = useState(null);
     const [reviewError, setReviewError] = useState(null);
@@ -77,8 +82,12 @@ const Profile = () => {
                         setDashboardError(dashboardResult.reason?.response?.data?.error || 'Performans özeti şu anda getirilemedi.');
                     }
                 } else {
-                    const publicProfile = await userService.getPublicProfile(requestedUserId);
+                    const [publicProfile, publicListings] = await Promise.all([
+                        userService.getPublicProfile(requestedUserId),
+                        listingService.getUserListings(requestedUserId),
+                    ]);
                     setProfile(publicProfile);
+                    setSellerListings(publicListings);
                     setDashboard(null);
                     setDashboardError(null);
                 }
@@ -242,6 +251,64 @@ const Profile = () => {
                     )}
                 </div>
             </section>
+
+            {!isOwnProfile && (
+                <section className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
+                    <div className="flex items-center justify-between gap-3 mb-5">
+                        <div>
+                            <h2 className="text-lg font-bold text-gray-900">Satıcının İlanları</h2>
+                            <p className="text-sm text-gray-500">Aktif ve satılmış ilan geçmişi burada görünür.</p>
+                        </div>
+                        <span className="text-sm font-semibold text-gray-400">{sellerListings.length} ilan</span>
+                    </div>
+
+                    {sellerListings.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {sellerListings.map((listing) => (
+                                <Link
+                                    key={listing.id}
+                                    to={`/listings/${listing.id}`}
+                                    className="group rounded-2xl border border-gray-100 bg-gray-50 hover:bg-white hover:border-blue-100 hover:shadow-md transition-all overflow-hidden"
+                                >
+                                    <div className="flex gap-4 p-4">
+                                        <div className="w-24 h-24 rounded-2xl bg-gray-100 overflow-hidden shrink-0">
+                                            {listing.imageUrl ? (
+                                                <img src={listing.imageUrl} alt={listing.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center text-xs font-semibold text-gray-400">Görsel yok</div>
+                                            )}
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <div className="flex flex-wrap items-center gap-2 mb-2">
+                                                <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${
+                                                    listing.isSold
+                                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                                        : 'bg-blue-50 text-blue-700 border-blue-200'
+                                                }`}>
+                                                    {listing.isSold ? 'Satıldı' : 'Yayında'}
+                                                </span>
+                                                <span className="px-2.5 py-1 rounded-full bg-white text-[11px] font-bold text-gray-500 border border-gray-100">
+                                                    {listing.category}
+                                                </span>
+                                            </div>
+                                            <h3 className="font-extrabold text-gray-900 truncate">{listing.title}</h3>
+                                            <p className="text-sm font-black text-blue-600 mt-1">{currency(listing.price)}</p>
+                                            {listing.isSold && listing.soldToUserName && (
+                                                <p className="text-xs font-semibold text-emerald-700 mt-2">Alıcı: {listing.soldToUserName}</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </Link>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-5 py-10 text-center">
+                            <Package className="w-8 h-8 text-gray-300 mx-auto mb-3" />
+                            <p className="text-sm font-semibold text-gray-700">Bu satıcının henüz ilanı yok</p>
+                        </div>
+                    )}
+                </section>
+            )}
 
             <section className="grid grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)] gap-6">
                 <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">

@@ -83,9 +83,6 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
         if (listing is null)
             return null;
 
-        if (listing.IsSold && !CanAccessSoldListing(listing, callerId))
-            return null;
-
         return MapToResponseDto(listing, callerId);
     }
 
@@ -270,10 +267,6 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
         var canSeeAcceptedBuyer = acceptedRequest is not null &&
                                   viewerId is not null &&
                                   (viewerId == listing.UserId || viewerId == acceptedRequest.BuyerId);
-        var canSeeSoldBuyer = listing.IsSold &&
-                              viewerId is not null &&
-                              listing.SoldToUserId is not null &&
-                              (viewerId == listing.UserId || viewerId == listing.SoldToUserId);
         var soldBuyerName = listing.IsSold
             ? listing.DealRequests?.FirstOrDefault(item => item.BuyerId == listing.SoldToUserId)?.Buyer is User soldBuyer
                 ? $"{soldBuyer.FirstName} {soldBuyer.LastName}".Trim()
@@ -297,19 +290,8 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
             IsSold = listing.IsSold,
             SoldAt = listing.SoldAt,
             SoldToUserId = listing.SoldToUserId,
-            SoldToUserName = canSeeSoldBuyer ? soldBuyerName : null,
+            SoldToUserName = listing.IsSold ? soldBuyerName : null,
             CreatedAt = listing.CreatedAt
         };
-    }
-
-    private static bool CanAccessSoldListing(Listing listing, int? callerId)
-    {
-        if (!listing.IsSold)
-            return true;
-
-        if (callerId is null || listing.SoldToUserId is null)
-            return false;
-
-        return callerId == listing.UserId || callerId == listing.SoldToUserId;
     }
 }
