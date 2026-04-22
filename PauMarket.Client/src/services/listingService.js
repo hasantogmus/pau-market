@@ -36,13 +36,8 @@ const listingService = {
         formData.append('category', category);
         formData.append('condition', condition);
 
-        // Ana görsel (backend hâlâ tek IFormFile bekliyorsa ilkini 'image' olarak gönder)
         if (imageFiles && imageFiles.length > 0) {
             formData.append('image', imageFiles[0]);
-            // Ek görseller 'images' key'iyle gönderilir (backend ileride destekleyecek)
-            for (let i = 1; i < imageFiles.length; i++) {
-                formData.append('images', imageFiles[i]);
-            }
         }
 
         const response = await api.post('/listings', formData, {

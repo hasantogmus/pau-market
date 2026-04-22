@@ -14,7 +14,7 @@ import { useAuth } from '../hooks/useAuth';
 // ─────────────────────────────────────────────────────────────────
 const CATEGORIES = ['Elektronik', 'Ders Kitabı', 'Ev Eşyası', 'Giyim', 'Hobi', 'Not / Özet', 'Spor', 'Müzik Aletleri', 'Diğer'];
 const CONDITIONS  = ['Sıfır', 'Az Kullanılmış', 'Çok Kullanılmış'];
-const MAX_IMAGES  = 10;
+const MAX_IMAGES  = 1;
 
 // ─────────────────────────────────────────────────────────────────
 // Yan Dekorasyon Paneli için İkon Grupları
@@ -71,7 +71,7 @@ const RightDecoration = () => (
 );
 
 // ─────────────────────────────────────────────────────────────────
-// Dropzone Bileşeni (multi-image, max 10)
+// Dropzone Bileşeni (backend tek kapak görseli destekliyor)
 // ─────────────────────────────────────────────────────────────────
 const ImageDropzone = ({ images, onFilesAdded, onRemove, onLimitExceeded }) => {
     const inputRef = useRef(null);
@@ -102,7 +102,7 @@ const ImageDropzone = ({ images, onFilesAdded, onRemove, onLimitExceeded }) => {
 
     return (
         <div className="space-y-4">
-            <input ref={inputRef} type="file" accept="image/*" multiple onChange={handleInputChange} className="hidden" />
+            <input ref={inputRef} type="file" accept="image/*" onChange={handleInputChange} className="hidden" />
 
             {canAddMore && (
                 <motion.div
@@ -128,7 +128,7 @@ const ImageDropzone = ({ images, onFilesAdded, onRemove, onLimitExceeded }) => {
                         </p>
                         {!isDragging && (
                             <p className="text-xs text-gray-400 mt-1">
-                                PNG, JPG, WEBP — en fazla {MAX_IMAGES} fotoğraf &bull; {images.length}/{MAX_IMAGES} yüklendi
+                                PNG, JPG, WEBP — 1 kapak fotoğrafı yüklenir
                             </p>
                         )}
                     </div>
@@ -169,16 +169,6 @@ const ImageDropzone = ({ images, onFilesAdded, onRemove, onLimitExceeded }) => {
                             </motion.div>
                         ))}
                     </AnimatePresence>
-                    {images.length < MAX_IMAGES && (
-                        <button
-                            type="button"
-                            onClick={() => inputRef.current?.click()}
-                            className="aspect-square rounded-xl border-2 border-dashed border-gray-300 hover:border-blue-400 hover:bg-blue-50 flex flex-col items-center justify-center gap-1.5 text-gray-400 hover:text-blue-500 transition-all"
-                        >
-                            <UploadCloud className="w-6 h-6" />
-                            <span className="text-[11px] font-semibold">Daha Fazla</span>
-                        </button>
-                    )}
                 </motion.div>
             )}
         </div>
@@ -234,11 +224,14 @@ const NewListing = () => {
 
     const handleFilesAdded = (newFiles) => {
         const newItems = newFiles.map(f => ({ file: f, preview: URL.createObjectURL(f) }));
-        setImages(prev => [...prev, ...newItems].slice(0, MAX_IMAGES));
+        setImages(prev => {
+            prev.forEach(item => URL.revokeObjectURL(item.preview));
+            return newItems.slice(0, MAX_IMAGES);
+        });
     };
 
     const handleLimitExceeded = () => {
-        triggerToast('warn', `En fazla ${MAX_IMAGES} fotoğraf yükleyebilirsin. Fazla dosyalar otomatik atıldı.`);
+        triggerToast('warn', 'Şimdilik yalnızca 1 kapak fotoğrafı yükleyebilirsin. İlk görsel kullanılacak.');
     };
 
     const handleRemoveImage = (idx) => {
@@ -432,7 +425,7 @@ const NewListing = () => {
                             <div>
                                 <label className="flex items-center text-sm font-semibold text-gray-700 mb-3 gap-2">
                                     <UploadCloud className="w-4 h-4 text-gray-400" />
-                                    Ürün Görselleri<span className="text-red-400 ml-0.5">*</span>
+                                    Kapak Fotoğrafı<span className="text-red-400 ml-0.5">*</span>
                                     <span className="ml-auto text-xs font-medium text-gray-400">{images.length}/{MAX_IMAGES}</span>
                                 </label>
                                 <ImageDropzone
@@ -461,7 +454,7 @@ const NewListing = () => {
 
                             {images.length === 0 && (
                                 <p className="text-center text-xs text-gray-400 font-medium -mt-3">
-                                    Devam etmek için en az 1 görsel yüklemeniz gerekmektedir.
+                                    Devam etmek için kapak fotoğrafı yüklemeniz gerekmektedir.
                                 </p>
                             )}
                         </form>
