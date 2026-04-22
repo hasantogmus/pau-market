@@ -9,9 +9,12 @@ public class InteractionService(PauMarketDbContext context) : IInteractionServic
 {
     public async Task<bool> AddFavoriteAsync(int userId, int listingId)
     {
-        // İlan var mı kontrolü
-        var listingExists = await context.Listings.AnyAsync(l => l.Id == listingId);
-        if (!listingExists) return false;
+        var listing = await context.Listings
+            .AsNoTracking()
+            .FirstOrDefaultAsync(l => l.Id == listingId);
+
+        if (listing is null || !listing.IsActive || listing.IsSold || listing.UserId == userId)
+            return false;
 
         // Kullanıcı var mı kontrolü
         var userExists = await context.Users.AnyAsync(u => u.Id == userId);
@@ -65,6 +68,7 @@ public class InteractionService(PauMarketDbContext context) : IInteractionServic
             .Include(i => i.Listing)
             .ThenInclude(listing => listing.User)
             .Select(i => i.Listing)
+            .Where(listing => listing.IsActive && !listing.IsSold)
             .AsNoTracking()
             .ToListAsync();
 

@@ -24,7 +24,7 @@ public class FavoritesController(IInteractionService interactionService) : Contr
         var result = await interactionService.AddFavoriteAsync(userId.Value, dto.ListingId);
 
         if (!result)
-            return BadRequest(new { message = "İlan veya kullanıcı bulunamadı, ya da ilan zaten favorilerde." });
+            return BadRequest(new { message = "Bu ilan favorilere eklenemiyor. İlan yayında olmayabilir, satılmış olabilir veya size ait olabilir." });
 
         return Ok(new { message = "İlan başarıyla favorilere eklendi." });
     }
