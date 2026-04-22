@@ -111,6 +111,12 @@ const ProductCard = ({ item, index = 0, compact = false, isFavorite = false, onT
                         </span>
                     </div>
 
+                    {item.recommendationReason && (
+                        <p className="mt-2 text-[11px] leading-4 font-semibold text-indigo-600">
+                            {item.recommendationReason}
+                        </p>
+                    )}
+
                     {/* Location (if exists) */}
                     {item.location && (
                         <div className="mt-auto pt-3 flex items-center gap-1 text-gray-400">

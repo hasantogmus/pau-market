@@ -56,7 +56,7 @@ public class RecommendationService(
                         .Select(id => listings.FirstOrDefault(l => l.Id == id))
                         .Where(l => l != null)
                         .Take(count)
-                        .Select(MapToDto!)
+                        .Select(l => MapToDto(l!, "Geçmiş etkileşimlerine benzeyen ilanlardan biri olduğu için önerildi."))
                         .ToList();
 
                     recommendedListings.AddRange(orderedListings);
@@ -96,7 +96,7 @@ public class RecommendationService(
             .Where(l => l.IsActive && !l.IsSold)
             .ToListAsync();
 
-        return recentViews.Select(MapToDto);
+        return recentViews.Select(l => MapToDto(l));
     }
 
     // ─── Public — Görüntüleme Kaydı ──────────────────────────────────────────
@@ -165,10 +165,38 @@ public class RecommendationService(
                 .Take(count)
                 .ToListAsync();
 
-            personalizedListings.AddRange(preferredListings.Select(MapToDto));
+            personalizedListings.AddRange(preferredListings.Select(l =>
+                MapToDto(l, "Tercih ettiğin kategorilerle eşleştiği için önerildi.")));
         }
 
-        // 3. Eğer sevdiği kategoride hiç ilan yoksa veya 5'ten azsa, KALANLARI EN YENİ İLANLARLA DOLDUR
+        // 3. Kategori yetmezse aynı bölüm/sınıf gibi güven sinyallerini kullan.
+        if (personalizedListings.Count < count && user is not null)
+        {
+            int remaining = count - personalizedListings.Count;
+            var excluded = alreadyIncludedIds.Union(personalizedListings.Select(l => l.Id)).ToHashSet();
+            var hasDepartment = !string.IsNullOrWhiteSpace(user.Department);
+            var hasGrade = user.Grade is not null;
+
+            if (hasDepartment || hasGrade)
+            {
+                var trustListings = await db.Listings
+                    .Include(l => l.User)
+                    .Where(l => l.IsActive
+                             && !l.IsSold
+                             && l.UserId != userId
+                             && !excluded.Contains(l.Id)
+                             && ((hasDepartment && l.User.Department == user.Department)
+                                 || (hasGrade && l.User.Grade == user.Grade)))
+                    .OrderByDescending(l => l.CreatedAt)
+                    .Take(remaining)
+                    .ToListAsync();
+
+                personalizedListings.AddRange(trustListings.Select(l =>
+                    MapToDto(l, "Aynı bölüm veya sınıftaki PAÜ öğrencilerinden geldiği için öne çıkarıldı.")));
+            }
+        }
+
+        // 4. Eğer hâlâ 5'ten azsa, KALANLARI EN YENİ İLANLARLA DOLDUR
         if (personalizedListings.Count < count)
         {
             int remaining = count - personalizedListings.Count;
@@ -183,7 +211,8 @@ public class RecommendationService(
                 .Take(remaining)
                 .ToListAsync();
 
-            personalizedListings.AddRange(generalListings.Select(MapToDto));
+            personalizedListings.AddRange(generalListings.Select(l =>
+                MapToDto(l, "Yeni ve yayında olan ilanlardan biri olduğu için önerildi.")));
         }
 
         return personalizedListings;
@@ -193,7 +222,7 @@ public class RecommendationService(
     //  PRIVATE — DTO Mapping
     // ═══════════════════════════════════════════════════════════════════════════
 
-    private static ListingResponseDto MapToDto(Listing listing) => new()
+    private static ListingResponseDto MapToDto(Listing listing, string? recommendationReason = null) => new()
     {
         Id          = listing.Id,
         UserId      = listing.UserId,
@@ -207,6 +236,7 @@ public class RecommendationService(
         IsSold      = listing.IsSold,
         SoldAt      = listing.SoldAt,
         SoldToUserId = listing.SoldToUserId,
+        RecommendationReason = recommendationReason,
         CreatedAt   = listing.CreatedAt
     };
 

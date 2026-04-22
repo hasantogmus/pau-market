@@ -19,5 +19,6 @@ public class ListingResponseDto
     public DateTime? SoldAt { get; set; }
     public int? SoldToUserId { get; set; }
     public string? SoldToUserName { get; set; }
+    public string? RecommendationReason { get; set; }
     public DateTime CreatedAt { get; set; }
 }
