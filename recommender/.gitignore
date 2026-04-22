@@ -32,4 +32,5 @@ Thumbs.db
 
 # Evaluation outputs
 evaluation_results/
+app/trained_models/evaluation_metrics.json
 *.png

@@ -12,6 +12,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data" / "datasets"
 MODEL_DIR = BASE_DIR / "trained_models"
+EVALUATION_METRICS_FILE = MODEL_DIR / "evaluation_metrics.json"
 
 # Dizinlerin var olduğundan emin ol
 DATA_DIR.mkdir(parents=True, exist_ok=True)

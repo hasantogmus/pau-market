@@ -17,7 +17,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import API_HOST, API_PORT
-from app.api.routes import router, set_recommender, set_preprocessor, set_evaluator_results
+from app.api.routes import (
+    load_persisted_evaluator_results,
+    router,
+    set_recommender,
+    set_preprocessor,
+)
 from app.models.recommender import HybridRecommender
 
 
@@ -35,6 +40,8 @@ async def lifespan(app: FastAPI):
     if recommender.load_models():
         set_recommender(recommender)
         set_preprocessor(recommender.preprocessor)
+        if load_persisted_evaluator_results():
+            print("✓ Kaydedilmiş değerlendirme metrikleri yüklendi.")
         print("✓ Kaydedilmiş modeller yüklendi, servis hazır!\n")
     else:
         print("⚠ Kaydedilmiş model bulunamadı.")

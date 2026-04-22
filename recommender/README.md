@@ -68,6 +68,10 @@ GET /metrics → metrikleri, veri seti özetini ve tez/demo notlarını JSON ola
 `X-Recommender-Admin-Token` header'ı ister. Boş bırakılırsa lokal geliştirme için
 eski davranış korunur.
 
+`POST /train` tamamlandığında değerlendirme çıktısı
+`recommender/app/trained_models/evaluation_metrics.json` dosyasına yazılır.
+Servis yeniden başlasa bile `GET /metrics` bu son eğitim kanıtını geri yükler.
+
 `GET /metrics` çıktısında şu alanlar özellikle jüri/demo için tasarlandı:
 
 - `comparison_table`: model bazlı Precision@K, Recall@K, NDCG@K, HitRate@K, MRR ve RMSE karşılaştırması.

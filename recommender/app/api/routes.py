@@ -13,6 +13,8 @@ Endpoints:
 """
 
 import csv
+import json
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Header, HTTPException, Query
 from app.api.schemas import (
@@ -24,6 +26,7 @@ from app.api.schemas import (
     HealthResponse,
 )
 from app.config import (
+    EVALUATION_METRICS_FILE,
     PAUMARKET_INTERACTIONS_FILE,
     PAUMARKET_MIN_TRAINING_INTERACTIONS,
     RECOMMENDER_ADMIN_TOKEN,
@@ -51,6 +54,43 @@ def set_preprocessor(preprocessor):
 def set_evaluator_results(results):
     global _evaluator_results
     _evaluator_results = results
+
+
+def load_persisted_evaluator_results() -> bool:
+    global _evaluator_results
+
+    if not EVALUATION_METRICS_FILE.exists():
+        return False
+
+    try:
+        with EVALUATION_METRICS_FILE.open("r", encoding="utf-8") as handle:
+            _evaluator_results = json.load(handle)
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"[metrics] Kaydedilmiş metrikler okunamadı: {exc}")
+        return False
+
+    return True
+
+
+def _persist_evaluator_results(results: dict) -> None:
+    EVALUATION_METRICS_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+    tmp_path = EVALUATION_METRICS_FILE.with_suffix(".json.tmp")
+    with tmp_path.open("w", encoding="utf-8") as handle:
+        json.dump(results, handle, ensure_ascii=False, indent=2)
+        handle.write("\n")
+
+    tmp_path.replace(EVALUATION_METRICS_FILE)
+
+
+def _with_metrics_metadata(results: dict) -> dict:
+    output = dict(results)
+    output["generated_at"] = datetime.now(timezone.utc).isoformat()
+    output["storage"] = {
+        "persisted": True,
+        "path": str(EVALUATION_METRICS_FILE),
+    }
+    return output
 
 
 def _normalize_training_source(source: str) -> str:
@@ -320,7 +360,8 @@ async def train_models(
         print("\n🚀 [Train] Adım 5/5: Değerlendirme...")
         evaluator = ModelEvaluator(recommender, preprocessor)
         eval_results = evaluator.run()
-        _evaluator_results = evaluator.get_results_json()
+        _evaluator_results = _with_metrics_metadata(evaluator.get_results_json())
+        _persist_evaluator_results(_evaluator_results)
         set_evaluator_results(_evaluator_results)
 
         return TrainResponse(
