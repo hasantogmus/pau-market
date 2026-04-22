@@ -14,7 +14,7 @@ Endpoints:
 
 import csv
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Header, HTTPException, Query
 from app.api.schemas import (
     RecommendationResponse,
     RecommendationItem,
@@ -26,6 +26,7 @@ from app.api.schemas import (
 from app.config import (
     PAUMARKET_INTERACTIONS_FILE,
     PAUMARKET_MIN_TRAINING_INTERACTIONS,
+    RECOMMENDER_ADMIN_TOKEN,
     RECOMMENDER_DATA_SOURCE,
 )
 
@@ -122,6 +123,17 @@ def _build_training_preprocessor(source: str):
 
 
 # ─── Endpoints ───────────────────────────────────────────────────
+
+def _require_admin_token(provided_token: str | None) -> None:
+    if not RECOMMENDER_ADMIN_TOKEN:
+        return
+
+    if provided_token != RECOMMENDER_ADMIN_TOKEN:
+        raise HTTPException(
+            status_code=401,
+            detail="Recommender eğitim endpoint'i için admin token gerekli.",
+        )
+
 
 def _ensure_recommender_ready():
     if _recommender is None or not _recommender.is_trained:
@@ -255,6 +267,10 @@ async def train_models(
         default=RECOMMENDER_DATA_SOURCE,
         description="Etkileşim veri kaynağı: auto, paumarket veya retailrocket",
     ),
+    x_recommender_admin_token: str | None = Header(
+        default=None,
+        alias="X-Recommender-Admin-Token",
+    ),
 ):
     """
     Tüm modelleri yeniden eğitir:
@@ -268,6 +284,8 @@ async def train_models(
     from app.evaluation.evaluator import ModelEvaluator
 
     global _recommender, _preprocessor, _evaluator_results
+
+    _require_admin_token(x_recommender_admin_token)
 
     try:
         # 1. Etkileşim veri kaynağını seç ve ön-işle (CF + Hibrit modeller için)
@@ -315,6 +333,8 @@ async def train_models(
             ),
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         import traceback
         traceback.print_exc()

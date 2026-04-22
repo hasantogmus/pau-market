@@ -8,6 +8,7 @@ BACKEND_URL="${BACKEND_URL:-http://localhost:5251}"
 RECOMMENDER_URL="${RECOMMENDER_URL:-http://localhost:8000}"
 DATASET_DIR="${DATASET_DIR:-${REPO_ROOT}/recommender/app/data/datasets}"
 METRICS_OUTPUT="${METRICS_OUTPUT:-}"
+RECOMMENDER_ADMIN_TOKEN="${RECOMMENDER_ADMIN_TOKEN:-}"
 
 INTERACTIONS_FILE="${DATASET_DIR}/paumarket_interactions.csv"
 LISTINGS_FILE="${DATASET_DIR}/paumarket_listings.csv"
@@ -61,7 +62,13 @@ download_csv "/api/recommender-export/interactions" "${INTERACTIONS_FILE}"
 download_csv "/api/recommender-export/listings" "${LISTINGS_FILE}"
 
 echo "Training recommender with PAU Market exports..."
+TRAIN_HEADERS=()
+if [[ -n "${RECOMMENDER_ADMIN_TOKEN}" ]]; then
+  TRAIN_HEADERS=(-H "X-Recommender-Admin-Token: ${RECOMMENDER_ADMIN_TOKEN}")
+fi
+
 curl --fail --show-error --silent \
+  "${TRAIN_HEADERS[@]}" \
   -X POST "${RECOMMENDER_URL}/train?source=paumarket"
 
 echo

@@ -27,6 +27,7 @@ services:
       - ./recommender:/app
     environment:
       - PYTHONUNBUFFERED=1
+      - RECOMMENDER_ADMIN_TOKEN=${RECOMMENDER_ADMIN_TOKEN:-}
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   backend:

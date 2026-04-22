@@ -33,6 +33,7 @@ MERCARI_TEST_FILE = DATA_DIR / "test_stg2.tsv"
 PAUMARKET_INTERACTIONS_FILE = DATA_DIR / "paumarket_interactions.csv"
 PAUMARKET_LISTINGS_FILE = DATA_DIR / "paumarket_listings.csv"
 RECOMMENDER_DATA_SOURCE = os.getenv("RS_DATA_SOURCE", "auto").strip().lower()
+RECOMMENDER_ADMIN_TOKEN = os.getenv("RECOMMENDER_ADMIN_TOKEN", "").strip()
 PAUMARKET_MIN_TRAINING_INTERACTIONS = int(os.getenv("PAUMARKET_MIN_TRAINING_INTERACTIONS", "2"))
 
 # ─── Etkileşim Ağırlıkları ───────────────────────────────────────────

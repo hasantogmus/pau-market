@@ -36,6 +36,11 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 # 5. Modeli eğit (ilk seferde)
 # auto: PAÜ CSV varsa onu, yoksa RetailRocket benchmark verisini kullanır
 curl -X POST "http://localhost:8000/train?source=auto"
+
+# RECOMMENDER_ADMIN_TOKEN tanımlıysa:
+curl -X POST \
+  -H "X-Recommender-Admin-Token: your-train-token" \
+  "http://localhost:8000/train?source=auto"
 ```
 
 ## API Dokümantasyonu
@@ -58,6 +63,10 @@ POST /train?source=paumarket → yalnızca PAÜ CSV ile eğitir
 POST /train?source=retailrocket → yalnızca RetailRocket benchmark verisiyle eğitir
 GET /metrics → metrikleri, veri seti özetini ve tez/demo notlarını JSON olarak döndürür
 ```
+
+`RECOMMENDER_ADMIN_TOKEN` ortam değişkeni tanımlanırsa `/train` endpoint'i
+`X-Recommender-Admin-Token` header'ı ister. Boş bırakılırsa lokal geliştirme için
+eski davranış korunur.
 
 `GET /metrics` çıktısında şu alanlar özellikle jüri/demo için tasarlandı:
 
@@ -133,10 +142,13 @@ Docker/demo akışı:
 # 2. CSV'leri recommender/app/data/datasets içine koyar.
 # 3. Recommender'ı source=paumarket ile yeniden eğitir.
 # 4. /metrics çıktısını ekrana basar.
-ADMIN_TOKEN="admin-jwt-token" ./recommender/scripts/export_and_train_paumarket.sh
+ADMIN_TOKEN="admin-jwt-token" \
+RECOMMENDER_ADMIN_TOKEN="your-train-token" \
+./recommender/scripts/export_and_train_paumarket.sh
 ```
 
 Varsayılan adresler `http://localhost:5251` ve `http://localhost:8000` olarak ayarlanmıştır.
-Gerekirse `BACKEND_URL`, `RECOMMENDER_URL`, `DATASET_DIR` ve `METRICS_OUTPUT` değişkenleriyle override edilebilir.
+Gerekirse `BACKEND_URL`, `RECOMMENDER_URL`, `DATASET_DIR`, `METRICS_OUTPUT` ve
+`RECOMMENDER_ADMIN_TOKEN` değişkenleriyle override edilebilir.
 
 `source=auto` modunda `paumarket_interactions.csv` eğitim için hazırsa PAÜ verisi seçilir; dosya yoksa veya çok küçükse sistem RetailRocket benchmark verisine kontrollü şekilde düşer.
