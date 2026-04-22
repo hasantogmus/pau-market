@@ -14,8 +14,13 @@ const normalizeListingCollection = (data) => {
 };
 
 const listingService = {
-    getAllListings: async () => {
-        const response = await api.get('/listings');
+    getAllListings: async (params = {}) => {
+        const response = await api.get('/listings', {
+            params: {
+                pageSize: 50,
+                ...params,
+            },
+        });
         return normalizeListingCollection(response.data);
     },
 

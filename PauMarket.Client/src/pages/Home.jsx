@@ -7,7 +7,7 @@ import {
     Gamepad2, Coffee, Bike, Sparkles,
     ChevronDown,
 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import listingService from '../services/listingService';
 import favoriteService from '../services/favoriteService';
 import ProductCard from '../components/ProductCard';
@@ -27,8 +27,6 @@ const MOCK_LISTINGS = [
     { id: 'm11', title: 'Fizik Olimpiyat Soruları Kitabı', price: 90, condition: 'Az Kullanılmış', categoryName: 'Ders Kitabı', imageUrl: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=400&q=80', location: 'Kampüs' },
     { id: 'm12', title: 'PlayStation 5 + 2 Kol', price: 22000, condition: 'Az Kullanılmış', categoryName: 'Hobi', imageUrl: 'https://images.unsplash.com/photo-1607853202273-797f1c22a38e?w=400&q=80', location: 'Pamukkale' },
 ];
-
-const AI_PICKS = MOCK_LISTINGS.slice(0, 4);
 
 /* ═══════════════════ CATEGORIES ═══════════════════════════════ */
 const CATEGORIES = [
@@ -144,10 +142,22 @@ const formatPrice = (p) =>
         ? new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 }).format(p)
         : '—';
 
-const Hero = ({ listings, isLoading }) => {
+const Hero = ({ listings, isLoading, searchTerm }) => {
+    const navigate = useNavigate();
+    const [heroSearch, setHeroSearch] = useState(searchTerm);
     const c1 = listings[0] ?? MOCK_LISTINGS[0];
     const c2 = listings[1] ?? MOCK_LISTINGS[1];
     const c3 = listings[2] ?? MOCK_LISTINGS[2];
+
+    useEffect(() => {
+        setHeroSearch(searchTerm);
+    }, [searchTerm]);
+
+    const handleHeroSearch = (event) => {
+        event.preventDefault();
+        const query = heroSearch.trim();
+        navigate(query ? `/?q=${encodeURIComponent(query)}` : '/');
+    };
 
     return (
         <section className="relative w-full bg-gradient-to-br from-blue-50 via-white to-indigo-50 border-b border-indigo-100 overflow-hidden">
@@ -176,10 +186,16 @@ const Hero = ({ listings, isLoading }) => {
                         <Link to="/listings" className="px-8 py-4 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-600/30 hover:bg-blue-700 hover:-translate-y-1 transition-all flex items-center justify-center gap-2">
                             Hemen Keşfet <ChevronRight className="w-5 h-5" />
                         </Link>
-                        <div className="relative">
+                        <form onSubmit={handleHeroSearch} className="relative">
                             <Search className="w-5 h-5 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2" />
-                            <input type="text" placeholder="İlan ara..." className="w-full sm:w-64 pl-12 pr-4 py-4 rounded-xl border border-gray-200 bg-white focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all font-medium text-gray-700 shadow-sm" />
-                        </div>
+                            <input
+                                type="text"
+                                value={heroSearch}
+                                onChange={(event) => setHeroSearch(event.target.value)}
+                                placeholder="İlan ara..."
+                                className="w-full sm:w-64 pl-12 pr-4 py-4 rounded-xl border border-gray-200 bg-white focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all font-medium text-gray-700 shadow-sm"
+                            />
+                        </form>
                     </div>
                 </motion.div>
 
@@ -254,6 +270,8 @@ const Home = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const searchTerm = (searchParams.get('q') || '').trim();
 
     // Filters
     const [activeCategory, setActiveCategory] = useState('Tümü');
@@ -272,14 +290,14 @@ const Home = () => {
 
         const loadListings = async () => {
             try {
-                const data = await listingService.getAllListings();
+                const data = await listingService.getAllListings(searchTerm ? { searchTerm } : {});
                 if (!isMounted) return;
 
                 setListings(Array.isArray(data) ? data : []);
             } catch (err) {
                 if (!isMounted) return;
 
-                console.error("Öneriler veya ilanlar alınamadı:", err);
+                console.error("İlanlar alınamadı:", err);
                 setError('İlanlar yüklenirken sunucu ile iletişim kurulamadı.');
             } finally {
                 if (isMounted) {
@@ -295,7 +313,7 @@ const Home = () => {
                     setAiRecommendations(Array.isArray(recData) ? recData : []);
                 }
             } catch (err) {
-                console.error("Öneriler alınamadı, varsayılan kartlar gösterilecek:", err);
+                console.error("Öneriler alınamadı:", err);
             }
         };
 
@@ -320,7 +338,7 @@ const Home = () => {
         return () => {
             isMounted = false;
         };
-    }, []);
+    }, [searchTerm]);
 
     const handleToggleFavorite = async (listingId) => {
         if (!localStorage.getItem('token')) {
@@ -350,14 +368,17 @@ const Home = () => {
     };
 
     /* ── Derived data ── */
-    const allListings = listings.length > 0 ? listings : MOCK_LISTINGS;
+    const allListings = listings;
 
     const filtered = allListings.filter((item) => {
+        const normalizedSearch = searchTerm.toLocaleLowerCase('tr-TR');
+        const haystack = `${item.title ?? ''} ${item.description ?? ''} ${item.categoryName ?? item.category ?? ''}`.toLocaleLowerCase('tr-TR');
+        const searchMatch = !normalizedSearch || haystack.includes(normalizedSearch);
         const catMatch = activeCategory === 'Tümü' || item.categoryName === activeCategory;
         const condMatch = activeConditions.length === 0 || activeConditions.includes(item.condition);
         const minMatch = appliedMin === '' || (item.price ?? 0) >= Number(appliedMin);
         const maxMatch = appliedMax === '' || (item.price ?? 0) <= Number(appliedMax);
-        return catMatch && condMatch && minMatch && maxMatch;
+        return searchMatch && catMatch && condMatch && minMatch && maxMatch;
     });
 
     const toggleCondition = (cond) =>
@@ -385,7 +406,7 @@ const Home = () => {
         <div className="flex flex-col min-h-screen bg-gray-50">
 
             {/* ── Hero ── */}
-            <Hero listings={allListings} isLoading={isLoading} />
+            <Hero listings={allListings} isLoading={isLoading} searchTerm={searchTerm} />
 
             {/* ── Quick category pills ── */}
             <section className="bg-white py-8 border-b border-gray-100">
@@ -416,17 +437,26 @@ const Home = () => {
                         <span className="ml-1 px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[11px] font-bold rounded-full">AI Picks</span>
                     </div>
                     <div className="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-hide">
-                        {(aiRecommendations.length > 0 ? aiRecommendations : AI_PICKS).map((item, i) => (
-                            <div key={item.id} className="snap-start">
-                                <ProductCard
-                                    item={item}
-                                    index={i}
-                                    compact
-                                    isFavorite={favoriteIds.includes(item.id)}
-                                    onToggleFavorite={handleToggleFavorite}
-                                />
+                        {aiRecommendations.length > 0 ? (
+                            aiRecommendations.map((item, i) => (
+                                <div key={item.id} className="snap-start">
+                                    <ProductCard
+                                        item={item}
+                                        index={i}
+                                        compact
+                                        isFavorite={favoriteIds.includes(item.id)}
+                                        onToggleFavorite={handleToggleFavorite}
+                                    />
+                                </div>
+                            ))
+                        ) : (
+                            <div className="w-full rounded-2xl border border-dashed border-indigo-200 bg-white/70 px-5 py-8 text-center">
+                                <p className="text-sm font-bold text-gray-800">Öneriler henüz hazır değil</p>
+                                <p className="text-sm text-gray-500 mt-1">
+                                    Birkaç ilan görüntüleyip favoriledikten sonra bu alan kişiselleşecek.
+                                </p>
                             </div>
-                        ))}
+                        )}
                     </div>
                 </div>
             </section>
@@ -436,7 +466,7 @@ const Home = () => {
 
                 {/* Mobile filter toggle */}
                 <div className="md:hidden flex items-center justify-between mb-5">
-                    <h2 className="text-xl font-bold text-gray-900">En Yeni İlanlar</h2>
+                    <h2 className="text-xl font-bold text-gray-900">{searchTerm ? 'Arama Sonuçları' : 'En Yeni İlanlar'}</h2>
                     <button
                         id="mobile-filter-btn"
                         onClick={() => setDrawerOpen(true)}
@@ -471,7 +501,9 @@ const Home = () => {
                         {/* Header row */}
                         <div className="hidden md:flex items-center justify-between mb-6">
                             <div>
-                                <h2 className="text-2xl font-bold text-gray-900">En Yeni İlanlar</h2>
+                                <h2 className="text-2xl font-bold text-gray-900">
+                                    {searchTerm ? `"${searchTerm}" için sonuçlar` : 'En Yeni İlanlar'}
+                                </h2>
                                 {!isLoading && (
                                     <p className="text-sm text-gray-500 mt-0.5">{filtered.length} ilan bulundu</p>
                                 )}
