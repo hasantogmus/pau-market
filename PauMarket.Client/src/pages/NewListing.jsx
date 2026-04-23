@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { motion, AnimatePresence, Reorder } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
 import {
     Laptop, BookOpen, Shirt, Sofa, Bike, Music,
@@ -73,9 +73,11 @@ const RightDecoration = () => (
 // ─────────────────────────────────────────────────────────────────
 // Dropzone Bileşeni
 // ─────────────────────────────────────────────────────────────────
-const ImageDropzone = ({ images, onFilesAdded, onRemove, onLimitExceeded, onReorder }) => {
+const ImageDropzone = ({ images, onFilesAdded, onRemove, onLimitExceeded, onMoveImage }) => {
     const inputRef = useRef(null);
+    const draggedImageIdRef = useRef(null);
     const [isDragging, setIsDragging] = useState(false);
+    const [draggedImageId, setDraggedImageId] = useState(null);
 
     const processFiles = useCallback((rawFiles) => {
         const valid = Array.from(rawFiles).filter(f => f.type.startsWith('image/'));
@@ -97,6 +99,27 @@ const ImageDropzone = ({ images, onFilesAdded, onRemove, onLimitExceeded, onReor
     const handleDragOver = (e) => { e.preventDefault(); setIsDragging(true); };
     const handleDragLeave = () => setIsDragging(false);
     const handleInputChange = (e) => { processFiles(e.target.files); e.target.value = ''; };
+    const handleImageDragStart = (e, imageId) => {
+        draggedImageIdRef.current = imageId;
+        setDraggedImageId(imageId);
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', imageId);
+    };
+    const handleImageDragOver = (e, targetId) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+
+        const activeId = draggedImageIdRef.current || e.dataTransfer.getData('text/plain');
+        if (!activeId || activeId === targetId) return;
+
+        const bounds = e.currentTarget.getBoundingClientRect();
+        const placeAfterTarget = e.clientX > bounds.left + (bounds.width / 2);
+        onMoveImage(activeId, targetId, placeAfterTarget);
+    };
+    const clearImageDrag = () => {
+        draggedImageIdRef.current = null;
+        setDraggedImageId(null);
+    };
 
     const canAddMore = images.length < MAX_IMAGES;
 
@@ -147,23 +170,27 @@ const ImageDropzone = ({ images, onFilesAdded, onRemove, onLimitExceeded, onReor
                     <p className="text-xs font-semibold text-gray-400">
                         Kapak yapmak istediğin fotoğrafı en sola sürükle.
                     </p>
-                    <Reorder.Group
-                        axis="x"
-                        values={images}
-                        onReorder={onReorder}
-                        className="flex gap-3 overflow-x-auto pb-2 list-none"
-                    >
+                    <div className="flex gap-3 overflow-x-auto pb-2">
                         {images.map((item, idx) => (
-                            <Reorder.Item
+                            <motion.div
                                 key={item.id}
-                                value={item}
-                                whileDrag={{ scale: 1.05, zIndex: 30 }}
+                                layout
+                                draggable
+                                onDragStart={(e) => handleImageDragStart(e, item.id)}
+                                onDragOver={(e) => handleImageDragOver(e, item.id)}
+                                onDragEnd={clearImageDrag}
+                                onDrop={(e) => { e.preventDefault(); clearImageDrag(); }}
+                                animate={{
+                                    opacity: draggedImageId === item.id ? 0.55 : 1,
+                                    scale: draggedImageId === item.id ? 0.97 : 1,
+                                }}
                                 className="relative w-28 h-28 sm:w-32 sm:h-32 flex-shrink-0 rounded-xl overflow-hidden border-2 border-gray-200 shadow-sm group cursor-grab active:cursor-grabbing bg-white"
                             >
-                                <img src={item.preview} alt={`Görsel ${idx + 1}`} className="w-full h-full object-cover" />
+                                <img src={item.preview} alt={`Görsel ${idx + 1}`} draggable={false} className="w-full h-full object-cover pointer-events-none" />
                                 <button
                                     type="button"
                                     onClick={() => onRemove(idx)}
+                                    draggable={false}
                                     className="absolute top-1.5 right-1.5 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
                                 >
                                     <X className="w-3.5 h-3.5" />
@@ -178,9 +205,9 @@ const ImageDropzone = ({ images, onFilesAdded, onRemove, onLimitExceeded, onReor
                                         {idx + 1}
                                     </span>
                                 )}
-                            </Reorder.Item>
+                            </motion.div>
                         ))}
-                    </Reorder.Group>
+                    </div>
                 </motion.div>
             )}
         </div>
@@ -228,6 +255,24 @@ const NewListing = () => {
 
     useEffect(() => () => {
         imagesRef.current.forEach(item => URL.revokeObjectURL(item.preview));
+    }, []);
+
+    const handleMoveImage = useCallback((draggedId, targetId, placeAfterTarget) => {
+        setImages(prev => {
+            const fromIndex = prev.findIndex(item => item.id === draggedId);
+            if (fromIndex === -1) return prev;
+
+            const next = [...prev];
+            const [movedItem] = next.splice(fromIndex, 1);
+            const targetIndex = next.findIndex(item => item.id === targetId);
+            if (targetIndex === -1) return prev;
+
+            const insertIndex = targetIndex + (placeAfterTarget ? 1 : 0);
+            next.splice(insertIndex, 0, movedItem);
+
+            const orderDidNotChange = next.every((item, index) => item.id === prev[index]?.id);
+            return orderDidNotChange ? prev : next;
+        });
     }, []);
 
     if (!isAuthenticated) { navigate('/login'); return null; }
@@ -455,7 +500,7 @@ const NewListing = () => {
                                     onFilesAdded={handleFilesAdded}
                                     onRemove={handleRemoveImage}
                                     onLimitExceeded={handleLimitExceeded}
-                                    onReorder={setImages}
+                                    onMoveImage={handleMoveImage}
                                 />
                             </div>
 
