@@ -7,6 +7,8 @@ namespace PauMarket.API.Services;
 
 public class PhotoService : IPhotoService
 {
+    private const long MaxImageFileBytes = 10 * 1024 * 1024;
+
     private readonly Cloudinary _cloudinary;
 
     public PhotoService(IOptions<CloudinarySettings> config)
@@ -23,6 +25,8 @@ public class PhotoService : IPhotoService
     public async Task<string?> AddPhotoAsync(IFormFile file)
     {
         if (file.Length == 0) return null;
+        if (file.Length > MaxImageFileBytes)
+            throw new InvalidOperationException("File size too large.");
 
         await using var stream = file.OpenReadStream();
         var uploadParams = new ImageUploadParams

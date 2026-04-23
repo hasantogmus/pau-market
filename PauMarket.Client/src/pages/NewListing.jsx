@@ -15,6 +15,9 @@ import { useAuth } from '../hooks/useAuth';
 const CATEGORIES = ['Elektronik', 'Ders Kitabı', 'Ev Eşyası', 'Giyim', 'Hobi', 'Not / Özet', 'Spor', 'Müzik Aletleri', 'Diğer'];
 const CONDITIONS  = ['Sıfır', 'Az Kullanılmış', 'Çok Kullanılmış'];
 const MAX_IMAGES  = 10;
+const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
+const TARGET_IMAGE_SIZE_BYTES = 9 * 1024 * 1024;
+const MAX_IMAGE_DIMENSION = 1600;
 
 // ─────────────────────────────────────────────────────────────────
 // Yan Dekorasyon Paneli için İkon Grupları
@@ -70,10 +73,77 @@ const RightDecoration = () => (
     </div>
 );
 
+const formatFileSize = (bytes) => {
+    const megabytes = bytes / 1024 / 1024;
+    return `${megabytes.toFixed(megabytes >= 10 ? 0 : 1)} MB`;
+};
+
+const getCompressedFileName = (fileName) => {
+    const baseName = fileName.replace(/\.[^/.]+$/, '');
+    return `${baseName || 'ilan-fotografi'}.jpg`;
+};
+
+const loadImage = (file) => new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        resolve(image);
+    };
+    image.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error('Fotoğraf okunamadı.'));
+    };
+    image.src = objectUrl;
+});
+
+const canvasToBlob = (canvas, quality) => new Promise((resolve) => {
+    canvas.toBlob(resolve, 'image/jpeg', quality);
+});
+
+const compressImageForUpload = async (file) => {
+    if (!file.type.startsWith('image/')) return file;
+
+    const image = await loadImage(file);
+    const largestSide = Math.max(image.naturalWidth, image.naturalHeight);
+    const scale = Math.min(1, MAX_IMAGE_DIMENSION / largestSide);
+    const width = Math.max(1, Math.round(image.naturalWidth * scale));
+    const height = Math.max(1, Math.round(image.naturalHeight * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return file;
+
+    ctx.drawImage(image, 0, 0, width, height);
+
+    let smallestFile = file;
+    for (const quality of [0.85, 0.75, 0.65]) {
+        const blob = await canvasToBlob(canvas, quality);
+        if (!blob) continue;
+
+        const compressedFile = new File([blob], getCompressedFileName(file.name), {
+            type: 'image/jpeg',
+            lastModified: Date.now(),
+        });
+
+        if (compressedFile.size < smallestFile.size) {
+            smallestFile = compressedFile;
+        }
+
+        if (compressedFile.size <= TARGET_IMAGE_SIZE_BYTES) {
+            return compressedFile;
+        }
+    }
+
+    return smallestFile;
+};
+
 // ─────────────────────────────────────────────────────────────────
 // Dropzone Bileşeni
 // ─────────────────────────────────────────────────────────────────
-const ImageDropzone = ({ images, onFilesAdded, onRemove, onLimitExceeded, onMoveImage }) => {
+const ImageDropzone = ({ images, onFilesAdded, onRemove, onLimitExceeded, onMoveImage, isProcessing }) => {
     const inputRef = useRef(null);
     const draggedImageIdRef = useRef(null);
     const [isDragging, setIsDragging] = useState(false);
@@ -93,12 +163,13 @@ const ImageDropzone = ({ images, onFilesAdded, onRemove, onLimitExceeded, onMove
     const handleDrop = useCallback((e) => {
         e.preventDefault();
         setIsDragging(false);
+        if (isProcessing) return;
         processFiles(e.dataTransfer.files);
-    }, [processFiles]);
+    }, [isProcessing, processFiles]);
 
-    const handleDragOver = (e) => { e.preventDefault(); setIsDragging(true); };
+    const handleDragOver = (e) => { e.preventDefault(); if (!isProcessing) setIsDragging(true); };
     const handleDragLeave = () => setIsDragging(false);
-    const handleInputChange = (e) => { processFiles(e.target.files); e.target.value = ''; };
+    const handleInputChange = (e) => { if (!isProcessing) processFiles(e.target.files); e.target.value = ''; };
     const handleImageDragStart = (e, imageId) => {
         draggedImageIdRef.current = imageId;
         setDraggedImageId(imageId);
@@ -125,21 +196,22 @@ const ImageDropzone = ({ images, onFilesAdded, onRemove, onLimitExceeded, onMove
 
     return (
         <div className="space-y-4">
-            <input ref={inputRef} type="file" accept="image/*" multiple onChange={handleInputChange} className="hidden" />
+            <input ref={inputRef} type="file" accept="image/*" multiple onChange={handleInputChange} disabled={isProcessing} className="hidden" />
 
             {canAddMore && (
                 <motion.div
                     onDrop={handleDrop}
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
-                    onClick={() => inputRef.current?.click()}
+                    onClick={() => !isProcessing && inputRef.current?.click()}
                     className={`
                         w-full rounded-2xl border-2 border-dashed transition-all duration-200
-                        flex flex-col items-center justify-center py-10 px-6 gap-3 cursor-pointer
+                        flex flex-col items-center justify-center py-10 px-6 gap-3
                         ${isDragging
                             ? 'border-blue-500 bg-blue-50/90 scale-[1.01]'
                             : 'border-gray-300 bg-gray-50 hover:border-blue-400 hover:bg-blue-50/40'
                         }
+                        ${isProcessing ? 'cursor-wait opacity-75' : 'cursor-pointer'}
                     `}
                 >
                     <div className={`p-4 rounded-2xl transition-colors ${isDragging ? 'bg-blue-100' : 'bg-gray-100'}`}>
@@ -147,20 +219,21 @@ const ImageDropzone = ({ images, onFilesAdded, onRemove, onLimitExceeded, onMove
                     </div>
                     <div className="text-center pointer-events-none">
                         <p className="text-gray-700 font-semibold text-sm">
-                            {isDragging ? 'Bırak!' : 'Görselleri buraya sürükleyin veya'}
+                            {isProcessing ? 'Fotoğraflar hazırlanıyor...' : isDragging ? 'Bırak!' : 'Görselleri buraya sürükleyin veya'}
                         </p>
-                        {!isDragging && (
+                        {!isDragging && !isProcessing && (
                             <p className="text-xs text-gray-400 mt-1">
-                                PNG, JPG, WEBP — en fazla 10 fotoğraf, ilk görsel kapak olur
+                                PNG, JPG, WEBP — en fazla 10 fotoğraf, büyük görseller otomatik küçültülür
                             </p>
                         )}
                     </div>
                     <button
                         type="button"
-                        onClick={(e) => { e.stopPropagation(); inputRef.current?.click(); }}
-                        className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 text-sm font-bold rounded-xl hover:border-blue-400 hover:text-blue-600 transition-all shadow-sm"
+                        onClick={(e) => { e.stopPropagation(); if (!isProcessing) inputRef.current?.click(); }}
+                        disabled={isProcessing}
+                        className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 text-sm font-bold rounded-xl hover:border-blue-400 hover:text-blue-600 transition-all shadow-sm disabled:cursor-wait disabled:opacity-70"
                     >
-                        Görsel Seç
+                        {isProcessing ? 'Hazırlanıyor' : 'Görsel Seç'}
                     </button>
                 </motion.div>
             )}
@@ -244,6 +317,7 @@ const NewListing = () => {
     const [formData, setFormData] = useState({ title: '', description: '', price: '', category: '', condition: '' });
     const [images, setImages]     = useState([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [isPreparingImages, setIsPreparingImages] = useState(false);
     const [error, setError]         = useState(null);
     const [showToast, setShowToast] = useState(false);
     const [toastMsg, setToastMsg]   = useState({ type: 'success', text: '' });
@@ -288,13 +362,37 @@ const NewListing = () => {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleFilesAdded = (newFiles) => {
-        const newItems = newFiles.map(f => ({
-            id: `${f.name}-${f.lastModified}-${Date.now()}-${Math.random()}`,
-            file: f,
-            preview: URL.createObjectURL(f)
-        }));
-        setImages(prev => [...prev, ...newItems].slice(0, MAX_IMAGES));
+    const handleFilesAdded = async (newFiles) => {
+        setIsPreparingImages(true);
+
+        try {
+            const preparedFiles = await Promise.all(newFiles.map(async (file) => {
+                const preparedFile = await compressImageForUpload(file);
+
+                if (preparedFile.size > MAX_IMAGE_SIZE_BYTES) {
+                    throw new Error(`${file.name} hâlâ çok büyük (${formatFileSize(preparedFile.size)}). En fazla ${formatFileSize(MAX_IMAGE_SIZE_BYTES)} olmalı.`);
+                }
+
+                return preparedFile;
+            }));
+
+            const optimizedCount = preparedFiles.filter((file, index) => file.size < newFiles[index].size).length;
+            const newItems = preparedFiles.map(f => ({
+                id: `${f.name}-${f.lastModified}-${Date.now()}-${Math.random()}`,
+                file: f,
+                preview: URL.createObjectURL(f)
+            }));
+
+            setImages(prev => [...prev, ...newItems].slice(0, MAX_IMAGES));
+
+            if (optimizedCount > 0) {
+                triggerToast('success', `${optimizedCount} fotoğraf yükleme için otomatik küçültüldü.`);
+            }
+        } catch (err) {
+            triggerToast('warn', err.message || 'Fotoğraflar hazırlanırken bir hata oluştu.');
+        } finally {
+            setIsPreparingImages(false);
+        }
     };
 
     const handleLimitExceeded = () => {
@@ -310,6 +408,8 @@ const NewListing = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (isPreparingImages) return;
+
         setError(null);
         setIsLoading(true);
         try {
@@ -501,16 +601,22 @@ const NewListing = () => {
                                     onRemove={handleRemoveImage}
                                     onLimitExceeded={handleLimitExceeded}
                                     onMoveImage={handleMoveImage}
+                                    isProcessing={isPreparingImages}
                                 />
                             </div>
 
                             {/* Gönder */}
                             <button
                                 type="submit"
-                                disabled={isLoading || images.length === 0}
+                                disabled={isLoading || isPreparingImages || images.length === 0}
                                 className="w-full flex items-center justify-center gap-3 py-5 px-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-lg font-extrabold rounded-2xl shadow-lg shadow-blue-200 hover:shadow-blue-300 hover:-translate-y-0.5 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
                             >
-                                {isLoading ? (
+                                {isPreparingImages ? (
+                                    <>
+                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        Fotoğraflar hazırlanıyor...
+                                    </>
+                                ) : isLoading ? (
                                     <>
                                         <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                                         Yayınlanıyor...

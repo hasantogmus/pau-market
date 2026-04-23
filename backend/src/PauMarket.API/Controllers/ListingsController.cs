@@ -23,6 +23,7 @@ public class ListingsController(
     PauMarketDbContext db) : ControllerBase
 {
     private const int MaxListingImages = 10;
+    private const long MaxListingImageBytes = 10 * 1024 * 1024;
 
     // ── Herkese açık ──────────────────────────────────────────────────────────
 
@@ -121,15 +122,36 @@ public class ListingsController(
         if (files.Count > MaxListingImages)
             return BadRequest(new { message = $"En fazla {MaxListingImages} fotoğraf yükleyebilirsiniz." });
 
-        var imageUrls = new List<string>();
-        foreach (var file in files)
+        var oversizedFile = files.FirstOrDefault(file => file.Length > MaxListingImageBytes);
+        if (oversizedFile is not null)
         {
-            var imageUrl = await photoService.AddPhotoAsync(file);
+            return BadRequest(new
+            {
+                message = $"{oversizedFile.FileName} çok büyük. Her fotoğraf en fazla {FormatFileSize(MaxListingImageBytes)} olabilir."
+            });
+        }
 
-            if (string.IsNullOrEmpty(imageUrl))
-                return BadRequest(new { message = "Fotoğraf yüklenemedi." });
+        var imageUrls = new List<string>();
+        try
+        {
+            foreach (var file in files)
+            {
+                var imageUrl = await photoService.AddPhotoAsync(file);
 
-            imageUrls.Add(imageUrl);
+                if (string.IsNullOrEmpty(imageUrl))
+                    return BadRequest(new { message = "Fotoğraf yüklenemedi." });
+
+                imageUrls.Add(imageUrl);
+            }
+        }
+        catch (Exception ex) when (ex.Message.Contains("file size", StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest(new { message = $"Fotoğraf çok büyük. Her fotoğraf en fazla {FormatFileSize(MaxListingImageBytes)} olabilir." });
+        }
+        catch (Exception)
+        {
+            return StatusCode(StatusCodes.Status502BadGateway,
+                new { message = "Fotoğraf yükleme servisi şu anda yanıt vermedi. Lütfen birazdan tekrar deneyin." });
         }
 
         // 4. İlanı hem sahip ID'si hem de sıralı galeri URL'leri ile oluştur.
@@ -239,5 +261,11 @@ public class ListingsController(
             return dto.Images;
 
         return dto.Image is null ? [] : [dto.Image];
+    }
+
+    private static string FormatFileSize(long bytes)
+    {
+        var megabytes = bytes / 1024d / 1024d;
+        return $"{megabytes:0.#} MB";
     }
 }
