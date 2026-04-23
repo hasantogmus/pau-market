@@ -48,6 +48,7 @@ public class RecommendationService(
 
                     // 2. Python'dan gelen ID'leri SQL DB'den bul ve getir. Kullanıcının KENDİ ilanlarını gösterme.
                     var listings = await db.Listings
+                        .Include(l => l.Images)
                         .Where(l => pythonItemIds.Contains(l.Id) && l.IsActive && !l.IsSold && l.UserId != userId)
                         .ToListAsync();
 
@@ -156,6 +157,7 @@ public class RecommendationService(
             // rawCategories string'i içinde içerik araması yaparak esnek bir eşleşme sağlanıyor
             // Örn: l.Category = "Hobi" ise ve rawCategories = "Hobi / Oyun" ise bu eşleşir.
             var preferredListings = await db.Listings
+                .Include(l => l.Images)
                 .Where(l => l.IsActive
                          && !l.IsSold
                          && l.UserId != userId
@@ -181,6 +183,7 @@ public class RecommendationService(
             {
                 var trustListings = await db.Listings
                     .Include(l => l.User)
+                    .Include(l => l.Images)
                     .Where(l => l.IsActive
                              && !l.IsSold
                              && l.UserId != userId
@@ -203,6 +206,7 @@ public class RecommendationService(
             var excluded = alreadyIncludedIds.Union(personalizedListings.Select(l => l.Id)).ToHashSet();
 
             var generalListings = await db.Listings
+                .Include(l => l.Images)
                 .Where(l => l.IsActive
                          && !l.IsSold
                          && l.UserId != userId
@@ -222,23 +226,36 @@ public class RecommendationService(
     //  PRIVATE — DTO Mapping
     // ═══════════════════════════════════════════════════════════════════════════
 
-    private static ListingResponseDto MapToDto(Listing listing, string? recommendationReason = null) => new()
+    private static ListingResponseDto MapToDto(Listing listing, string? recommendationReason = null)
     {
-        Id          = listing.Id,
-        UserId      = listing.UserId,
-        Title       = listing.Title,
-        Description = listing.Description,
-        Price       = listing.Price,
-        Category    = listing.Category,
-        Condition   = listing.Condition,
-        ImageUrl    = listing.ImageUrl,
-        IsActive    = listing.IsActive,
-        IsSold      = listing.IsSold,
-        SoldAt      = listing.SoldAt,
-        SoldToUserId = listing.SoldToUserId,
-        RecommendationReason = recommendationReason,
-        CreatedAt   = listing.CreatedAt
-    };
+        var imageUrls = listing.Images?
+            .OrderBy(image => image.SortOrder)
+            .Select(image => image.ImageUrl)
+            .Where(url => !string.IsNullOrWhiteSpace(url))
+            .ToList() ?? [];
+
+        if (imageUrls.Count == 0 && !string.IsNullOrWhiteSpace(listing.ImageUrl))
+            imageUrls.Add(listing.ImageUrl);
+
+        return new ListingResponseDto
+        {
+            Id          = listing.Id,
+            UserId      = listing.UserId,
+            Title       = listing.Title,
+            Description = listing.Description,
+            Price       = listing.Price,
+            Category    = listing.Category,
+            Condition   = listing.Condition,
+            ImageUrl    = listing.ImageUrl ?? imageUrls.FirstOrDefault(),
+            ImageUrls   = imageUrls,
+            IsActive    = listing.IsActive,
+            IsSold      = listing.IsSold,
+            SoldAt      = listing.SoldAt,
+            SoldToUserId = listing.SoldToUserId,
+            RecommendationReason = recommendationReason,
+            CreatedAt   = listing.CreatedAt
+        };
+    }
 
     private async Task UpsertInteractionAsync(int userId, int listingId, InteractionType interactionType)
     {

@@ -3,6 +3,11 @@ import api from './api';
 const normalizeListing = (item) => ({
     ...item,
     categoryName: item.categoryName ?? item.category ?? null,
+    imageUrls: Array.isArray(item.imageUrls)
+        ? item.imageUrls
+        : item.imageUrl
+            ? [item.imageUrl]
+            : [],
 });
 
 const normalizeListingCollection = (data) => {
@@ -25,7 +30,7 @@ const listingService = {
     },
 
     /**
-     * Yeni ilan oluşturur. Backend multipart/form-data (IFormFile) bekliyor.
+     * Yeni ilan oluşturur. Backend multipart/form-data ile en fazla 10 görsel bekliyor.
      * @param {{ title, description, price, category, condition, imageFiles: File[] }} fields
      */
     createListing: async ({ title, description, price, category, condition, imageFiles }) => {
@@ -37,7 +42,7 @@ const listingService = {
         formData.append('condition', condition);
 
         if (imageFiles && imageFiles.length > 0) {
-            formData.append('image', imageFiles[0]);
+            imageFiles.forEach((file) => formData.append('images', file));
         }
 
         const response = await api.post('/listings', formData, {

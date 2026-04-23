@@ -28,6 +28,9 @@ public class CreateListingDto
     [MaxLength(50)]
     public required string Condition { get; set; }
 
-    [Required(ErrorMessage = "Fotoğraf zorunludur.")]
-    public required IFormFile Image { get; set; }
+    /// <summary>Eski istemci uyumluluğu için tek kapak fotoğrafı.</summary>
+    public IFormFile? Image { get; set; }
+
+    /// <summary>Yeni galeri akışı için en fazla 10 fotoğraf.</summary>
+    public List<IFormFile> Images { get; set; } = [];
 }

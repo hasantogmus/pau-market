@@ -18,6 +18,7 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
             // 2. RAM'de yoksa veritabanından çek
             allListings = await context.Listings
                 .Include(listing => listing.User)
+                .Include(listing => listing.Images)
                 .AsNoTracking()
                 .ToListAsync();
 
@@ -75,6 +76,7 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
     {
         var listing = await context.Listings
             .Include(item => item.User)
+            .Include(item => item.Images)
             .Include(item => item.DealRequests)
                 .ThenInclude(item => item.Buyer)
             .AsNoTracking()
@@ -90,6 +92,7 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
     {
         var listings = await context.Listings
             .Include(item => item.User)
+            .Include(item => item.Images)
             .Include(item => item.DealRequests)
                 .ThenInclude(item => item.Buyer)
             .AsNoTracking()
@@ -104,6 +107,7 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
     {
         var listings = await context.Listings
             .Include(item => item.User)
+            .Include(item => item.Images)
             .Include(item => item.DealRequests)
                 .ThenInclude(item => item.Buyer)
             .AsNoTracking()
@@ -120,8 +124,11 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
     /// Yeni ilan oluşturur.
     /// UserId, token'dan gelen callerId ile; ImageUrl ise Berke'nin sisteminden gelir.
     /// </summary>
-    public async Task<ListingResponseDto> CreateListingAsync(CreateListingDto dto, int callerId, string imageUrl)
+    public async Task<ListingResponseDto> CreateListingAsync(CreateListingDto dto, int callerId, IReadOnlyList<string> imageUrls)
     {
+        if (imageUrls.Count == 0)
+            throw new InvalidOperationException("İlan için en az 1 fotoğraf gereklidir.");
+
         var listing = new Listing
         {
             UserId      = callerId,          // Hasan'ın güvenliği: Token'dan gelir
@@ -130,15 +137,22 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
             Price       = dto.Price,
             Category    = dto.Category,
             Condition   = dto.Condition,
-            ImageUrl    = imageUrl,          // Berke'nin görseli: Buluttan gelir
+            ImageUrl    = imageUrls[0],      // İlk görsel kapak olarak saklanır
             IsActive    = true,
             IsSold      = false,
-            CreatedAt   = DateTime.UtcNow
+            CreatedAt   = DateTime.UtcNow,
+            Images      = imageUrls.Select((url, index) => new ListingImage
+            {
+                ImageUrl = url,
+                SortOrder = index,
+                CreatedAt = DateTime.UtcNow
+            }).ToList()
         };
 
         context.Listings.Add(listing);
         await context.SaveChangesAsync();
         await context.Entry(listing).Reference(item => item.User).LoadAsync();
+        await context.Entry(listing).Collection(item => item.Images).LoadAsync();
 
         // Cache Invalidation: Yeni ilan eklendi, eski önbelleği temizle
         cache.Remove("AllListings");
@@ -152,7 +166,9 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
     /// </summary>
     public async Task<ListingResponseDto?> UpdateListingAsync(int id, UpdateListingDto dto, int callerId)
     {
-        var listing = await context.Listings.FindAsync(id);
+        var listing = await context.Listings
+            .Include(item => item.Images)
+            .FirstOrDefaultAsync(item => item.Id == id);
         if (listing is null) return null;
 
         // Sahiplik kontrolü (Hasan'ın güvenlik kuralı)
@@ -168,6 +184,7 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
 
         await context.SaveChangesAsync();
         await context.Entry(listing).Reference(item => item.User).LoadAsync();
+        await context.Entry(listing).Collection(item => item.Images).LoadAsync();
 
         // Cache Invalidation: İlan güncellendi, eski önbelleği temizle
         cache.Remove("AllListings");
@@ -201,6 +218,7 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
     {
         var listing = await context.Listings
             .Include(item => item.User)
+            .Include(item => item.Images)
             .Include(item => item.DealRequests)
                 .ThenInclude(item => item.Buyer)
             .FirstOrDefaultAsync(item => item.Id == id);
@@ -272,6 +290,14 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
                 ? $"{soldBuyer.FirstName} {soldBuyer.LastName}".Trim()
                 : null
             : null;
+        var imageUrls = listing.Images?
+            .OrderBy(image => image.SortOrder)
+            .Select(image => image.ImageUrl)
+            .Where(url => !string.IsNullOrWhiteSpace(url))
+            .ToList() ?? [];
+
+        if (imageUrls.Count == 0 && !string.IsNullOrWhiteSpace(listing.ImageUrl))
+            imageUrls.Add(listing.ImageUrl);
 
         return new ListingResponseDto
         {
@@ -285,7 +311,8 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
             Price = listing.Price,
             Category = listing.Category,
             Condition = listing.Condition,
-            ImageUrl = listing.ImageUrl,
+            ImageUrl = listing.ImageUrl ?? imageUrls.FirstOrDefault(),
+            ImageUrls = imageUrls,
             IsActive = listing.IsActive,
             IsSold = listing.IsSold,
             SoldAt = listing.SoldAt,

@@ -22,6 +22,8 @@ public class ListingsController(
     IRecommendationService recommendationService,
     PauMarketDbContext db) : ControllerBase
 {
+    private const int MaxListingImages = 10;
+
     // ── Herkese açık ──────────────────────────────────────────────────────────
 
     [HttpGet]
@@ -111,14 +113,27 @@ public class ListingsController(
             return StatusCode(StatusCodes.Status403Forbidden,
                 new { error = "Lütfen önce e-posta adresinizi onaylayın." });
 
-        // 3. Fotoğrafı buluta yükle (Berke'nin Fotoğraf Katmanı)
-        var imageUrl = await photoService.AddPhotoAsync(dto.Image);
-        
-        if (string.IsNullOrEmpty(imageUrl))
-            return BadRequest(new { message = "Fotoğraf yüklenemedi." });
+        // 3. Fotoğrafları buluta yükle. İlk fotoğraf kapak olarak kullanılacak.
+        var files = GetUploadedImages(dto);
+        if (files.Count == 0)
+            return BadRequest(new { message = "En az 1 fotoğraf yüklemelisiniz." });
 
-        // 4. İlanı hem sahip ID'si hem de resim URL'i ile oluştur (Birleştirilmiş Mantık)
-        var createdListing = await listingService.CreateListingAsync(dto, callerId.Value, imageUrl);
+        if (files.Count > MaxListingImages)
+            return BadRequest(new { message = $"En fazla {MaxListingImages} fotoğraf yükleyebilirsiniz." });
+
+        var imageUrls = new List<string>();
+        foreach (var file in files)
+        {
+            var imageUrl = await photoService.AddPhotoAsync(file);
+
+            if (string.IsNullOrEmpty(imageUrl))
+                return BadRequest(new { message = "Fotoğraf yüklenemedi." });
+
+            imageUrls.Add(imageUrl);
+        }
+
+        // 4. İlanı hem sahip ID'si hem de sıralı galeri URL'leri ile oluştur.
+        var createdListing = await listingService.CreateListingAsync(dto, callerId.Value, imageUrls);
         
         return CreatedAtAction(nameof(GetById), new { id = createdListing.Id }, createdListing);
     }
@@ -216,5 +231,13 @@ public class ListingsController(
         {
             return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message });
         }
+    }
+
+    private static List<IFormFile> GetUploadedImages(CreateListingDto dto)
+    {
+        if (dto.Images?.Count > 0)
+            return dto.Images;
+
+        return dto.Image is null ? [] : [dto.Image];
     }
 }

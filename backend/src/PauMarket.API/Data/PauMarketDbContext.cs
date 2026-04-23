@@ -13,6 +13,7 @@ public class PauMarketDbContext(DbContextOptions<PauMarketDbContext> options) : 
     public DbSet<Listing> Listings => Set<Listing>();
     public DbSet<Interaction> Interactions => Set<Interaction>();
     public DbSet<Message> Messages => Set<Message>();
+    public DbSet<ListingImage> ListingImages => Set<ListingImage>();
     public DbSet<UserView> UserViews => Set<UserView>();
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<DealRequest> DealRequests => Set<DealRequest>();
@@ -84,6 +85,34 @@ public class PauMarketDbContext(DbContextOptions<PauMarketDbContext> options) : 
             // Aktif ilanlar üzerinde sorgular için index
             entity.HasIndex(l => new { l.IsActive, l.Category })
                   .HasDatabaseName("IX_Listings_IsActive_Category");
+        });
+
+        // ═══════════════════════════════════════════════════════════
+        // LISTING IMAGE
+        // ═══════════════════════════════════════════════════════════
+        modelBuilder.Entity<ListingImage>(entity =>
+        {
+            entity.ToTable("ListingImages");
+            entity.HasKey(image => image.Id);
+
+            entity.Property(image => image.ImageUrl)
+                  .IsRequired();
+
+            entity.Property(image => image.SortOrder)
+                  .IsRequired();
+
+            entity.Property(image => image.CreatedAt)
+                  .HasDefaultValueSql("GETUTCDATE()");
+
+            entity.HasOne(image => image.Listing)
+                  .WithMany(listing => listing.Images)
+                  .HasForeignKey(image => image.ListingId)
+                  .OnDelete(DeleteBehavior.Cascade)
+                  .HasConstraintName("FK_ListingImages_Listings_ListingId");
+
+            entity.HasIndex(image => new { image.ListingId, image.SortOrder })
+                  .IsUnique()
+                  .HasDatabaseName("UX_ListingImages_Listing_SortOrder");
         });
 
         // ═══════════════════════════════════════════════════════════

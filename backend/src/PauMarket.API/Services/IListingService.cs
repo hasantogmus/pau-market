@@ -15,9 +15,9 @@ public interface IListingService
     /// <summary>
     /// Yeni ilan oluşturur. 
     /// <paramref name="callerId"/> token'dan alınan kullanıcı ID'sidir.
-    /// <paramref name="imageUrl"/> Berke'nin sisteminden gelen fotoğraf adresidir.
+    /// <paramref name="imageUrls"/> buluta yüklenmiş sıralı fotoğraf adresleridir.
     /// </summary>
-    Task<ListingResponseDto> CreateListingAsync(CreateListingDto dto, int callerId, string imageUrl);
+    Task<ListingResponseDto> CreateListingAsync(CreateListingDto dto, int callerId, IReadOnlyList<string> imageUrls);
 
     /// <summary>
     /// İlanı günceller. Yalnızca ilanın sahibi (<paramref name="callerId"/>) işlem yapabilir.

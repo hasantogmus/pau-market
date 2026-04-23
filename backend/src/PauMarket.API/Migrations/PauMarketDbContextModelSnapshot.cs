@@ -172,6 +172,38 @@ namespace PauMarket.API.Migrations
                     b.ToTable("Listings", (string)null);
                 });
 
+            modelBuilder.Entity("PauMarket.API.Models.ListingImage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<string>("ImageUrl")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("ListingId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ListingId", "SortOrder")
+                        .IsUnique()
+                        .HasDatabaseName("UX_ListingImages_Listing_SortOrder");
+
+                    b.ToTable("ListingImages", (string)null);
+                });
+
             modelBuilder.Entity("PauMarket.API.Models.Message", b =>
                 {
                     b.Property<int>("Id")
@@ -425,6 +457,18 @@ namespace PauMarket.API.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("PauMarket.API.Models.ListingImage", b =>
+                {
+                    b.HasOne("PauMarket.API.Models.Listing", "Listing")
+                        .WithMany("Images")
+                        .HasForeignKey("ListingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_ListingImages_Listings_ListingId");
+
+                    b.Navigation("Listing");
+                });
+
             modelBuilder.Entity("PauMarket.API.Models.Message", b =>
                 {
                     b.HasOne("PauMarket.API.Models.Listing", "Listing")
@@ -508,6 +552,8 @@ namespace PauMarket.API.Migrations
             modelBuilder.Entity("PauMarket.API.Models.Listing", b =>
                 {
                     b.Navigation("DealRequests");
+
+                    b.Navigation("Images");
 
                     b.Navigation("Interactions");
 

@@ -35,7 +35,7 @@ public class Listing
     [MaxLength(50)]
     public required string Condition { get; set; }
 
-    /// <summary>Cloudinary fotoğraf URL'si.</summary>
+    /// <summary>Kapak fotoğrafı URL'si. Çoklu görseller ListingImages tablosunda tutulur.</summary>
     public string? ImageUrl { get; set; }
 
     public bool IsActive { get; set; } = true;
@@ -52,4 +52,5 @@ public class Listing
     public ICollection<Interaction> Interactions { get; set; } = [];
     public ICollection<Message> Messages { get; set; } = [];
     public ICollection<DealRequest> DealRequests { get; set; } = [];
+    public ICollection<ListingImage> Images { get; set; } = [];
 }

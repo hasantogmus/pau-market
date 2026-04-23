@@ -96,6 +96,7 @@ const ListingDetail = () => {
     const { isAuthenticated, user } = useAuth();
 
     const [listing, setListing]   = useState(null);
+    const [selectedImageIndex, setSelectedImageIndex] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError]         = useState(null);
     const [sellerProfile, setSellerProfile] = useState(null);
@@ -117,6 +118,7 @@ const ListingDetail = () => {
             try {
                 const data = await listingService.getListingById(id);
                 setListing(data);
+                setSelectedImageIndex(0);
 
                 if (data?.userId && !data?.sellerName) {
                     try {
@@ -179,6 +181,12 @@ const ListingDetail = () => {
     );
 
     const conditionStyle = getConditionStyle(listing.condition);
+    const imageUrls = listing.imageUrls?.length > 0
+        ? listing.imageUrls
+        : listing.imageUrl
+            ? [listing.imageUrl]
+            : [];
+    const selectedImage = imageUrls[selectedImageIndex] ?? imageUrls[0] ?? null;
     const sellerDisplayName = listing.sellerName || sellerProfile?.fullName || 'PAÜ Market Kullanıcısı';
     const reviewCount = reviewSummary?.totalReviews ?? 0;
     const averageRating = reviewSummary?.averageRating ?? 0;
@@ -275,9 +283,9 @@ const ListingDetail = () => {
                         className="sticky top-8"
                     >
                         <div className="w-full aspect-square bg-gray-100 rounded-3xl overflow-hidden shadow-lg border border-gray-100 relative">
-                            {listing.imageUrl ? (
+                            {selectedImage ? (
                                 <img
-                                    src={listing.imageUrl}
+                                    src={selectedImage}
                                     alt={listing.title}
                                     className="w-full h-full object-cover"
                                     onError={(e) => { e.target.style.display = 'none'; }}
@@ -294,6 +302,30 @@ const ListingDetail = () => {
                                 <span className="text-xs font-semibold text-gray-600">{formatDate(listing.createdAt)}</span>
                             </div>
                         </div>
+                        {imageUrls.length > 1 && (
+                            <div className="mt-4 grid grid-cols-5 gap-2">
+                                {imageUrls.map((url, index) => (
+                                    <button
+                                        key={`${url}-${index}`}
+                                        type="button"
+                                        onClick={() => setSelectedImageIndex(index)}
+                                        className={`aspect-square rounded-2xl overflow-hidden border-2 transition-all ${
+                                            selectedImageIndex === index
+                                                ? 'border-blue-500 shadow-md shadow-blue-100'
+                                                : 'border-gray-100 hover:border-blue-200'
+                                        }`}
+                                        aria-label={`${index + 1}. fotoğrafı göster`}
+                                    >
+                                        <img
+                                            src={url}
+                                            alt={`${listing.title} ${index + 1}`}
+                                            className="w-full h-full object-cover"
+                                            loading="lazy"
+                                        />
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </motion.div>
 
                     {/* ── SAĞ: Detaylar ── */}

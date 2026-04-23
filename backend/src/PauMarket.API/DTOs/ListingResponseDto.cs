@@ -14,6 +14,7 @@ public class ListingResponseDto
     public string CategoryName => Category;
     public string Condition { get; set; } = null!;
     public string? ImageUrl { get; set; }
+    public List<string> ImageUrls { get; set; } = [];
     public bool IsActive { get; set; }
     public bool IsSold { get; set; }
     public DateTime? SoldAt { get; set; }
