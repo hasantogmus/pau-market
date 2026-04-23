@@ -192,6 +192,51 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
         return MapToResponseDto(listing, callerId);
     }
 
+    public async Task<ListingResponseDto?> UpdateListingWithImagesAsync(int id, UpdateListingWithImagesDto dto, int callerId, IReadOnlyList<string> imageUrls)
+    {
+        if (imageUrls.Count == 0)
+            throw new InvalidOperationException("İlan için en az 1 fotoğraf gereklidir.");
+
+        var listing = await context.Listings
+            .Include(item => item.Images)
+            .FirstOrDefaultAsync(item => item.Id == id);
+        if (listing is null) return null;
+
+        if (listing.UserId != callerId)
+            throw new UnauthorizedAccessException("Bu ilanı değiştirmeye yetkiniz yok.");
+
+        await using var transaction = await context.Database.BeginTransactionAsync();
+
+        listing.Title       = dto.Title;
+        listing.Description = dto.Description;
+        listing.Price       = dto.Price;
+        listing.Category    = dto.Category;
+        listing.Condition   = dto.Condition;
+        listing.ImageUrl    = imageUrls[0];
+        listing.IsActive    = listing.IsSold ? false : dto.IsActive;
+
+        context.ListingImages.RemoveRange(listing.Images);
+        await context.SaveChangesAsync();
+
+        listing.Images = imageUrls.Select((url, index) => new ListingImage
+        {
+            ListingId = listing.Id,
+            ImageUrl = url,
+            SortOrder = index,
+            CreatedAt = DateTime.UtcNow
+        }).ToList();
+
+        await context.SaveChangesAsync();
+        await transaction.CommitAsync();
+
+        await context.Entry(listing).Reference(item => item.User).LoadAsync();
+        await context.Entry(listing).Collection(item => item.Images).LoadAsync();
+
+        cache.Remove("AllListings");
+
+        return MapToResponseDto(listing, callerId);
+    }
+
     /// <summary>
     /// İlanı siler.
     /// callerId ilanın sahibiyle eşleşmiyorsa UnauthorizedAccessException fırlatır.

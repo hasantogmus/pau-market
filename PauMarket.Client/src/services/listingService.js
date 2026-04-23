@@ -76,6 +76,34 @@ const listingService = {
         return normalizeListing(response.data);
     },
 
+    updateListingWithImages: async (id, payload) => {
+        const formData = new FormData();
+        formData.append('title', payload.title);
+        formData.append('description', payload.description || '');
+        formData.append('price', String(payload.price));
+        formData.append('category', payload.category);
+        formData.append('condition', payload.condition);
+        formData.append('isActive', String(payload.isActive));
+
+        const newImages = [];
+        payload.images.forEach((image) => {
+            if (image.type === 'existing') {
+                formData.append('imageOrder', `existing:${image.url}`);
+                return;
+            }
+
+            formData.append('imageOrder', `new:${newImages.length}`);
+            newImages.push(image.file);
+        });
+
+        newImages.forEach((file) => formData.append('images', file));
+
+        const response = await api.put(`/listings/${id}/with-images`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        return normalizeListing(response.data);
+    },
+
     updateSaleStatus: async (id, payload) => {
         const response = await api.patch(`/listings/${id}/sale-status`, payload);
         return normalizeListing(response.data);

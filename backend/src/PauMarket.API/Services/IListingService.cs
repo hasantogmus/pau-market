@@ -26,6 +26,11 @@ public interface IListingService
     Task<ListingResponseDto?> UpdateListingAsync(int id, UpdateListingDto dto, int callerId);
 
     /// <summary>
+    /// İlan metin bilgileriyle birlikte sıralı galeri görsellerini günceller.
+    /// </summary>
+    Task<ListingResponseDto?> UpdateListingWithImagesAsync(int id, UpdateListingWithImagesDto dto, int callerId, IReadOnlyList<string> imageUrls);
+
+    /// <summary>
     /// İlanı siler. Yalnızca ilanın sahibi (<paramref name="callerId"/>) işlem yapabilir.
     /// Sahip değilse UnauthorizedAccessException fırlatır.
     /// </summary>
