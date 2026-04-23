@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using PauMarket.API.Data;
@@ -7,6 +8,20 @@ using PauMarket.API.Services;
 using PauMarket.API.Settings;
 
 var builder = WebApplication.CreateBuilder(args);
+const long MaxListingUploadBodyBytes = 100 * 1024 * 1024;
+
+// ─── Dosya Yükleme Limitleri ─────────────────────────────────────────────────
+// Cloudinary ücretsiz planda tek görsel 10 MB ile sınırlı; 10 görsel için
+// toplam multipart request limitini 100 MB'a çıkarıyoruz.
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = MaxListingUploadBodyBytes;
+});
+
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = MaxListingUploadBodyBytes;
+});
 
 // ─── Veritabanı — MSSQL + EF Core ───────────────────────────────────────────
 builder.Services.AddDbContext<PauMarketDbContext>(options =>
