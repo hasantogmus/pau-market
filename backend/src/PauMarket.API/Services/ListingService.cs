@@ -197,37 +197,45 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
         if (imageUrls.Count == 0)
             throw new InvalidOperationException("İlan için en az 1 fotoğraf gereklidir.");
 
-        var listing = await context.Listings
-            .Include(item => item.Images)
-            .FirstOrDefaultAsync(item => item.Id == id);
-        if (listing is null) return null;
+        Listing? listing = null;
+        var strategy = context.Database.CreateExecutionStrategy();
 
-        if (listing.UserId != callerId)
-            throw new UnauthorizedAccessException("Bu ilanı değiştirmeye yetkiniz yok.");
-
-        await using var transaction = await context.Database.BeginTransactionAsync();
-
-        listing.Title       = dto.Title;
-        listing.Description = dto.Description;
-        listing.Price       = dto.Price;
-        listing.Category    = dto.Category;
-        listing.Condition   = dto.Condition;
-        listing.ImageUrl    = imageUrls[0];
-        listing.IsActive    = listing.IsSold ? false : dto.IsActive;
-
-        context.ListingImages.RemoveRange(listing.Images);
-        await context.SaveChangesAsync();
-
-        listing.Images = imageUrls.Select((url, index) => new ListingImage
+        await strategy.ExecuteAsync(async () =>
         {
-            ListingId = listing.Id,
-            ImageUrl = url,
-            SortOrder = index,
-            CreatedAt = DateTime.UtcNow
-        }).ToList();
+            await using var transaction = await context.Database.BeginTransactionAsync();
 
-        await context.SaveChangesAsync();
-        await transaction.CommitAsync();
+            listing = await context.Listings
+                .Include(item => item.Images)
+                .FirstOrDefaultAsync(item => item.Id == id);
+            if (listing is null) return;
+
+            if (listing.UserId != callerId)
+                throw new UnauthorizedAccessException("Bu ilanı değiştirmeye yetkiniz yok.");
+
+            listing.Title       = dto.Title;
+            listing.Description = dto.Description;
+            listing.Price       = dto.Price;
+            listing.Category    = dto.Category;
+            listing.Condition   = dto.Condition;
+            listing.ImageUrl    = imageUrls[0];
+            listing.IsActive    = listing.IsSold ? false : dto.IsActive;
+
+            context.ListingImages.RemoveRange(listing.Images);
+            await context.SaveChangesAsync();
+
+            listing.Images = imageUrls.Select((url, index) => new ListingImage
+            {
+                ListingId = listing.Id,
+                ImageUrl = url,
+                SortOrder = index,
+                CreatedAt = DateTime.UtcNow
+            }).ToList();
+
+            await context.SaveChangesAsync();
+            await transaction.CommitAsync();
+        });
+
+        if (listing is null) return null;
 
         await context.Entry(listing).Reference(item => item.User).LoadAsync();
         await context.Entry(listing).Collection(item => item.Images).LoadAsync();
