@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
 import {
     Laptop, BookOpen, Shirt, Sofa, Bike, Music,
@@ -73,7 +73,7 @@ const RightDecoration = () => (
 // ─────────────────────────────────────────────────────────────────
 // Dropzone Bileşeni
 // ─────────────────────────────────────────────────────────────────
-const ImageDropzone = ({ images, onFilesAdded, onRemove, onLimitExceeded }) => {
+const ImageDropzone = ({ images, onFilesAdded, onRemove, onLimitExceeded, onReorder }) => {
     const inputRef = useRef(null);
     const [isDragging, setIsDragging] = useState(false);
 
@@ -143,15 +143,22 @@ const ImageDropzone = ({ images, onFilesAdded, onRemove, onLimitExceeded }) => {
             )}
 
             {images.length > 0 && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                    <AnimatePresence>
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
+                    <p className="text-xs font-semibold text-gray-400">
+                        Kapak yapmak istediğin fotoğrafı en sola sürükle.
+                    </p>
+                    <Reorder.Group
+                        axis="x"
+                        values={images}
+                        onReorder={onReorder}
+                        className="flex gap-3 overflow-x-auto pb-2 list-none"
+                    >
                         {images.map((item, idx) => (
-                            <motion.div
-                                key={idx}
-                                initial={{ opacity: 0, scale: 0.85 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.85 }}
-                                className="relative aspect-square rounded-xl overflow-hidden border-2 border-gray-200 shadow-sm group"
+                            <Reorder.Item
+                                key={item.id}
+                                value={item}
+                                whileDrag={{ scale: 1.05, zIndex: 30 }}
+                                className="relative w-28 h-28 sm:w-32 sm:h-32 flex-shrink-0 rounded-xl overflow-hidden border-2 border-gray-200 shadow-sm group cursor-grab active:cursor-grabbing bg-white"
                             >
                                 <img src={item.preview} alt={`Görsel ${idx + 1}`} className="w-full h-full object-cover" />
                                 <button
@@ -166,9 +173,14 @@ const ImageDropzone = ({ images, onFilesAdded, onRemove, onLimitExceeded }) => {
                                         Ana
                                     </span>
                                 )}
-                            </motion.div>
+                                {idx > 0 && (
+                                    <span className="absolute bottom-1.5 left-1.5 text-[10px] font-bold bg-white/90 text-gray-700 px-1.5 py-0.5 rounded-full">
+                                        {idx + 1}
+                                    </span>
+                                )}
+                            </Reorder.Item>
                         ))}
-                    </AnimatePresence>
+                    </Reorder.Group>
                 </motion.div>
             )}
         </div>
@@ -232,7 +244,11 @@ const NewListing = () => {
     };
 
     const handleFilesAdded = (newFiles) => {
-        const newItems = newFiles.map(f => ({ file: f, preview: URL.createObjectURL(f) }));
+        const newItems = newFiles.map(f => ({
+            id: `${f.name}-${f.lastModified}-${Date.now()}-${Math.random()}`,
+            file: f,
+            preview: URL.createObjectURL(f)
+        }));
         setImages(prev => [...prev, ...newItems].slice(0, MAX_IMAGES));
     };
 
@@ -439,6 +455,7 @@ const NewListing = () => {
                                     onFilesAdded={handleFilesAdded}
                                     onRemove={handleRemoveImage}
                                     onLimitExceeded={handleLimitExceeded}
+                                    onReorder={setImages}
                                 />
                             </div>
 
