@@ -13,7 +13,7 @@ public class InteractionService(PauMarketDbContext context) : IInteractionServic
             .AsNoTracking()
             .FirstOrDefaultAsync(l => l.Id == listingId);
 
-        if (listing is null || !listing.IsActive || listing.IsSold || listing.UserId == userId)
+        if (listing is null || !listing.IsActive || listing.IsSold)
             return false;
 
         // Kullanıcı var mı kontrolü
