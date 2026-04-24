@@ -129,6 +129,10 @@ public class RecommendationService(
 
         if (existingView is not null)
         {
+            // Eğer son 1 saat içinde görüntülendiyse, veritabanına boşuna yük bindirme (throttle)
+            if ((DateTime.UtcNow - existingView.ViewedAt).TotalHours < 1)
+                return;
+
             // Zaten görüntülenmiş → sadece tarihi güncelle
             existingView.ViewedAt = DateTime.UtcNow;
         }
@@ -285,6 +289,10 @@ public class RecommendationService(
 
         if (existingInteraction is not null)
         {
+            // Aynı etkileşim türü için son 1 saat içinde tekrar istek gelirse DB'yi yorma (throttle)
+            if ((DateTime.UtcNow - existingInteraction.Timestamp).TotalHours < 1)
+                return;
+
             existingInteraction.Timestamp = DateTime.UtcNow;
             return;
         }

@@ -28,6 +28,16 @@ public class PhotoService : IPhotoService
         if (file.Length > MaxImageFileBytes)
             throw new InvalidOperationException("File size too large.");
 
+        var allowedMimeTypes = new[] { "image/jpeg", "image/png", "image/webp" };
+        var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+        
+        if (!allowedMimeTypes.Contains(file.ContentType.ToLowerInvariant()))
+            throw new InvalidOperationException("Geçersiz dosya türü. Yalnızca JPEG, PNG ve WEBP formatları desteklenmektedir.");
+            
+        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (!allowedExtensions.Contains(extension))
+            throw new InvalidOperationException("Geçersiz dosya uzantısı.");
+
         await using var stream = file.OpenReadStream();
         var uploadParams = new ImageUploadParams
         {

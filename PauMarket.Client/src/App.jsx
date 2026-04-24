@@ -14,134 +14,137 @@ import MyListings from './pages/MyListings';
 import Purchases from './pages/Purchases';
 import Settings from './pages/Settings';
 import ProtectedRoute from './components/ProtectedRoute';
+import ErrorBoundary from './components/ErrorBoundary';
 import { AuthProvider } from './context/AuthContext';
 
 function App() {
   return (
-    <Router>
+    <ErrorBoundary>
       <AuthProvider>
-        <Routes>
-          <Route
-            path="/"
-            element={
-              <MainLayout>
-                <Home />
-              </MainLayout>
-            }
-          />
-          <Route
-            path="/listings"
-            element={
-              <MainLayout>
-                <Home />
-              </MainLayout>
-            }
-          />
-          <Route
-            path="/login"
-            element={
-              <MainLayout>
-                <Login />
-              </MainLayout>
-            }
-          />
-          <Route
-            path="/register"
-            element={
-              <MainLayout>
-                <Register />
-              </MainLayout>
-            }
-          />
-          <Route
-            path="/verify-email"
-            element={
-              <MainLayout>
-                <VerifyEmail />
-              </MainLayout>
-            }
-          />
-          <Route
-            path="/listings/new"
-            element={
-              <ProtectedRoute>
+        <Router>
+          <Routes>
+            <Route
+              path="/"
+              element={
                 <MainLayout>
-                  <NewListing />
+                  <Home />
                 </MainLayout>
-              </ProtectedRoute>
-            }
-          />
-          {/* Onboarding: kendi full-screen layout'u var, MainLayout'suz */}
-          <Route path="/onboarding" element={<Onboarding />} />
-          {/* İlan Detay Sayfası */}
-          <Route
-            path="/listings/:id"
-            element={
-              <MainLayout>
-                <ListingDetail />
-              </MainLayout>
-            }
-          />
-          <Route
-            path="/messages"
-            element={
-              <ProtectedRoute>
+              }
+            />
+            <Route
+              path="/listings"
+              element={
                 <MainLayout>
-                  <Messages />
+                  <Home />
                 </MainLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/profile"
-            element={
-              <MainLayout>
-                <Profile />
-              </MainLayout>
-            }
-          />
-          <Route
-            path="/profile/:id"
-            element={
-              <MainLayout>
-                <Profile />
-              </MainLayout>
-            }
-          />
-          <Route
-            path="/my-listings"
-            element={
-              <ProtectedRoute>
+              }
+            />
+            <Route
+              path="/login"
+              element={
                 <MainLayout>
-                  <MyListings />
+                  <Login />
                 </MainLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/purchases"
-            element={
-              <ProtectedRoute>
+              }
+            />
+            <Route
+              path="/register"
+              element={
                 <MainLayout>
-                  <Purchases />
+                  <Register />
                 </MainLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/settings"
-            element={
-              <ProtectedRoute>
+              }
+            />
+            <Route
+              path="/verify-email"
+              element={
                 <MainLayout>
-                  <Settings />
+                  <VerifyEmail />
                 </MainLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+              }
+            />
+            <Route
+              path="/listings/new"
+              element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <NewListing />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            {/* Onboarding: kendi full-screen layout'u var, MainLayout'suz */}
+            <Route path="/onboarding" element={<Onboarding />} />
+            {/* İlan Detay Sayfası */}
+            <Route
+              path="/listings/:id"
+              element={
+                <MainLayout>
+                  <ListingDetail />
+                </MainLayout>
+              }
+            />
+            <Route
+              path="/messages"
+              element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <Messages />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <MainLayout>
+                  <Profile />
+                </MainLayout>
+              }
+            />
+            <Route
+              path="/profile/:id"
+              element={
+                <MainLayout>
+                  <Profile />
+                </MainLayout>
+              }
+            />
+            <Route
+              path="/my-listings"
+              element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <MyListings />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/purchases"
+              element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <Purchases />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <Settings />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Router>
       </AuthProvider>
-    </Router>
+    </ErrorBoundary>
   );
 }
 
