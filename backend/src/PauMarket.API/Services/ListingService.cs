@@ -282,6 +282,7 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
             throw new UnauthorizedAccessException("Bu ilanın satış durumunu değiştirmeye yetkiniz yok.");
 
         var previousSoldToUserId = listing.SoldToUserId;
+        DealRequest? previousAcceptedRequest = null;
 
         if (isSold)
         {
@@ -299,11 +300,23 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
             if (acceptedRequest is null)
                 throw new InvalidOperationException("İlan ancak kabul edilmiş bir anlaşma isteği üzerinden satıldı yapılabilir.");
         }
+        else
+        {
+            previousAcceptedRequest = listing.DealRequests.FirstOrDefault(item =>
+                item.Status == DealRequestStatus.Accepted &&
+                item.SellerId == callerId);
+        }
 
         listing.IsSold = isSold;
         listing.SoldAt = isSold ? DateTime.UtcNow : null;
         listing.SoldToUserId = isSold ? soldToUserId : null;
         listing.IsActive = !isSold;
+
+        if (!isSold && previousAcceptedRequest is not null)
+        {
+            previousAcceptedRequest.Status = DealRequestStatus.Cancelled;
+            previousAcceptedRequest.RespondedAt = DateTime.UtcNow;
+        }
 
         await context.SaveChangesAsync();
         cache.Remove("AllListings");
@@ -340,6 +353,25 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
             if (purchaseInteractions.Count > 0)
             {
                 context.Interactions.RemoveRange(purchaseInteractions);
+            }
+
+            if (previousAcceptedRequest is not null)
+            {
+                var acceptedInteractions = await context.Interactions
+                    .Where(interaction =>
+                        interaction.UserId == previousAcceptedRequest.BuyerId &&
+                        interaction.ListingId == listing.Id &&
+                        interaction.InteractionType == InteractionType.DealAccepted)
+                    .ToListAsync();
+
+                if (acceptedInteractions.Count > 0)
+                {
+                    context.Interactions.RemoveRange(acceptedInteractions);
+                }
+            }
+
+            if (purchaseInteractions.Count > 0 || previousAcceptedRequest is not null)
+            {
                 await context.SaveChangesAsync();
             }
         }
