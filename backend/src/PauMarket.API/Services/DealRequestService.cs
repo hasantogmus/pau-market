@@ -175,6 +175,61 @@ public class DealRequestService(PauMarketDbContext db) : IDealRequestService
         return MapToDto(request);
     }
 
+    public async Task<DealRequestResponseDto> WithdrawDealRequestAsync(int requestId, int buyerId)
+    {
+        var request = await db.DealRequests
+            .Include(item => item.Buyer)
+            .Include(item => item.Seller)
+            .Include(item => item.Listing)
+            .FirstOrDefaultAsync(item => item.Id == requestId);
+
+        if (request is null)
+            throw new InvalidOperationException("Anlaşma isteği bulunamadı.");
+
+        if (request.BuyerId != buyerId)
+            throw new UnauthorizedAccessException("Bu anlaşma isteğini geri çekmeye yetkiniz yok.");
+
+        if (request.Status != DealRequestStatus.Pending)
+            throw new InvalidOperationException("Sadece bekleyen anlaşma istekleri geri çekilebilir.");
+
+        request.Status = DealRequestStatus.Withdrawn;
+        request.RespondedAt = DateTime.UtcNow;
+
+        await RemoveInteractionAsync(buyerId, request.ListingId, InteractionType.DealRequest);
+        await db.SaveChangesAsync();
+
+        return MapToDto(request);
+    }
+
+    public async Task<DealRequestResponseDto> CancelAcceptedDealRequestAsync(int requestId, int userId)
+    {
+        var request = await db.DealRequests
+            .Include(item => item.Buyer)
+            .Include(item => item.Seller)
+            .Include(item => item.Listing)
+            .FirstOrDefaultAsync(item => item.Id == requestId);
+
+        if (request is null)
+            throw new InvalidOperationException("Anlaşma isteği bulunamadı.");
+
+        if (request.BuyerId != userId && request.SellerId != userId)
+            throw new UnauthorizedAccessException("Bu anlaşmayı iptal etmeye yetkiniz yok.");
+
+        if (request.Status != DealRequestStatus.Accepted)
+            throw new InvalidOperationException("Sadece kabul edilmiş anlaşmalar iptal edilebilir.");
+
+        if (request.Listing.IsSold)
+            throw new InvalidOperationException("Satıldı olarak işaretlenen ilan için anlaşma iptal edilemez.");
+
+        request.Status = DealRequestStatus.Cancelled;
+        request.RespondedAt = DateTime.UtcNow;
+
+        await RemoveInteractionAsync(request.BuyerId, request.ListingId, InteractionType.DealAccepted);
+        await db.SaveChangesAsync();
+
+        return MapToDto(request);
+    }
+
     private static DealRequestResponseDto MapToDto(DealRequest request) => new()
     {
         Id = request.Id,
@@ -210,6 +265,21 @@ public class DealRequestService(PauMarketDbContext db) : IDealRequestService
             InteractionType = interactionType,
             Timestamp = DateTime.UtcNow
         });
+    }
+
+    private async Task RemoveInteractionAsync(int userId, int listingId, InteractionType interactionType)
+    {
+        var interactions = await db.Interactions
+            .Where(interaction =>
+                interaction.UserId == userId &&
+                interaction.ListingId == listingId &&
+                interaction.InteractionType == interactionType)
+            .ToListAsync();
+
+        if (interactions.Count == 0)
+            return;
+
+        db.Interactions.RemoveRange(interactions);
     }
 
     private static bool IsAcceptedDealRequestConstraintViolation(DbUpdateException ex) =>

@@ -112,6 +112,7 @@ const ListingDetail = () => {
     const [dealRequestError, setDealRequestError] = useState(null);
     const [dealRequestSuccess, setDealRequestSuccess] = useState(null);
     const [isSubmittingDealRequest, setIsSubmittingDealRequest] = useState(false);
+    const [isUpdatingDealRequest, setIsUpdatingDealRequest] = useState(false);
 
     useEffect(() => {
         const fetch = async () => {
@@ -192,7 +193,10 @@ const ListingDetail = () => {
     const averageRating = reviewSummary?.averageRating ?? 0;
     const isOwnListing = Number(user?.id) === Number(listing.userId);
     const canReviewSeller = isAuthenticated && listing.isSold && Number(listing.soldToUserId) === Number(user?.id) && !isOwnListing;
-    const canCreateDealRequest = isAuthenticated && !isOwnListing && !listing.isSold && dealRequest?.status !== 1 && dealRequest?.status !== 2;
+    const dealRequestStatus = dealRequest?.status || null;
+    const canCreateDealRequest = isAuthenticated && !isOwnListing && !listing.isSold && dealRequestStatus !== 'Pending' && dealRequestStatus !== 'Accepted';
+    const canWithdrawDealRequest = isAuthenticated && !isOwnListing && !listing.isSold && dealRequestStatus === 'Pending';
+    const canCancelDealRequest = isAuthenticated && !isOwnListing && !listing.isSold && dealRequestStatus === 'Accepted';
     const existingReview = reviewSummary?.reviews?.find(
         (review) => Number(review.reviewerId) === Number(user?.id) && Number(review.listingId) === Number(listing.id)
     );
@@ -247,6 +251,48 @@ const ListingDetail = () => {
             setDealRequestError(err.response?.data?.error || 'Anlaşma isteği gönderilemedi.');
         } finally {
             setIsSubmittingDealRequest(false);
+        }
+    };
+
+    const handleUpdateDealRequest = async (action) => {
+        if (!dealRequest?.id) return;
+
+        const confirmationMessage = action === 'withdraw'
+            ? 'Bekleyen anlaşma isteğini geri çekmek istediğine emin misin?'
+            : 'Kabul edilmiş anlaşmayı iptal etmek istediğine emin misin?';
+
+        if (!window.confirm(confirmationMessage)) {
+            return;
+        }
+
+        setDealRequestError(null);
+        setDealRequestSuccess(null);
+        setIsUpdatingDealRequest(true);
+
+        try {
+            const updatedRequest = action === 'withdraw'
+                ? await dealRequestService.withdrawDealRequest(dealRequest.id)
+                : await dealRequestService.cancelDealRequest(dealRequest.id);
+
+            setDealRequest(updatedRequest);
+
+            if (action === 'cancel') {
+                setListing((prev) => ({
+                    ...prev,
+                    acceptedBuyerId: null,
+                    acceptedBuyerName: null,
+                }));
+            }
+
+            setDealRequestSuccess(
+                action === 'withdraw'
+                    ? 'Bekleyen anlaşma isteğin geri çekildi.'
+                    : 'Kabul edilmiş anlaşma iptal edildi. İlan yeniden yeni anlaşma isteklerine açık.'
+            );
+        } catch (err) {
+            setDealRequestError(err.response?.data?.error || 'Anlaşma durumu güncellenemedi.');
+        } finally {
+            setIsUpdatingDealRequest(false);
         }
     };
 
@@ -484,15 +530,46 @@ const ListingDetail = () => {
 
                                 <button
                                     type="button"
-                                    disabled={!canCreateDealRequest}
+                                    disabled={listing.isSold || (!canCreateDealRequest && !canWithdrawDealRequest && !canCancelDealRequest) || isUpdatingDealRequest}
                                     onClick={() => {
                                         setDealRequestError(null);
-                                        setIsDealModalOpen(true);
+
+                                        if (canWithdrawDealRequest) {
+                                            handleUpdateDealRequest('withdraw');
+                                            return;
+                                        }
+
+                                        if (canCancelDealRequest) {
+                                            handleUpdateDealRequest('cancel');
+                                            return;
+                                        }
+
+                                        if (canCreateDealRequest) {
+                                            setIsDealModalOpen(true);
+                                        }
                                     }}
-                                    className="w-full flex items-center justify-center gap-3 py-4 px-6 bg-white border border-blue-200 text-blue-700 text-lg font-extrabold rounded-2xl shadow-sm hover:bg-blue-50 transition-all disabled:bg-gray-50 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed"
+                                    className={`w-full flex items-center justify-center gap-3 py-4 px-6 text-lg font-extrabold rounded-2xl shadow-sm transition-all disabled:bg-gray-50 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed ${
+                                        canWithdrawDealRequest
+                                            ? 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                                            : canCancelDealRequest
+                                                ? 'bg-white border border-orange-200 text-orange-700 hover:bg-orange-50'
+                                                : 'bg-white border border-blue-200 text-blue-700 hover:bg-blue-50'
+                                    }`}
                                 >
                                     <ShieldCheck className="w-5 h-5" />
-                                    {dealRequest?.status === 2 ? 'Anlaşma Kabul Edildi' : dealRequest?.status === 1 ? 'Anlaşma Bekliyor' : dealRequest?.status === 3 ? 'Tekrar Anlaşma İste' : 'Anlaşma İsteği Gönder'}
+                                    {isUpdatingDealRequest
+                                        ? 'Güncelleniyor...'
+                                        : canWithdrawDealRequest
+                                            ? 'İsteği Geri Çek'
+                                            : canCancelDealRequest
+                                                ? 'Anlaşmayı İptal Et'
+                                                : dealRequestStatus === 'Rejected' || dealRequestStatus === 'Withdrawn' || dealRequestStatus === 'Cancelled'
+                                                    ? 'Tekrar Anlaşma İste'
+                                                    : dealRequestStatus === 'Accepted'
+                                                        ? 'Anlaşma Kabul Edildi'
+                                                        : dealRequestStatus === 'Pending'
+                                                            ? 'Anlaşma Bekliyor'
+                                                            : 'Anlaşma İsteği Gönder'}
                                 </button>
                             </div>
                             <div className="mt-3">
@@ -517,7 +594,7 @@ const ListingDetail = () => {
                                         : existingReview
                                             ? 'Bu alışveriş için satıcıyı zaten değerlendirdin.'
                                             : !listing.isSold
-                                                ? dealRequest?.status === 2
+                                                ? dealRequestStatus === 'Accepted'
                                                     ? 'Anlaşma kabul edildi. Yüz yüze alışveriş tamamlanıp ilan satıldı olduğunda değerlendirme açılır.'
                                                     : 'Önce anlaşma isteği gönderip satıcıyla uzlaşman gerekir. Değerlendirme yalnızca tamamlanan alışverişlerden sonra açılır.'
                                                 : Number(listing.soldToUserId) !== Number(user?.id)

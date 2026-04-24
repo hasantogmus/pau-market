@@ -15,6 +15,30 @@ const formatMessageTime = (value) =>
         minute: '2-digit',
     });
 
+const dealStatusTone = {
+    Pending: 'bg-amber-50 text-amber-700 border-amber-200',
+    Accepted: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    Rejected: 'bg-rose-50 text-rose-700 border-rose-200',
+    Withdrawn: 'bg-slate-50 text-slate-700 border-slate-200',
+    Cancelled: 'bg-gray-50 text-gray-700 border-gray-200',
+};
+
+const dealStatusLabels = {
+    Pending: 'Anlaşma bekliyor',
+    Accepted: 'Anlaşma kabul edildi',
+    Rejected: 'Anlaşma reddedildi',
+    Withdrawn: 'İstek geri çekildi',
+    Cancelled: 'Anlaşma iptal edildi',
+};
+
+const dealStatusCodes = {
+    Pending: 1,
+    Accepted: 2,
+    Rejected: 3,
+    Withdrawn: 4,
+    Cancelled: 5,
+};
+
 const Messages = () => {
     const { isAuthenticated, user } = useAuth();
     const navigate = useNavigate();
@@ -151,6 +175,9 @@ const Messages = () => {
         listingId,
         listingTitle: conversationMeta?.listingTitle || 'İlan',
         listingImageUrl: conversationMeta?.listingImageUrl || null,
+        canRespondToDealRequest: false,
+        canWithdrawDealRequest: false,
+        canCancelDealRequest: false,
     } : null);
 
     const conversationTitle = activeConversation
@@ -208,7 +235,8 @@ const Messages = () => {
     };
 
     const updateThreadDealStatus = (requestId, statusName) => {
-        const statusValue = statusName === 'Accepted' ? 2 : 3;
+        const statusValue = dealStatusCodes[statusName] ?? null;
+        const canCancelDealRequest = statusName === 'Accepted';
 
         setThreads((prev) =>
             prev.map((thread) =>
@@ -218,6 +246,8 @@ const Messages = () => {
                         dealRequestStatus: statusValue,
                         dealRequestStatusName: statusName,
                         canRespondToDealRequest: false,
+                        canWithdrawDealRequest: false,
+                        canCancelDealRequest,
                     }
                     : thread
             )
@@ -234,21 +264,21 @@ const Messages = () => {
             if (action === 'accept') {
                 await dealRequestService.acceptDealRequest(activeConversation.dealRequestId);
                 updateThreadDealStatus(activeConversation.dealRequestId, 'Accepted');
-            } else {
+            } else if (action === 'reject') {
                 await dealRequestService.rejectDealRequest(activeConversation.dealRequestId);
                 updateThreadDealStatus(activeConversation.dealRequestId, 'Rejected');
+            } else if (action === 'withdraw') {
+                await dealRequestService.withdrawDealRequest(activeConversation.dealRequestId);
+                updateThreadDealStatus(activeConversation.dealRequestId, 'Withdrawn');
+            } else {
+                await dealRequestService.cancelDealRequest(activeConversation.dealRequestId);
+                updateThreadDealStatus(activeConversation.dealRequestId, 'Cancelled');
             }
         } catch (err) {
             setError(err.response?.data?.error || 'Anlaşma isteği güncellenemedi.');
         } finally {
             setIsUpdatingDealRequest(false);
         }
-    };
-
-    const dealStatusTone = {
-        Pending: 'bg-amber-50 text-amber-700 border-amber-200',
-        Accepted: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-        Rejected: 'bg-rose-50 text-rose-700 border-rose-200',
     };
 
     if (!isAuthenticated) {
@@ -312,7 +342,7 @@ const Messages = () => {
                                                 <p className="text-xs font-semibold text-blue-600 truncate mt-0.5">{thread.listingTitle}</p>
                                                 {thread.dealRequestStatusName && (
                                                     <span className={`inline-flex mt-2 px-2.5 py-1 rounded-full text-[11px] font-bold border ${dealStatusTone[thread.dealRequestStatusName] || 'bg-gray-50 text-gray-600 border-gray-200'}`}>
-                                                        {thread.dealRequestStatusName === 'Pending' ? 'Anlaşma bekliyor' : thread.dealRequestStatusName === 'Accepted' ? 'Anlaşma kabul edildi' : 'Anlaşma reddedildi'}
+                                                        {dealStatusLabels[thread.dealRequestStatusName] || 'Durum güncellendi'}
                                                     </span>
                                                 )}
                                                 <p className="text-sm text-gray-600 truncate mt-1">
@@ -346,7 +376,7 @@ const Messages = () => {
                                 {activeConversation?.dealRequestStatusName && (
                                     <div className="flex flex-wrap items-center gap-2 mt-3">
                                         <span className={`inline-flex px-3 py-1 rounded-full text-xs font-bold border ${dealStatusTone[activeConversation.dealRequestStatusName] || 'bg-gray-50 text-gray-600 border-gray-200'}`}>
-                                            {activeConversation.dealRequestStatusName === 'Pending' ? 'Anlaşma isteği beklemede' : activeConversation.dealRequestStatusName === 'Accepted' ? 'Anlaşma kabul edildi' : 'Anlaşma reddedildi'}
+                                            {dealStatusLabels[activeConversation.dealRequestStatusName] || 'Durum güncellendi'}
                                         </span>
                                         {activeConversation.dealRequestNote && (
                                             <span className="text-xs text-gray-500">Not: {activeConversation.dealRequestNote}</span>
@@ -375,6 +405,26 @@ const Messages = () => {
                                                 {isUpdatingDealRequest ? 'Güncelleniyor...' : 'Anlaşmayı Kabul Et'}
                                             </button>
                                         </>
+                                    )}
+                                    {activeConversation?.canWithdrawDealRequest && (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleDealRequestAction('withdraw')}
+                                            disabled={isUpdatingDealRequest}
+                                            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors font-semibold text-sm disabled:opacity-60"
+                                        >
+                                            {isUpdatingDealRequest ? 'Güncelleniyor...' : 'İsteği Geri Çek'}
+                                        </button>
+                                    )}
+                                    {activeConversation?.canCancelDealRequest && (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleDealRequestAction('cancel')}
+                                            disabled={isUpdatingDealRequest}
+                                            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl border border-orange-200 text-orange-700 hover:bg-orange-50 transition-colors font-semibold text-sm disabled:opacity-60"
+                                        >
+                                            {isUpdatingDealRequest ? 'Güncelleniyor...' : 'Anlaşmayı İptal Et'}
+                                        </button>
                                     )}
                                     <button
                                         type="button"

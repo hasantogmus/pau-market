@@ -23,6 +23,16 @@ const dealRequestService = {
         const response = await api.post(`/dealrequests/${requestId}/reject`);
         return response.data;
     },
+
+    withdrawDealRequest: async (requestId) => {
+        const response = await api.post(`/dealrequests/${requestId}/withdraw`);
+        return response.data;
+    },
+
+    cancelDealRequest: async (requestId) => {
+        const response = await api.post(`/dealrequests/${requestId}/cancel`);
+        return response.data;
+    },
 };
 
 export default dealRequestService;

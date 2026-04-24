@@ -60,7 +60,15 @@ public class MessageService(PauMarketDbContext context) : IMessageService
                     DealRequestNote = dealRequest?.Note,
                     CanRespondToDealRequest = dealRequest is not null &&
                                               dealRequest.SellerId == currentUserId &&
-                                              dealRequest.Status == DealRequestStatus.Pending
+                                              dealRequest.Status == DealRequestStatus.Pending,
+                    CanWithdrawDealRequest = dealRequest is not null &&
+                                             dealRequest.BuyerId == currentUserId &&
+                                             dealRequest.Status == DealRequestStatus.Pending &&
+                                             !latest.Listing.IsSold,
+                    CanCancelDealRequest = dealRequest is not null &&
+                                           (dealRequest.SellerId == currentUserId || dealRequest.BuyerId == currentUserId) &&
+                                           dealRequest.Status == DealRequestStatus.Accepted &&
+                                           !latest.Listing.IsSold
                 };
             })
             .Where(thread => CanAccessThread(thread.ListingIsSold, currentUserId, thread.OtherUserId, rawMessages.First(item => item.ListingId == thread.ListingId).Listing))
@@ -94,7 +102,11 @@ public class MessageService(PauMarketDbContext context) : IMessageService
                 DealRequestStatus = (int)request.Status,
                 DealRequestStatusName = request.Status.ToString(),
                 DealRequestNote = request.Note,
-                CanRespondToDealRequest = request.SellerId == currentUserId && request.Status == DealRequestStatus.Pending
+                CanRespondToDealRequest = request.SellerId == currentUserId && request.Status == DealRequestStatus.Pending,
+                CanWithdrawDealRequest = request.BuyerId == currentUserId && request.Status == DealRequestStatus.Pending && !request.Listing.IsSold,
+                CanCancelDealRequest = (request.SellerId == currentUserId || request.BuyerId == currentUserId) &&
+                                       request.Status == DealRequestStatus.Accepted &&
+                                       !request.Listing.IsSold
             });
         }
 

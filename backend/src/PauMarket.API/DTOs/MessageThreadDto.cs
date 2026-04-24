@@ -17,4 +17,6 @@ public class MessageThreadDto
     public string? DealRequestStatusName { get; set; }
     public string? DealRequestNote { get; set; }
     public bool CanRespondToDealRequest { get; set; }
+    public bool CanWithdrawDealRequest { get; set; }
+    public bool CanCancelDealRequest { get; set; }
 }

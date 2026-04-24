@@ -86,4 +86,48 @@ public class DealRequestsController(IDealRequestService dealRequestService) : Co
             return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message });
         }
     }
+
+    [HttpPost("{id}/withdraw")]
+    public async Task<ActionResult<DealRequestResponseDto>> Withdraw(int id)
+    {
+        int? callerId = User.GetUserId();
+        if (callerId is null)
+            return Unauthorized(new { error = "Geçersiz token." });
+
+        try
+        {
+            var result = await dealRequestService.WithdrawDealRequestAsync(id, callerId.Value);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message });
+        }
+    }
+
+    [HttpPost("{id}/cancel")]
+    public async Task<ActionResult<DealRequestResponseDto>> Cancel(int id)
+    {
+        int? callerId = User.GetUserId();
+        if (callerId is null)
+            return Unauthorized(new { error = "Geçersiz token." });
+
+        try
+        {
+            var result = await dealRequestService.CancelAcceptedDealRequestAsync(id, callerId.Value);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message });
+        }
+    }
 }
