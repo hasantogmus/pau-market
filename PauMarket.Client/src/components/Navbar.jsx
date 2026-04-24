@@ -15,6 +15,7 @@ import {
     Settings,
     Package,
     Home,
+    Heart,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import messageService from '../services/messageService';
@@ -267,6 +268,7 @@ const Navbar = () => {
                                                 <DropdownItem to="/messages" icon={<MessageCircle className="w-4 h-4" />} label="Mesajlar" onClick={() => setProfileOpen(false)} />
                                                 <DropdownItem to="/profile" icon={<User className="w-4 h-4" />} label="Profilim" onClick={() => setProfileOpen(false)} />
                                                 <DropdownItem to="/my-listings" icon={<Package className="w-4 h-4" />} label="İlanlarım" onClick={() => setProfileOpen(false)} />
+                                                <DropdownItem to="/favorites" icon={<Heart className="w-4 h-4" />} label="Favorilerim" onClick={() => setProfileOpen(false)} />
                                                 <DropdownItem to="/settings" icon={<Settings className="w-4 h-4" />} label="Ayarlar" onClick={() => setProfileOpen(false)} />
                                             </div>
 
@@ -406,6 +408,7 @@ const Navbar = () => {
                                         <MobileNavLink to="/messages" icon={<MessageCircle className="w-5 h-5" />} label="Mesajlar" showDot={hasUnreadMessages} onClick={() => setMobileOpen(false)} />
                                         <MobileNavLink to="/profile" icon={<User className="w-5 h-5" />} label="Profilim" onClick={() => setMobileOpen(false)} />
                                         <MobileNavLink to="/my-listings" icon={<Package className="w-5 h-5" />} label="İlanlarım" onClick={() => setMobileOpen(false)} />
+                                        <MobileNavLink to="/favorites" icon={<Heart className="w-5 h-5" />} label="Favorilerim" onClick={() => setMobileOpen(false)} />
                                         <MobileNavLink to="/settings" icon={<Settings className="w-5 h-5" />} label="Ayarlar" onClick={() => setMobileOpen(false)} />
                                         <button
                                             onClick={handleLogout}

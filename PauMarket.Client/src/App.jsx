@@ -12,6 +12,7 @@ import Messages from './pages/Messages';
 import Profile from './pages/Profile';
 import MyListings from './pages/MyListings';
 import Purchases from './pages/Purchases';
+import Favorites from './pages/Favorites';
 import Settings from './pages/Settings';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -128,6 +129,16 @@ function App() {
                 <ProtectedRoute>
                   <MainLayout>
                     <Purchases />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/favorites"
+              element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <Favorites />
                   </MainLayout>
                 </ProtectedRoute>
               }
