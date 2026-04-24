@@ -20,6 +20,8 @@ class RecommendationItem(BaseModel):
 
 class RecommendationResponse(BaseModel):
     """Öneri endpoint'i yanıtı."""
+    model_config = {"protected_namespaces": ()}
+
     user_idx: int
     original_user_id: Optional[int] = None
     recommendations: list[RecommendationItem]
@@ -49,6 +51,8 @@ class MetricsResponse(BaseModel):
 
 class HealthResponse(BaseModel):
     """Sağlık kontrolü yanıtı."""
+    model_config = {"protected_namespaces": ()}
+
     status: str
     models_loaded: bool
     model_info: Optional[dict] = None
