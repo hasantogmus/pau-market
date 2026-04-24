@@ -158,6 +158,16 @@ const ListingDetail = () => {
         fetch();
     }, [id, isAuthenticated, user?.id]);
 
+    // Dinamik sekme başlığı (SEO ve UX için)
+    useEffect(() => {
+        if (listing?.title) {
+            document.title = `${listing.title} - PAÜ Market`;
+        }
+        return () => {
+            document.title = 'PAÜ Market';
+        };
+    }, [listing?.title]);
+
     // ── Yükleniyor ──
     if (isLoading) return (
         <div className="min-h-screen bg-gray-50 py-8">
