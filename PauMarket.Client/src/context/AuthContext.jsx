@@ -89,6 +89,15 @@ export const AuthProvider = ({ children }) => {
         setUser((prev) => prev ? { ...prev, ...updates } : prev);
     };
 
+    useEffect(() => {
+        const handleAuthExpired = () => {
+            logout();
+        };
+
+        window.addEventListener('auth-expired', handleAuthExpired);
+        return () => window.removeEventListener('auth-expired', handleAuthExpired);
+    }, [logout]);
+
     return (
         <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, logout, updateUser }}>
             {!isLoading && children}

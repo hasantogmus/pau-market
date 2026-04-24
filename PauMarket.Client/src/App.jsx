@@ -13,6 +13,7 @@ import Profile from './pages/Profile';
 import MyListings from './pages/MyListings';
 import Purchases from './pages/Purchases';
 import Settings from './pages/Settings';
+import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
 
 function App() {
@@ -63,9 +64,11 @@ function App() {
           <Route
             path="/listings/new"
             element={
-              <MainLayout>
-                <NewListing />
-              </MainLayout>
+              <ProtectedRoute>
+                <MainLayout>
+                  <NewListing />
+                </MainLayout>
+              </ProtectedRoute>
             }
           />
           {/* Onboarding: kendi full-screen layout'u var, MainLayout'suz */}
@@ -82,9 +85,11 @@ function App() {
           <Route
             path="/messages"
             element={
-              <MainLayout>
-                <Messages />
-              </MainLayout>
+              <ProtectedRoute>
+                <MainLayout>
+                  <Messages />
+                </MainLayout>
+              </ProtectedRoute>
             }
           />
           <Route
@@ -106,25 +111,31 @@ function App() {
           <Route
             path="/my-listings"
             element={
-              <MainLayout>
-                <MyListings />
-              </MainLayout>
+              <ProtectedRoute>
+                <MainLayout>
+                  <MyListings />
+                </MainLayout>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/purchases"
             element={
-              <MainLayout>
-                <Purchases />
-              </MainLayout>
+              <ProtectedRoute>
+                <MainLayout>
+                  <Purchases />
+                </MainLayout>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/settings"
             element={
-              <MainLayout>
-                <Settings />
-              </MainLayout>
+              <ProtectedRoute>
+                <MainLayout>
+                  <Settings />
+                </MainLayout>
+              </ProtectedRoute>
             }
           />
           <Route path="*" element={<Navigate to="/" replace />} />
