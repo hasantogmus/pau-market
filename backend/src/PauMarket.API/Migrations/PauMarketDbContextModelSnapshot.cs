@@ -174,7 +174,10 @@ namespace PauMarket.API.Migrations
                     b.HasIndex("IsActive", "Category")
                         .HasDatabaseName("IX_Listings_IsActive_Category");
 
-                    b.ToTable("Listings", (string)null);
+                    b.ToTable("Listings", (string)null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Listings_SaleState", "([IsSold] = 0 AND [SoldAt] IS NULL AND [SoldToUserId] IS NULL) OR ([IsSold] = 1 AND [SoldAt] IS NOT NULL AND [SoldToUserId] IS NOT NULL)");
+                        });
                 });
 
             modelBuilder.Entity("PauMarket.API.Models.ListingImage", b =>
@@ -452,6 +455,12 @@ namespace PauMarket.API.Migrations
 
             modelBuilder.Entity("PauMarket.API.Models.Listing", b =>
                 {
+                    b.HasOne("PauMarket.API.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("SoldToUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_Listings_Users_SoldToUserId");
+
                     b.HasOne("PauMarket.API.Models.User", "User")
                         .WithMany("Listings")
                         .HasForeignKey("UserId")

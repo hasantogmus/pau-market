@@ -62,7 +62,12 @@ public class PauMarketDbContext(DbContextOptions<PauMarketDbContext> options) : 
         // ═══════════════════════════════════════════════════════════
         modelBuilder.Entity<Listing>(entity =>
         {
-            entity.ToTable("Listings");
+            entity.ToTable("Listings", table =>
+            {
+                table.HasCheckConstraint(
+                    "CK_Listings_SaleState",
+                    "([IsSold] = 0 AND [SoldAt] IS NULL AND [SoldToUserId] IS NULL) OR ([IsSold] = 1 AND [SoldAt] IS NOT NULL AND [SoldToUserId] IS NOT NULL)");
+            });
             entity.HasKey(l => l.Id);
 
             entity.Property(l => l.Title).IsRequired().HasMaxLength(200);
@@ -81,6 +86,12 @@ public class PauMarketDbContext(DbContextOptions<PauMarketDbContext> options) : 
                   .HasForeignKey(l => l.UserId)
                   .OnDelete(DeleteBehavior.Restrict)
                   .HasConstraintName("FK_Listings_Users_UserId");
+
+            entity.HasOne<User>()
+                  .WithMany()
+                  .HasForeignKey(l => l.SoldToUserId)
+                  .OnDelete(DeleteBehavior.Restrict)
+                  .HasConstraintName("FK_Listings_Users_SoldToUserId");
 
             // Aktif ilanlar üzerinde sorgular için index
             entity.HasIndex(l => new { l.IsActive, l.Category })
