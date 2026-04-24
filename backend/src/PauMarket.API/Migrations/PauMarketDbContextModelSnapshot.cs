@@ -64,6 +64,11 @@ namespace PauMarket.API.Migrations
                         .IsUnique()
                         .HasDatabaseName("UX_DealRequests_Listing_Buyer");
 
+                    b.HasIndex("ListingId")
+                        .IsUnique()
+                        .HasFilter("[Status] = 2")
+                        .HasDatabaseName("UX_DealRequests_Listing_Accepted");
+
                     b.HasIndex("SellerId", "Status")
                         .HasDatabaseName("IX_DealRequests_Seller_Status");
 

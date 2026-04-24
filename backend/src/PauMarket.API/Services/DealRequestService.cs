@@ -22,6 +22,20 @@ public class DealRequestService(PauMarketDbContext db) : IDealRequestService
         if (listing.IsSold)
             throw new InvalidOperationException("Satılmış ilan için yeni anlaşma isteği gönderilemez.");
 
+        var acceptedRequest = await db.DealRequests
+            .AsNoTracking()
+            .FirstOrDefaultAsync(request =>
+                request.ListingId == dto.ListingId &&
+                request.Status == DealRequestStatus.Accepted);
+
+        if (acceptedRequest is not null)
+        {
+            if (acceptedRequest.BuyerId == buyerId)
+                throw new InvalidOperationException("Bu ilan için anlaşma isteğiniz zaten kabul edilmiş.");
+
+            throw new InvalidOperationException("Bu ilan için başka bir öğrenciyle anlaşma sağlandı. Yeni anlaşma isteği gönderilemez.");
+        }
+
         var existingRequest = await db.DealRequests
             .Include(request => request.Buyer)
             .Include(request => request.Seller)
@@ -98,6 +112,19 @@ public class DealRequestService(PauMarketDbContext db) : IDealRequestService
         if (request.Status != DealRequestStatus.Pending)
             throw new InvalidOperationException("Bu anlaşma isteği zaten yanıtlanmış.");
 
+        if (request.Listing.IsSold)
+            throw new InvalidOperationException("Satılmış ilan için yeni alıcı kabul edilemez.");
+
+        var existingAcceptedRequest = await db.DealRequests
+            .AsNoTracking()
+            .FirstOrDefaultAsync(item =>
+                item.ListingId == request.ListingId &&
+                item.Status == DealRequestStatus.Accepted &&
+                item.Id != request.Id);
+
+        if (existingAcceptedRequest is not null)
+            throw new InvalidOperationException("Bu ilan için zaten kabul edilmiş başka bir anlaşma isteği var.");
+
         request.Status = DealRequestStatus.Accepted;
         request.RespondedAt = DateTime.UtcNow;
         await UpsertInteractionAsync(request.BuyerId, request.ListingId, InteractionType.DealAccepted);
@@ -112,7 +139,15 @@ public class DealRequestService(PauMarketDbContext db) : IDealRequestService
             competing.RespondedAt = DateTime.UtcNow;
         }
 
-        await db.SaveChangesAsync();
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex) when (IsAcceptedDealRequestConstraintViolation(ex))
+        {
+            throw new InvalidOperationException("Bu ilan için zaten kabul edilmiş başka bir anlaşma isteği var.");
+        }
+
         return MapToDto(request);
     }
 
@@ -176,4 +211,8 @@ public class DealRequestService(PauMarketDbContext db) : IDealRequestService
             Timestamp = DateTime.UtcNow
         });
     }
+
+    private static bool IsAcceptedDealRequestConstraintViolation(DbUpdateException ex) =>
+        ex.InnerException?.Message?.Contains("UX_DealRequests_Listing_Accepted", StringComparison.OrdinalIgnoreCase) == true ||
+        ex.Message.Contains("UX_DealRequests_Listing_Accepted", StringComparison.OrdinalIgnoreCase);
 }

@@ -227,6 +227,11 @@ public class PauMarketDbContext(DbContextOptions<PauMarketDbContext> options) : 
                   .IsUnique()
                   .HasDatabaseName("UX_DealRequests_Listing_Buyer");
 
+            entity.HasIndex(request => request.ListingId)
+                  .IsUnique()
+                  .HasFilter("[Status] = 2")
+                  .HasDatabaseName("UX_DealRequests_Listing_Accepted");
+
             entity.HasIndex(request => new { request.SellerId, request.Status })
                   .HasDatabaseName("IX_DealRequests_Seller_Status");
         });
