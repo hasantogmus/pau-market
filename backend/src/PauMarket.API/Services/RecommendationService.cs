@@ -14,7 +14,8 @@ namespace PauMarket.API.Services;
 public class RecommendationService(
     PauMarketDbContext db,
     HttpClient httpClient,
-    IConfiguration configuration) : IRecommendationService
+    IConfiguration configuration,
+    ILogger<RecommendationService> logger) : IRecommendationService
 {
     // ─── Public — Hibrit Öneri ────────────────────────────────────────────────
 
@@ -29,7 +30,9 @@ public class RecommendationService(
             // Port 8000 varsayılan Python fastapi portu
             // URL'yi appsettings'den veya Docker ENV vars'dan al (Yoksa varsayılan Docker hostu veya localhost'u dene)
             var recommenderUrl = configuration["RecommenderApiUrl"] ?? "http://recommender:8000";
-            var response = await httpClient.GetAsync($"{recommenderUrl}/recommend/by-user-id/{userId}?n={count * 2}");
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var response = await httpClient.GetAsync(
+                $"{recommenderUrl}/recommend/by-user-id/{userId}?n={count * 2}", cts.Token);
             
             if (response.IsSuccessStatusCode)
             {
@@ -64,10 +67,17 @@ public class RecommendationService(
                 }
             }
         }
+        catch (OperationCanceledException)
+        {
+            logger.LogWarning("[Recommender] Python API 10s timeout aşıldı (userId={UserId}). Cold-start fallback kullanılacak.", userId);
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogWarning(ex, "[Recommender] Python API bağlantı hatası (userId={UserId}). Cold-start fallback kullanılacak.", userId);
+        }
         catch (Exception ex)
         {
-            // Python çöktüyse veya çalışmıyorsa hatayı yut, C# fallback algoritmasına düşsün.
-            Console.WriteLine($"[RecommendationService] YAPAY ZEKA API HATASI: {ex.Message}");
+            logger.LogError(ex, "[Recommender] Beklenmeyen hata (userId={UserId}). Cold-start fallback kullanılacak.", userId);
         }
 
         // 3. Fallback (B Planı) - Eğer Python boş dönerse veya 5'ten az dönerse, C# Cold Start yedekleri sunar
