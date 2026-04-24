@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Search,
@@ -64,6 +64,7 @@ const getInitials = (name = '') => {
 const Navbar = () => {
     const { user, isAuthenticated, logout } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
 
     const [searchQuery, setSearchQuery] = useState('');
     const [mobileOpen, setMobileOpen] = useState(false);
@@ -117,7 +118,7 @@ const Navbar = () => {
         return () => {
             isMounted = false;
         };
-    }, [isAuthenticated]);
+    }, [isAuthenticated, location.pathname]);
 
     const handleSearch = (e) => {
         e.preventDefault();

@@ -19,7 +19,7 @@ const CATEGORY_OPTIONS = [
 const CONDITION_OPTIONS = ['Yeni', 'Az Kullanılmış', 'Fark Etmez'];
 
 const Settings = () => {
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, updateUser } = useAuth();
     const [profileForm, setProfileForm] = useState({
         firstName: '',
         lastName: '',
@@ -102,6 +102,8 @@ const Settings = () => {
                 department: updatedProfile.department || '',
                 grade: updatedProfile.grade ? String(updatedProfile.grade) : '',
             }));
+            const newName = `${updatedProfile.firstName || ''} ${updatedProfile.lastName || ''}`.trim();
+            if (newName) updateUser({ name: newName });
             setProfileSuccess('Hesap bilgilerin güncellendi.');
         } catch (err) {
             setError(err.response?.data?.error || 'Profil bilgileri kaydedilemedi.');
