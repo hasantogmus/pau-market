@@ -545,7 +545,7 @@ const MyListings = () => {
                                                 )}
                                             </div>
 
-                                            <div className="mt-auto flex flex-wrap items-center gap-3 border-t border-gray-100 pt-5">
+                                            <div className="mt-auto flex flex-wrap items-center gap-5 border-t border-gray-100 pt-5">
                                                 <button
                                                     type="button"
                                                     onClick={(event) => {
@@ -553,7 +553,7 @@ const MyListings = () => {
                                                         openEditModal(listing);
                                                     }}
                                                     disabled={isBusy}
-                                                    className="inline-flex min-w-[110px] items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors text-sm font-semibold disabled:opacity-60"
+                                                    className="inline-flex items-center gap-1.5 text-slate-500 hover:text-blue-600 transition-colors text-[13px] font-semibold tracking-wide disabled:opacity-60"
                                                 >
                                                     <Pencil className="w-4 h-4" />
                                                     Düzenle
@@ -565,7 +565,7 @@ const MyListings = () => {
                                                         handleToggleSold(listing);
                                                     }}
                                                     disabled={isBusy}
-                                                    className="inline-flex min-w-[110px] items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors text-sm font-semibold disabled:opacity-60"
+                                                    className="inline-flex items-center gap-1.5 text-slate-500 hover:text-emerald-600 transition-colors text-[13px] font-semibold tracking-wide disabled:opacity-60"
                                                 >
                                                     <CheckCircle2 className="w-4 h-4" />
                                                     {savingListingId === listing.id ? 'Kaydediliyor...' : listing.isSold ? 'Satışı Aç' : 'Satıldı'}
@@ -577,7 +577,7 @@ const MyListings = () => {
                                                         handleDelete(listing);
                                                     }}
                                                     disabled={isBusy}
-                                                    className="inline-flex min-w-[96px] items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-red-50 text-red-600 hover:bg-red-100 transition-colors text-sm font-semibold disabled:opacity-60"
+                                                    className="inline-flex items-center gap-1.5 text-slate-500 hover:text-red-600 transition-colors text-[13px] font-semibold tracking-wide disabled:opacity-60 ml-auto"
                                                 >
                                                     <Trash2 className="w-4 h-4" />
                                                     {deletingListingId === listing.id ? 'Siliniyor...' : 'Sil'}
