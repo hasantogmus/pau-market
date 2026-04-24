@@ -49,16 +49,6 @@ EVENT_WEIGHTS = {
     "transaction": 5,
 }
 
-# PAÜ Market gerçek etkileşim sözleşmesi.
-# Bu sözleşme, ileride SQL export'u ile model yeniden eğitilirken kullanılacak.
-PAUMARKET_EVENT_WEIGHTS = {
-    "view": 1.0,
-    "message": 2.0,
-    "favorite": 3.0,
-    "deal_request": 4.0,
-    "deal_accepted": 4.5,
-    "purchase": 5.0,
-}
 
 # ─── Veri Ön-İşleme Parametreleri ────────────────────────────────────
 MIN_USER_INTERACTIONS = 3    # Toplam veri kaybını önlemek için 5'ten 3'e düşürüldü

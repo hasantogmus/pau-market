@@ -22,7 +22,6 @@ from pathlib import Path
 from scipy.sparse import coo_matrix
 
 from app.config import (
-    PAUMARKET_EVENT_WEIGHTS,
     PAUMARKET_INTERACTIONS_FILE,
     PAUMARKET_LISTINGS_FILE,
     TRAIN_TEST_SPLIT_RATIO,
@@ -130,10 +129,10 @@ class PauMarketPreprocessor:
     def _assign_weights(self):
         print("[4/8] PAÜ event ağırlıkları atanıyor...")
 
-        if "weight" in self.events_df.columns:
-            self.events_df["weight"] = pd.to_numeric(self.events_df["weight"], errors="coerce")
-        else:
-            self.events_df["weight"] = self.events_df["event"].map(PAUMARKET_EVENT_WEIGHTS)
+        if "weight" not in self.events_df.columns:
+            raise ValueError("CSV'de 'weight' kolonu bulunamadı. Ağırlıklar backend tarafından hesaplanıp (tek kaynak) gönderilmelidir.")
+        
+        self.events_df["weight"] = pd.to_numeric(self.events_df["weight"], errors="coerce")
 
         before = len(self.events_df)
         self.events_df = self.events_df.dropna(subset=["weight"])

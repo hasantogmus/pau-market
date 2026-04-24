@@ -163,13 +163,12 @@ if (app.Environment.IsDevelopment())
         var systemUser = await dbContext.Users.FirstOrDefaultAsync(u => u.Email == "system@posta.pau.edu.tr");
         if (systemUser == null)
         {
-            // Bcrypt ile manuel hash üretimi uğraştıracağından basit dummy bir şifre hash'i giriyoruz
             systemUser = new PauMarket.API.Models.User
             {
                 FirstName = "Sistem",
                 LastName = "Kullanıcısı",
                 Email = "system@posta.pau.edu.tr",
-                PasswordHash = "$2a$11$dummyhashformockusersystem...", 
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("PauMarket2026!", 12),
                 IsEmailVerified = true,
                 Role = "Admin"
             };
