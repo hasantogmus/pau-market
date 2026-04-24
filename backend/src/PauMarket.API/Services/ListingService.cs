@@ -15,17 +15,19 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
         // 1. "AllListings" adında bir Cache Key ile RAM'de veri var mı kontrol et
         if (!cache.TryGetValue("AllListings", out List<Listing>? allListings))
         {
-            // 2. RAM'de yoksa veritabanından çek
+            // 2. RAM'de yoksa veritabanından yalnızca aktif ilanları çek (RAM koruması)
             allListings = await context.Listings
                 .Include(listing => listing.User)
                 .Include(listing => listing.Images)
+                .Where(listing => listing.IsActive && !listing.IsSold)
                 .AsNoTracking()
                 .ToListAsync();
 
-            // 3. 5 dakikalık AbsoluteExpiration (kesin ömür) belirle
+            // 3. Cache sürelerini belirle
             var cacheOptions = new MemoryCacheEntryOptions
             {
-                AbsoluteExpiration = DateTimeOffset.UtcNow.AddMinutes(5)
+                AbsoluteExpiration = DateTimeOffset.UtcNow.AddMinutes(5),
+                SlidingExpiration = TimeSpan.FromMinutes(2)
             };
 
             // 4. Veriyi RAM'e kaydet
@@ -33,9 +35,7 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
         }
 
         // Filtreleme ve sayfalamayı RAM'e aldığımız liste üzerinden (in-memory) yapıyoruz
-        var query = (allListings ?? [])
-            .Where(listing => listing.IsActive && !listing.IsSold)
-            .AsQueryable();
+        var query = (allListings ?? []).AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(parameters.SearchTerm))
         {
