@@ -128,6 +128,10 @@ public class MessageService(PauMarketDbContext context) : IMessageService
         if (listing.UserId != senderId && listing.UserId != dto.ReceiverId)
             throw new InvalidOperationException("Mesajlar yalnızca satıcı ile alıcı arasında gönderilebilir.");
 
+        var receiverExists = await context.Users.AnyAsync(u => u.Id == dto.ReceiverId);
+        if (!receiverExists)
+            throw new InvalidOperationException("Mesaj gönderilecek kullanıcı bulunamadı.");
+
         if (!CanAccessSoldListing(listing, senderId, dto.ReceiverId))
             throw new UnauthorizedAccessException("Bu satılmış ilan için yalnızca satıcı ve alıcı mesajlaşabilir.");
 

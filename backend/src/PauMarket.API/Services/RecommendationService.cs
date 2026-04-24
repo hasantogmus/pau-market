@@ -90,11 +90,12 @@ public class RecommendationService(
     {
         var recentViews = await db.UserViews
             .Where(v => v.UserId == userId)
+            .Include(v => v.Listing)
+            .ThenInclude(l => l.Images)
+            .Where(v => v.Listing.IsActive && !v.Listing.IsSold)
             .OrderByDescending(v => v.ViewedAt)
             .Take(count)
-            .Include(v => v.Listing)
             .Select(v => v.Listing)
-            .Where(l => l.IsActive && !l.IsSold)
             .ToListAsync();
 
         return recentViews.Select(l => MapToDto(l));

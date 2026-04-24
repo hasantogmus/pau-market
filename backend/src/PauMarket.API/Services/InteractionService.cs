@@ -67,6 +67,8 @@ public class InteractionService(PauMarketDbContext context) : IInteractionServic
             .Where(i => i.UserId == userId && i.InteractionType == InteractionType.Favorite)
             .Include(i => i.Listing)
             .ThenInclude(listing => listing.User)
+            .Include(i => i.Listing)
+            .ThenInclude(listing => listing.Images)
             .Select(i => i.Listing)
             .Where(listing => listing.IsActive && !listing.IsSold)
             .AsNoTracking()
@@ -88,6 +90,7 @@ public class InteractionService(PauMarketDbContext context) : IInteractionServic
             Category = listing.Category,
             Condition = listing.Condition,
             ImageUrl = listing.ImageUrl,
+            ImageUrls = listing.Images?.OrderBy(img => img.SortOrder).Select(img => img.ImageUrl).ToList() ?? [],
             IsActive = listing.IsActive,
             IsSold = listing.IsSold,
             SoldAt = listing.SoldAt,

@@ -258,6 +258,31 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
         if (listing.UserId != callerId)
             throw new UnauthorizedAccessException("Bu ilanı silmeye yetkiniz yok.");
 
+        // Message.Listing FK Restrict olduğu için önce bağımlı kayıtları temizle
+        var relatedMessages = await context.Messages
+            .Where(m => m.ListingId == id)
+            .ToListAsync();
+        if (relatedMessages.Count > 0)
+            context.Messages.RemoveRange(relatedMessages);
+
+        var relatedDealRequests = await context.DealRequests
+            .Where(dr => dr.ListingId == id)
+            .ToListAsync();
+        if (relatedDealRequests.Count > 0)
+            context.DealRequests.RemoveRange(relatedDealRequests);
+
+        var relatedInteractions = await context.Interactions
+            .Where(i => i.ListingId == id)
+            .ToListAsync();
+        if (relatedInteractions.Count > 0)
+            context.Interactions.RemoveRange(relatedInteractions);
+
+        var relatedViews = await context.UserViews
+            .Where(v => v.ListingId == id)
+            .ToListAsync();
+        if (relatedViews.Count > 0)
+            context.UserViews.RemoveRange(relatedViews);
+
         context.Listings.Remove(listing);
         await context.SaveChangesAsync();
 

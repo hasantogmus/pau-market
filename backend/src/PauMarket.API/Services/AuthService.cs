@@ -100,7 +100,7 @@ public class AuthService : IAuthService
     public async Task<string> VerifyEmailAsync(string email, string token)
     {
         var user = await _db.Users
-            .FirstOrDefaultAsync(u => u.Email == email.ToLower());
+            .FirstOrDefaultAsync(u => u.Email == email.Trim().ToLowerInvariant());
 
         if (user is null)
             throw new InvalidOperationException("Kullanıcı bulunamadı.");
