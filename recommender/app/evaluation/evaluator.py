@@ -70,15 +70,16 @@ class ModelEvaluator:
         print("  Model Değerlendirme Pipeline")
         print("=" * 60)
 
-        # Test setinde etkileşimi olan kullanıcıları bul
-        test_users = self._get_test_users()
-        print(f"\nDeğerlendirme: {len(test_users)} kullanıcı, K={EVAL_K_VALUES}")
+        # Test setinde etkileşimi olan sıcak kullanıcıları bul
+        warm_test_users = self._get_warm_test_users()
+        cold_start_users = self._get_cold_start_test_users()
+        print(f"\nDeğerlendirme: {len(warm_test_users)} sıcak kullanıcı, K={EVAL_K_VALUES}")
+        print(f"Soğuk başlangıç kapsamı: {len(cold_start_users)} kullanıcı (ayrı raporlanır)")
 
         # Her model için değerlendir
         self.results = {}
 
         models = {
-            "content_based": self.recommender.cb_model,
             "collaborative": self.recommender.cf_model,
             "hybrid_lightfm": self.recommender.hybrid_model,
         }
@@ -87,10 +88,10 @@ class ModelEvaluator:
             print(f"\n📏 {model_name} değerlendiriliyor...")
             start_time = time.time()
 
-            model_results = self._evaluate_model(model, test_users)
+            model_results = self._evaluate_model(model, warm_test_users)
             elapsed = time.time() - start_time
 
-            model_results["rmse"] = self._evaluate_rmse(model, test_users)
+            model_results["rmse"] = self._evaluate_rmse(model, warm_test_users)
             model_results["evaluation_time_seconds"] = round(elapsed, 2)
             self.results[model_name] = model_results
 
@@ -105,6 +106,16 @@ class ModelEvaluator:
                 f"NDCG@{PRIMARY_K}={nk:.4f}{rmse_text}  ({elapsed:.1f}s)"
             )
 
+        self.results["content_based_benchmark"] = (
+            self.recommender.training_stats.get("content_based_evaluation", {}) or {}
+        )
+        self.results["evaluation_scope"] = {
+            "warm_test_users": len(warm_test_users),
+            "cold_start_test_users": len(cold_start_users),
+            "ranking_models": list(models.keys()),
+            "content_based_in_live_ranking": False,
+        }
+
         # Karşılaştırma tablosu oluştur
         self.results["comparison_table"] = self._build_comparison_table()
 
@@ -116,7 +127,7 @@ class ModelEvaluator:
 
         return self.results
 
-    def _get_test_users(self) -> list[int]:
+    def _get_warm_test_users(self) -> list[int]:
         """
         Test setinde etkileşimi olan VE train setinde de mevcut olan kullanıcıları bulur.
         Bu kullanıcılar için hem öneri üretebilir hem de doğrulama yapabiliriz.
@@ -133,6 +144,16 @@ class ModelEvaluator:
             valid_users = rng.choice(valid_users, size=self.max_users, replace=False).tolist()
 
         return sorted(valid_users)
+
+    def _get_cold_start_test_users(self) -> list[int]:
+        """
+        Test setinde olup train setinde olmayan kullanıcıları raporlar.
+        Canlı sistem bu kullanıcılar için backend fallback kullandığından,
+        bunlar ranking metriğine dahil edilmez.
+        """
+        train_users = set(self.preprocessor.train_df["user_idx"].unique())
+        test_users = set(self.preprocessor.test_df["user_idx"].unique())
+        return sorted(test_users - train_users)
 
     def _evaluate_model(self, model, test_users: list[int]) -> dict:
         """
@@ -245,7 +266,7 @@ class ModelEvaluator:
         k = PRIMARY_K
         rows = []
 
-        for model_name in ["content_based", "collaborative", "hybrid_lightfm"]:
+        for model_name in ["collaborative", "hybrid_lightfm"]:
             if model_name in self.results and k in self.results[model_name]:
                 metrics = self.results[model_name][k]
                 rows.append({
@@ -292,7 +313,7 @@ class ModelEvaluator:
     def get_results_json(self) -> dict:
         """API endpoint'i için JSON-uyumlu sonuç."""
         output = {}
-        for model_name in ["content_based", "collaborative", "hybrid_lightfm"]:
+        for model_name in ["collaborative", "hybrid_lightfm"]:
             if model_name in self.results:
                 model_data = {}
                 for key, value in self.results[model_name].items():
@@ -303,6 +324,8 @@ class ModelEvaluator:
                 output[model_name] = model_data
 
         output["comparison_table"] = self.results.get("comparison_table", [])
+        output["content_based_benchmark"] = self.results.get("content_based_benchmark", {})
+        output["evaluation_scope"] = self.results.get("evaluation_scope", {})
         output["k_values"] = EVAL_K_VALUES
         output["primary_k"] = PRIMARY_K
         output["dataset_summary"] = self._build_dataset_summary()
@@ -353,9 +376,12 @@ class ModelEvaluator:
             "cold_start_threshold": training_stats.get("cold_start_threshold"),
             "evaluated_models": [
                 model_name
-                for model_name in ["content_based", "collaborative", "hybrid_lightfm"]
+                for model_name in ["collaborative", "hybrid_lightfm"]
                 if model_name in self.results
             ],
+            "benchmark_only_models": [
+                "content_based"
+            ] if self.results.get("content_based_benchmark") else [],
             "ranking_metrics": [f"precision@{k}" for k in EVAL_K_VALUES]
             + [f"recall@{k}" for k in EVAL_K_VALUES]
             + [f"ndcg@{k}" for k in EVAL_K_VALUES],
@@ -371,8 +397,16 @@ class ModelEvaluator:
                 "quality of the generated recommendation list."
             ),
             (
+                "Ranking metrics are reported only for models that return the same "
+                "PAÜ listing namespace used in production."
+            ),
+            (
                 "RMSE is reported only for models that can predict an explicit "
                 "user-item score; content-based similarity does not receive a fake RMSE."
+            ),
+            (
+                "The Mercari content-based model is reported separately as a benchmark "
+                "and is not mixed into PAÜ live ranking metrics."
             ),
         ]
 
