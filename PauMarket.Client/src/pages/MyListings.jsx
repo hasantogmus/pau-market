@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { BadgeCheck, CheckCircle2, Package, Pencil, PlusCircle, Power, Tag, Trash2, UploadCloud, X } from 'lucide-react';
+import { BadgeCheck, CheckCircle2, Package, Pencil, PlusCircle, Tag, Trash2, UploadCloud, X } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import listingService from '../services/listingService';
 import messageService from '../services/messageService';
@@ -91,7 +91,6 @@ const createEditForm = (listing) => ({
     price: listing.price ?? '',
     category: listing.category || '',
     condition: listing.condition || '',
-    isActive: listing.isActive ?? true,
     images: (Array.isArray(listing.imageUrls) && listing.imageUrls.length > 0
         ? listing.imageUrls
         : listing.imageUrl
@@ -156,12 +155,11 @@ const MyListings = () => {
     }, [isAuthenticated]);
 
     const summary = useMemo(() => {
-        const activeCount = listings.filter((item) => item.isActive).length;
+        const activeCount = listings.filter((item) => !item.isSold).length;
         const soldCount = listings.filter((item) => item.isSold).length;
-        const inactiveCount = listings.filter((item) => !item.isActive && !item.isSold).length;
         const totalValue = listings.reduce((sum, item) => sum + Number(item.price || 0), 0);
 
-        return { activeCount, inactiveCount, soldCount, totalValue };
+        return { activeCount, soldCount, totalValue };
     }, [listings]);
 
     const openEditModal = (listing) => {
@@ -321,7 +319,6 @@ const MyListings = () => {
                 price: Number(editForm.price),
                 category: editForm.category,
                 condition: editForm.condition,
-                isActive: editForm.isActive,
                 images: editForm.images,
             });
 
@@ -466,7 +463,6 @@ const MyListings = () => {
                     <SummaryCard icon={Package} label="Toplam İlan" value={listings.length} tone="bg-blue-50 text-blue-600" />
                     <SummaryCard icon={BadgeCheck} label="Yayındaki İlan" value={summary.activeCount} tone="bg-green-50 text-green-600" />
                     <SummaryCard icon={CheckCircle2} label="Satılan İlan" value={summary.soldCount} tone="bg-emerald-50 text-emerald-600" />
-                    <SummaryCard icon={Power} label="Pasif İlan" value={summary.inactiveCount} tone="bg-amber-50 text-amber-600" />
                     <SummaryCard icon={Tag} label="Toplam Portföy Değeri" value={currency(summary.totalValue)} tone="bg-indigo-50 text-indigo-600" />
                 </section>
 
@@ -522,11 +518,9 @@ const MyListings = () => {
                                                         <span className={`inline-flex px-3 py-1 rounded-full text-xs font-bold border ${
                                                             listing.isSold
                                                                 ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                                                : listing.isActive
-                                                                    ? 'bg-green-50 text-green-700 border-green-200'
-                                                                    : 'bg-amber-50 text-amber-700 border-amber-200'
+                                                                : 'bg-green-50 text-green-700 border-green-200'
                                                         }`}>
-                                                            {listing.isSold ? 'Satıldı' : listing.isActive ? 'Yayında' : 'Pasif'}
+                                                            {listing.isSold ? 'Satıldı' : 'Yayında'}
                                                         </span>
                                                         <span className="inline-flex px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
                                                             {listing.category}
@@ -719,11 +713,6 @@ const MyListings = () => {
                                     </div>
                                 )}
                             </div>
-
-                            <label className="inline-flex items-center gap-3 px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 cursor-pointer">
-                                <input type="checkbox" name="isActive" checked={editForm.isActive} onChange={handleEditChange} className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                                <span className="text-sm font-semibold text-gray-700">İlan yayında kalsın</span>
-                            </label>
 
                             <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
                                 <button type="button" onClick={closeEditModal} className="px-5 py-3 rounded-2xl border border-gray-200 text-gray-700 font-semibold hover:bg-gray-50 transition-colors">

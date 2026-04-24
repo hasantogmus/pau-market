@@ -83,7 +83,6 @@ const listingService = {
         formData.append('price', String(payload.price));
         formData.append('category', payload.category);
         formData.append('condition', payload.condition);
-        formData.append('isActive', String(payload.isActive));
 
         const newImages = [];
         payload.images.forEach((image) => {

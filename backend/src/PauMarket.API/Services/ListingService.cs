@@ -180,7 +180,7 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
         listing.Price       = dto.Price;
         listing.Category    = dto.Category;
         listing.Condition   = dto.Condition;
-        listing.IsActive    = listing.IsSold ? false : dto.IsActive;
+        listing.IsActive    = !listing.IsSold;
 
         await context.SaveChangesAsync();
         await context.Entry(listing).Reference(item => item.User).LoadAsync();
@@ -218,7 +218,7 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
             listing.Category    = dto.Category;
             listing.Condition   = dto.Condition;
             listing.ImageUrl    = imageUrls[0];
-            listing.IsActive    = listing.IsSold ? false : dto.IsActive;
+            listing.IsActive    = !listing.IsSold;
 
             context.ListingImages.RemoveRange(listing.Images);
             await context.SaveChangesAsync();
@@ -281,6 +281,8 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
         if (listing.UserId != callerId)
             throw new UnauthorizedAccessException("Bu ilanın satış durumunu değiştirmeye yetkiniz yok.");
 
+        var previousSoldToUserId = listing.SoldToUserId;
+
         if (isSold)
         {
             if (soldToUserId is null)
@@ -323,6 +325,21 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
                     Timestamp = DateTime.UtcNow
                 });
 
+                await context.SaveChangesAsync();
+            }
+        }
+        else if (!isSold)
+        {
+            var purchaseInteractions = await context.Interactions
+                .Where(interaction =>
+                    interaction.ListingId == listing.Id &&
+                    interaction.InteractionType == InteractionType.Purchase &&
+                    (previousSoldToUserId == null || interaction.UserId == previousSoldToUserId.Value))
+                .ToListAsync();
+
+            if (purchaseInteractions.Count > 0)
+            {
+                context.Interactions.RemoveRange(purchaseInteractions);
                 await context.SaveChangesAsync();
             }
         }

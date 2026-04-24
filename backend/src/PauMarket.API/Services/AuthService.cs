@@ -81,8 +81,9 @@ public class AuthService : IAuthService
     /// <inheritdoc/>
     public async Task<string?> LoginAsync(LoginDto dto)
     {
+        var normalizedEmail = dto.Email.Trim().ToLowerInvariant();
         var user = await _db.Users
-            .FirstOrDefaultAsync(u => u.Email == dto.Email.ToLower());
+            .FirstOrDefaultAsync(u => u.Email == normalizedEmail);
 
         if (user is null) return null;
 

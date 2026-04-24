@@ -105,6 +105,14 @@ public class RecommendationService(
     /// <inheritdoc/>
     public async Task TrackViewAsync(int userId, int listingId)
     {
+        var listingOwnerId = await db.Listings
+            .Where(listing => listing.Id == listingId)
+            .Select(listing => (int?)listing.UserId)
+            .FirstOrDefaultAsync();
+
+        if (listingOwnerId is null || listingOwnerId == userId)
+            return;
+
         var existingView = await db.UserViews
             .FirstOrDefaultAsync(v => v.UserId == userId && v.ListingId == listingId);
 
