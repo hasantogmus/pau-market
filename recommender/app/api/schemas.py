@@ -23,7 +23,7 @@ class RecommendationResponse(BaseModel):
     user_idx: int
     original_user_id: Optional[int] = None
     recommendations: list[RecommendationItem]
-    model_used: str = Field(description="Hangi model kullanıldı (content_based/collaborative/hybrid_lightfm)")
+    model_used: str = Field(description="Hangi strateji kullanıldı (backend_fallback/hybrid_lightfm)")
     interaction_count: int = Field(description="Kullanıcının eğitim setindeki etkileşim sayısı")
     cold_start_threshold: int
 

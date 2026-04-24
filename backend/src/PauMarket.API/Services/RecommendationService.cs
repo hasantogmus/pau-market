@@ -38,8 +38,8 @@ public class RecommendationService(
                 
                 if (aiData?.Recommendations != null && aiData.Recommendations.Count > 0)
                 {
-                    // Python tarafında item_idx model içi index, original_item_id ise SQL Listing.Id karşılığıdır.
-                    // PAÜ Market verisiyle eğitimden sonra SQL eşleşmesi bu gerçek ID üzerinden yapılmalıdır.
+                    // Canlı akışta yalnızca gerçekten SQL Listing.Id taşıyan öneriler kullanılmalı.
+                    // Cold-start kullanıcılarında recommender bilinçli olarak boş dönüp backend fallback'i tetikler.
                     var pythonItemIds = aiData.Recommendations
                         .Select(r => r.OriginalItemId)
                         .Where(id => id > 0)

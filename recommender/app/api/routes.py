@@ -252,7 +252,7 @@ async def get_recommendations(
     Belirtilen kullanıcı için hibrit öneri üretir.
 
     Anahtarlamalı strateji:
-    - Soğuk başlangıç → Content-Based
+    - Soğuk başlangıç / seyrek kullanıcı → backend fallback
     - Aktif kullanıcı → LightFM Hybrid
     """
     return _build_recommendation_response(user_idx, n)

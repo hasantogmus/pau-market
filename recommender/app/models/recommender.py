@@ -170,25 +170,23 @@ class HybridRecommender:
         interaction_count = len(user_interactions)
 
         # ── Anahtarlama Kararı ──
-        if interaction_count == 0 and self.cb_model.is_trained:
-            # Soğuk başlangıç: Content-Based (Mercari NLP)
-            model_used = "content_based"
-            recommendations = self.cb_model.recommend(user_idx, n)
+        if interaction_count < COLD_START_THRESHOLD:
+            # Mercari tabanlı CB modeli tez benchmark'ı olarak tutuluyor,
+            # ancak canlı PAÜ öneri akışına SQL Listing.Id döndüremez.
+            # Bu nedenle cold-start kullanıcılarında backend'in PAÜ-native
+            # fallback vitrinini kullanabilmesi için burada bilinçli olarak
+            # boş liste dönüyoruz.
+            model_used = "backend_fallback"
+            recommendations = []
         else:
             # Aktif kullanıcı: LightFM Hybrid
             model_used = "hybrid_lightfm"
             recommendations = self.hybrid_model.recommend(user_idx, n)
 
-        # Orijinal item ID'leri ekle (RetailRocket modelleri için)
-        if model_used != "content_based":
-            for rec in recommendations:
-                rec["original_item_id"] = self.preprocessor.reverse_item_map.get(
-                    rec["item_idx"], -1
-                )
-        else:
-            # CB model Mercari index'leri kullanır, orijinal ID yok
-            for rec in recommendations:
-                rec["original_item_id"] = rec.get("item_idx", -1)
+        for rec in recommendations:
+            rec["original_item_id"] = self.preprocessor.reverse_item_map.get(
+                rec["item_idx"], -1
+            )
 
         return {
             "recommendations": recommendations,
