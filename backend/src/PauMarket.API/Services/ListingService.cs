@@ -1,12 +1,11 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
 using PauMarket.API.Data;
 using PauMarket.API.DTOs;
 using PauMarket.API.Models;
 
 namespace PauMarket.API.Services;
 
-public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IListingService
+public class ListingService(PauMarketDbContext context, IPhotoService photoService) : IListingService
 {
     // ── GET (herkese açık) ────────────────────────────────────────────────────
 
@@ -140,9 +139,6 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
         await context.Entry(listing).Reference(item => item.User).LoadAsync();
         await context.Entry(listing).Collection(item => item.Images).LoadAsync();
 
-        // Cache Invalidation: Yeni ilan eklendi, eski önbelleği temizle
-        cache.Remove("AllListings");
-
         return MapToResponseDto(listing, callerId);
     }
 
@@ -171,9 +167,6 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
         await context.SaveChangesAsync();
         await context.Entry(listing).Reference(item => item.User).LoadAsync();
         await context.Entry(listing).Collection(item => item.Images).LoadAsync();
-
-        // Cache Invalidation: İlan güncellendi, eski önbelleği temizle
-        cache.Remove("AllListings");
 
         return MapToResponseDto(listing, callerId);
     }
@@ -226,8 +219,6 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
         await context.Entry(listing).Reference(item => item.User).LoadAsync();
         await context.Entry(listing).Collection(item => item.Images).LoadAsync();
 
-        cache.Remove("AllListings");
-
         return MapToResponseDto(listing, callerId);
     }
 
@@ -269,11 +260,24 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
         if (relatedViews.Count > 0)
             context.UserViews.RemoveRange(relatedViews);
 
+        // Cloudinary'den görselleri sil
+        var imageUrls = await context.ListingImages
+            .Where(img => img.ListingId == id)
+            .Select(img => img.ImageUrl)
+            .ToListAsync();
+
+        if (!string.IsNullOrWhiteSpace(listing.ImageUrl))
+            imageUrls.Add(listing.ImageUrl);
+
         context.Listings.Remove(listing);
         await context.SaveChangesAsync();
 
-        // Cache Invalidation: İlan silindi, eski önbelleği temizle
-        cache.Remove("AllListings");
+        // Arka planda Cloudinary temizliği (hata olursa DB işlemini engellemez)
+        foreach (var url in imageUrls.Distinct())
+        {
+            try { await photoService.DeletePhotoAsync(url); }
+            catch { /* Cloudinary hatası silme işlemini durdurmamalı */ }
+        }
 
         return true;
     }
@@ -330,7 +334,6 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
         }
 
         await context.SaveChangesAsync();
-        cache.Remove("AllListings");
 
         if (isSold && soldToUserId is int buyerId)
         {

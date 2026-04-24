@@ -67,8 +67,9 @@ const Messages = () => {
         const token = localStorage.getItem('token');
         if (!token) return;
 
+        const hubBaseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5251/api').replace(/\/api\/?$/, '');
         const connection = new HubConnectionBuilder()
-            .withUrl('http://localhost:5147/chathub', {
+            .withUrl(`${hubBaseUrl}/chathub`, {
                 accessTokenFactory: () => token
             })
             .configureLogging(LogLevel.Information)

@@ -57,6 +57,21 @@ builder.Services.AddAuthentication(options =>
         IssuerSigningKey         = new SymmetricSecurityKey(keyBytes),
         ClockSkew                = TimeSpan.Zero   // Token süresini tam tutuyoruz
     };
+
+    // SignalR, JWT token'ı query string üzerinden gönderir; bunu yakalamamız gerekiyor.
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/chathub"))
+            {
+                context.Token = accessToken;
+            }
+            return Task.CompletedTask;
+        }
+    };
 });
 
 // ─── Servisler (DI) ──────────────────────────────────────────────────────────
@@ -119,13 +134,15 @@ builder.Services.AddCors(options =>
         {
             policy.WithOrigins(allowedOrigins)
                   .AllowAnyMethod()
-                  .AllowAnyHeader();
+                  .AllowAnyHeader()
+                  .AllowCredentials();
             return;
         }
 
         policy.WithOrigins("http://localhost:5173", "http://127.0.0.1:5173")
               .AllowAnyMethod()
-              .AllowAnyHeader();
+              .AllowAnyHeader()
+              .AllowCredentials();
     });
 });
 
@@ -204,18 +221,18 @@ if (app.Environment.IsDevelopment())
         // 2. İlanları oluştur (Frontend'deki MOCK_LISTINGS ile tam eşleşen)
         var mockListings = new List<PauMarket.API.Models.Listing>
         {
-            new() { Title = "Apple MacBook Air M2 - 13\"", Price = 28500, Condition = "Az Kullanılmış", Category = "Elektronik", ImageUrl = "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400&q=80", UserId = systemUser.Id },
-            new() { Title = "Calculus - James Stewart (8. Baskı)", Price = 180, Condition = "Çok Kullanılmış", Category = "Ders Kitabı", ImageUrl = "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400&q=80", UserId = systemUser.Id },
-            new() { Title = "Nike Air Force 1 – 42 Numara", Price = 750, Condition = "Sıfır", Category = "Giyim", ImageUrl = "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=80", UserId = systemUser.Id },
-            new() { Title = "Nespresso Kahve Makinesi", Price = 1200, Condition = "Az Kullanılmış", Category = "Ev Eşyası", ImageUrl = "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=400&q=80", UserId = systemUser.Id },
-            new() { Title = "Sony WH-1000XM5 Kulaklık", Price = 4200, Condition = "Sıfır", Category = "Elektronik", ImageUrl = "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&q=80", UserId = systemUser.Id },
-            new() { Title = "Veri Yapıları ve Algoritmalar Notları", Price = 50, Condition = "Çok Kullanılmış", Category = "Not / Özet", ImageUrl = "https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?w=400&q=80", UserId = systemUser.Id },
-            new() { Title = "Logitech MX Master 3 Mouse", Price = 1850, Condition = "Az Kullanılmış", Category = "Elektronik", ImageUrl = "https://images.unsplash.com/photo-1527814050087-3793815479db?w=400&q=80", UserId = systemUser.Id },
-            new() { Title = "Trek Marlin 5 Dağ Bisikleti", Price = 6500, Condition = "Az Kullanılmış", Category = "Hobi", ImageUrl = "https://images.unsplash.com/photo-1485965120184-e220f721d03e?w=400&q=80", UserId = systemUser.Id },
-            new() { Title = "iPad Pro 11\" + Apple Pencil", Price = 19000, Condition = "Sıfır", Category = "Elektronik", ImageUrl = "https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=400&q=80", UserId = systemUser.Id },
-            new() { Title = "Thermos Stanley 1L", Price = 450, Condition = "Sıfır", Category = "Ev Eşyası", ImageUrl = "https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=400&q=80", UserId = systemUser.Id },
-            new() { Title = "Fizik Olimpiyat Soruları Kitabı", Price = 90, Condition = "Az Kullanılmış", Category = "Ders Kitabı", ImageUrl = "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=400&q=80", UserId = systemUser.Id },
-            new() { Title = "PlayStation 5 + 2 Kol", Price = 22000, Condition = "Az Kullanılmış", Category = "Hobi", ImageUrl = "https://images.unsplash.com/photo-1607853202273-797f1c22a38e?w=400&q=80", UserId = systemUser.Id }
+            new() { Title = "Apple MacBook Air M2 - 13\"", Price = 28500, Condition = "Az Kullanılmış", Category = "Elektronik", ImageUrl = "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400&q=80", UserId = systemUser.Id, IsApproved = true },
+            new() { Title = "Calculus - James Stewart (8. Baskı)", Price = 180, Condition = "Çok Kullanılmış", Category = "Ders Kitabı", ImageUrl = "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400&q=80", UserId = systemUser.Id, IsApproved = true },
+            new() { Title = "Nike Air Force 1 – 42 Numara", Price = 750, Condition = "Sıfır", Category = "Giyim", ImageUrl = "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=80", UserId = systemUser.Id, IsApproved = true },
+            new() { Title = "Nespresso Kahve Makinesi", Price = 1200, Condition = "Az Kullanılmış", Category = "Ev Eşyası", ImageUrl = "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=400&q=80", UserId = systemUser.Id, IsApproved = true },
+            new() { Title = "Sony WH-1000XM5 Kulaklık", Price = 4200, Condition = "Sıfır", Category = "Elektronik", ImageUrl = "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&q=80", UserId = systemUser.Id, IsApproved = true },
+            new() { Title = "Veri Yapıları ve Algoritmalar Notları", Price = 50, Condition = "Çok Kullanılmış", Category = "Not / Özet", ImageUrl = "https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?w=400&q=80", UserId = systemUser.Id, IsApproved = true },
+            new() { Title = "Logitech MX Master 3 Mouse", Price = 1850, Condition = "Az Kullanılmış", Category = "Elektronik", ImageUrl = "https://images.unsplash.com/photo-1527814050087-3793815479db?w=400&q=80", UserId = systemUser.Id, IsApproved = true },
+            new() { Title = "Trek Marlin 5 Dağ Bisikleti", Price = 6500, Condition = "Az Kullanılmış", Category = "Hobi", ImageUrl = "https://images.unsplash.com/photo-1485965120184-e220f721d03e?w=400&q=80", UserId = systemUser.Id, IsApproved = true },
+            new() { Title = "iPad Pro 11\" + Apple Pencil", Price = 19000, Condition = "Sıfır", Category = "Elektronik", ImageUrl = "https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=400&q=80", UserId = systemUser.Id, IsApproved = true },
+            new() { Title = "Thermos Stanley 1L", Price = 450, Condition = "Sıfır", Category = "Ev Eşyası", ImageUrl = "https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=400&q=80", UserId = systemUser.Id, IsApproved = true },
+            new() { Title = "Fizik Olimpiyat Soruları Kitabı", Price = 90, Condition = "Az Kullanılmış", Category = "Ders Kitabı", ImageUrl = "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=400&q=80", UserId = systemUser.Id, IsApproved = true },
+            new() { Title = "PlayStation 5 + 2 Kol", Price = 22000, Condition = "Az Kullanılmış", Category = "Hobi", ImageUrl = "https://images.unsplash.com/photo-1607853202273-797f1c22a38e?w=400&q=80", UserId = systemUser.Id, IsApproved = true }
         };
 
         dbContext.Listings.AddRange(mockListings);

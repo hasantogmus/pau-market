@@ -55,11 +55,13 @@ const ListingDetailSkeleton = () => (
 
 // ─── Condition Badge Rengi ─────────────────────────────────────────
 const conditionConfig = {
-    'Yeni':                    { color: 'bg-green-100 text-green-800 border-green-200',  icon: '✨' },
-    'Yeni Gibi':               { color: 'bg-green-100 text-green-800 border-green-200',  icon: '✨' },
-    'Az Kullanılmış':          { color: 'bg-blue-100 text-blue-800 border-blue-200',     icon: '👍' },
-    'İkinci El - Çok İyi':     { color: 'bg-blue-100 text-blue-800 border-blue-200',     icon: '👍' },
+    'Sıfır':                   { color: 'bg-green-100 text-green-800 border-green-200',    icon: '✨' },
+    'Yeni':                    { color: 'bg-green-100 text-green-800 border-green-200',    icon: '✨' },
+    'Yeni Gibi':               { color: 'bg-green-100 text-green-800 border-green-200',    icon: '✨' },
+    'Az Kullanılmış':          { color: 'bg-blue-100 text-blue-800 border-blue-200',       icon: '👍' },
+    'İkinci El - Çok İyi':     { color: 'bg-blue-100 text-blue-800 border-blue-200',       icon: '👍' },
     'İkinci El - İyi':         { color: 'bg-yellow-100 text-yellow-800 border-yellow-200', icon: '🔧' },
+    'Çok Kullanılmış':         { color: 'bg-orange-100 text-orange-800 border-orange-200', icon: '⚡' },
     'Yoğun Kullanılmış':       { color: 'bg-orange-100 text-orange-800 border-orange-200', icon: '⚡' },
 };
 const getConditionStyle = (cond) =>

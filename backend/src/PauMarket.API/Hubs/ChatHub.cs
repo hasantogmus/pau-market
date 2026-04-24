@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 
@@ -13,7 +14,8 @@ public class ChatHub : Hub
 {
     public override async Task OnConnectedAsync()
     {
-        var userIdStr = Context.User?.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+        var userIdStr = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                     ?? Context.User?.FindFirst("sub")?.Value;
         
         if (!string.IsNullOrEmpty(userIdStr))
         {
@@ -27,7 +29,8 @@ public class ChatHub : Hub
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
-        var userIdStr = Context.User?.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+        var userIdStr = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                     ?? Context.User?.FindFirst("sub")?.Value;
         
         if (!string.IsNullOrEmpty(userIdStr))
         {

@@ -54,4 +54,34 @@ public class PhotoService : IPhotoService
 
         return uploadResult.SecureUrl.ToString();
     }
+
+    /// <summary>
+    /// Cloudinary'den bir görseli siler. URL'den public ID'yi çıkarır.
+    /// </summary>
+    public async Task DeletePhotoAsync(string imageUrl)
+    {
+        if (string.IsNullOrWhiteSpace(imageUrl))
+            return;
+
+        try
+        {
+            // Cloudinary URL formatı: https://res.cloudinary.com/{cloud}/image/upload/v{version}/{publicId}.{ext}
+            var uri = new Uri(imageUrl);
+            var segments = uri.AbsolutePath.Split('/');
+            // Son segment: "{publicId}.{ext}"
+            var lastSegment = segments.LastOrDefault();
+            if (string.IsNullOrEmpty(lastSegment))
+                return;
+
+            var publicId = Path.GetFileNameWithoutExtension(lastSegment);
+            if (string.IsNullOrEmpty(publicId))
+                return;
+
+            await _cloudinary.DestroyAsync(new DeletionParams(publicId));
+        }
+        catch
+        {
+            // Cloudinary silme hatası ana akışı durdurmamalı
+        }
+    }
 }

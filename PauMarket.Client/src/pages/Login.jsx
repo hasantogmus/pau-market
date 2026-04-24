@@ -132,9 +132,9 @@ const Login = () => {
                     </div>
 
                     <div className="flex items-center justify-end">
-                        <a href="#" className="text-sm text-blue-600 hover:text-blue-800 font-medium transition-colors">
+                        <span className="text-sm text-gray-400 cursor-not-allowed select-none" title="Yakında eklenecek">
                             Şifremi Unuttum?
-                        </a>
+                        </span>
                     </div>
 
                     <button
