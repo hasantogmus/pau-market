@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Threading.RateLimiting;
 using PauMarket.API.Data;
+using PauMarket.API.Hubs;
 using PauMarket.API.Services;
 using PauMarket.API.Settings;
 
@@ -159,6 +160,12 @@ builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IRecommenderExportService, RecommenderExportService>();
 
+// ─── Background Services ─────────────────────────────────────────────────────
+builder.Services.AddHostedService<ModerationBackgroundService>();
+
+// ─── SignalR ────────────────────────────────────────────────────────────────
+builder.Services.AddSignalR();
+
 var app = builder.Build();
 
 // ─── Middleware Pipeline ─────────────────────────────────────────────────────
@@ -223,6 +230,7 @@ app.UseRateLimiter(); // Add UseRateLimiter middleware
 app.UseAuthentication();   // JWT doğrulama — UseAuthorization'dan önce olmalı
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<ChatHub>("/chathub");
 app.MapHealthChecks("/health");
 
 await app.RunAsync();

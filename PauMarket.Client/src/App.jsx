@@ -20,8 +20,8 @@ import { AuthProvider } from './context/AuthContext';
 function App() {
   return (
     <ErrorBoundary>
-      <AuthProvider>
-        <Router>
+      <Router>
+        <AuthProvider>
           <Routes>
             <Route
               path="/"
@@ -142,8 +142,8 @@ function App() {
             />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-        </Router>
-      </AuthProvider>
+        </AuthProvider>
+      </Router>
     </ErrorBoundary>
   );
 }

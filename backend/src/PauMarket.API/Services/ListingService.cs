@@ -12,36 +12,19 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
 
     public async Task<PagedResult<ListingResponseDto>> GetAllListingsAsync(ListingQueryParameters parameters)
     {
-        // 1. "AllListings" adında bir Cache Key ile RAM'de veri var mı kontrol et
-        if (!cache.TryGetValue("AllListings", out List<Listing>? allListings))
-        {
-            // 2. RAM'de yoksa veritabanından yalnızca aktif ilanları çek (RAM koruması)
-            allListings = await context.Listings
-                .Include(listing => listing.User)
-                .Include(listing => listing.Images)
-                .Where(listing => listing.IsActive && !listing.IsSold)
-                .AsNoTracking()
-                .ToListAsync();
-
-            // 3. Cache sürelerini belirle
-            var cacheOptions = new MemoryCacheEntryOptions
-            {
-                AbsoluteExpiration = DateTimeOffset.UtcNow.AddMinutes(5),
-                SlidingExpiration = TimeSpan.FromMinutes(2)
-            };
-
-            // 4. Veriyi RAM'e kaydet
-            cache.Set("AllListings", allListings, cacheOptions);
-        }
-
-        // Filtreleme ve sayfalamayı RAM'e aldığımız liste üzerinden (in-memory) yapıyoruz
-        var query = (allListings ?? []).AsQueryable();
+        var query = context.Listings
+            .Include(listing => listing.User)
+            .Include(listing => listing.Images)
+            .Where(listing => listing.IsActive && !listing.IsSold && listing.IsApproved)
+            .AsNoTracking()
+            .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(parameters.SearchTerm))
         {
             var searchTerm = parameters.SearchTerm.ToLower();
+            // EF Core 8 translates this to SQL LIKE '%term%'
             query = query.Where(l => l.Title.ToLower().Contains(searchTerm) ||
-                                     (l.Description ?? string.Empty).ToLower().Contains(searchTerm));
+                                     (l.Description != null && l.Description.ToLower().Contains(searchTerm)));
         }
 
         if (!string.IsNullOrWhiteSpace(parameters.Category))
@@ -56,12 +39,15 @@ public class ListingService(PauMarketDbContext context, IMemoryCache cache) : IL
         if (parameters.MaxPrice.HasValue)
             query = query.Where(l => l.Price <= parameters.MaxPrice.Value);
 
-        var totalCount = query.Count();
-        var items = query
+        // Calculate total count via SQL COUNT()
+        var totalCount = await query.CountAsync();
+
+        // Paginate via SQL OFFSET / FETCH NEXT
+        var items = await query
             .OrderByDescending(l => l.CreatedAt)
             .Skip((parameters.PageNumber - 1) * parameters.PageSize)
             .Take(parameters.PageSize)
-            .ToList();
+            .ToListAsync();
 
         return new PagedResult<ListingResponseDto>
         {

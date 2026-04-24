@@ -1,11 +1,13 @@
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using PauMarket.API.Data;
 using PauMarket.API.DTOs;
+using PauMarket.API.Hubs;
 using PauMarket.API.Models;
 
 namespace PauMarket.API.Services;
 
-public class MessageService(PauMarketDbContext context) : IMessageService
+public class MessageService(PauMarketDbContext context, IHubContext<ChatHub> hubContext) : IMessageService
 {
     public async Task<IEnumerable<MessageThreadDto>> GetInboxAsync(int currentUserId)
     {
@@ -153,7 +155,12 @@ public class MessageService(PauMarketDbContext context) : IMessageService
 
         await context.SaveChangesAsync();
 
-        return MapToResponseDto(message);
+        var mappedMessage = MapToResponseDto(message);
+
+        // SignalR ile alıcıya anlık mesaj bildirimi gönder
+        await hubContext.Clients.Group($"User_{dto.ReceiverId}").SendAsync("ReceiveMessage", mappedMessage);
+
+        return mappedMessage;
     }
 
     public async Task<IEnumerable<MessageResponseDto>> GetConversationAsync(

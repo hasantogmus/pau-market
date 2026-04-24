@@ -77,6 +77,7 @@ public class PauMarketDbContext(DbContextOptions<PauMarketDbContext> options) : 
             entity.Property(l => l.Condition).IsRequired().HasMaxLength(50);
             entity.Property(l => l.IsActive).HasDefaultValue(true);
             entity.Property(l => l.IsSold).HasDefaultValue(false);
+            entity.Property(l => l.IsApproved).HasDefaultValue(false);
             entity.Property(l => l.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
 
             // Listing → User (N:1)
@@ -94,8 +95,8 @@ public class PauMarketDbContext(DbContextOptions<PauMarketDbContext> options) : 
                   .HasConstraintName("FK_Listings_Users_SoldToUserId");
 
             // Aktif ilanlar üzerinde sorgular için index
-            entity.HasIndex(l => new { l.IsActive, l.Category })
-                  .HasDatabaseName("IX_Listings_IsActive_Category");
+            entity.HasIndex(l => new { l.IsActive, l.IsApproved, l.Category })
+                  .HasDatabaseName("IX_Listings_IsActive_IsApproved_Category");
         });
 
         // ═══════════════════════════════════════════════════════════

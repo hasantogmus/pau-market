@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { MessageCircle, Send, User } from 'lucide-react';
+import { HubConnectionBuilder, LogLevel } from '@microsoft/signalr';
 import { useAuth } from '../hooks/useAuth';
 import messageService from '../services/messageService';
 import listingService from '../services/listingService';
@@ -57,6 +58,83 @@ const Messages = () => {
     const [error, setError] = useState(null);
     const [conversationMeta, setConversationMeta] = useState(null);
     const [isUpdatingDealRequest, setIsUpdatingDealRequest] = useState(false);
+    const [hubConnection, setHubConnection] = useState(null);
+
+    // ── SignalR Bağlantısı Kurulumu ──
+    useEffect(() => {
+        if (!isAuthenticated) return;
+
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        const connection = new HubConnectionBuilder()
+            .withUrl('http://localhost:5147/chathub', {
+                accessTokenFactory: () => token
+            })
+            .configureLogging(LogLevel.Information)
+            .withAutomaticReconnect()
+            .build();
+
+        connection.start()
+            .then(() => {
+                console.log('SignalR Connected');
+                setHubConnection(connection);
+            })
+            .catch(err => console.error('SignalR Connection Error: ', err));
+
+        return () => {
+            if (connection) {
+                connection.stop();
+            }
+        };
+    }, [isAuthenticated]);
+
+    // ── Gelen Mesajı Dinleme ──
+    useEffect(() => {
+        if (!hubConnection) return;
+
+        const handleReceiveMessage = (incomingMessage) => {
+            // Eğer mesaj şu an açık olan konuşmaya aitse ekrana ekle
+            if (Number(incomingMessage.listingId) === listingId && Number(incomingMessage.senderId) === sellerId) {
+                setMessages(prev => [...prev, incomingMessage]);
+                // Açık konuşmadaki mesajı hemen okundu olarak işaretleyebiliriz
+                messageService.markAsRead(incomingMessage.id).catch(console.error);
+            }
+
+            // Sol taraftaki Threads (Görüşmeler) listesini güncelle
+            setThreads(prevThreads => {
+                const existingIndex = prevThreads.findIndex(t => 
+                    Number(t.listingId) === Number(incomingMessage.listingId) && 
+                    Number(t.otherUserId) === Number(incomingMessage.senderId)
+                );
+
+                if (existingIndex > -1) {
+                    const updatedThread = {
+                        ...prevThreads[existingIndex],
+                        lastMessage: incomingMessage.content,
+                        lastMessageAt: incomingMessage.sentAt,
+                        isLastMessageMine: false,
+                        unreadCount: (Number(incomingMessage.listingId) === listingId && Number(incomingMessage.senderId) === sellerId) 
+                            ? 0 
+                            : prevThreads[existingIndex].unreadCount + 1
+                    };
+                    const newThreads = [...prevThreads];
+                    newThreads.splice(existingIndex, 1);
+                    return [updatedThread, ...newThreads];
+                } else {
+                    // Yeni birinden ilk defa mesaj gelirse listeyi yenile (basit tutmak için API'den tekrar çektirebiliriz)
+                    messageService.getThreads().then(data => setThreads(data));
+                    return prevThreads;
+                }
+            });
+        };
+
+        hubConnection.on('ReceiveMessage', handleReceiveMessage);
+
+        return () => {
+            hubConnection.off('ReceiveMessage', handleReceiveMessage);
+        };
+    }, [hubConnection, listingId, sellerId]);
 
     useEffect(() => {
         if (!isAuthenticated) {

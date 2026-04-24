@@ -40,6 +40,7 @@ public class Listing
 
     public bool IsActive { get; set; } = true;
     public bool IsSold { get; set; } = false;
+    public bool IsApproved { get; set; } = false;
     public DateTime? SoldAt { get; set; }
     public int? SoldToUserId { get; set; }
 
