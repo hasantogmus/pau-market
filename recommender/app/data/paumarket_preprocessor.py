@@ -73,10 +73,10 @@ class PauMarketPreprocessor:
         self._normalize_events()
         self._assign_weights()
         self._remove_duplicates()
+        self._time_based_split()
         self._filter_sparse_users_items()
         self._create_id_maps()
         self._load_item_categories()
-        self._time_based_split()
         self._compute_stats()
 
         print("\n" + "=" * 60)
@@ -158,42 +158,75 @@ class PauMarketPreprocessor:
 
         print(f"  → {before - len(self.events_df):,} duplikat kaldırıldı")
 
+    def _time_based_split(self):
+        print(f"[6/8] Zaman bazlı train/test split ({TRAIN_TEST_SPLIT_RATIO:.0%} / {1 - TRAIN_TEST_SPLIT_RATIO:.0%})...")
+
+        self.events_df = self.events_df.sort_values("timestamp").reset_index(drop=True)
+
+        split_idx = int(len(self.events_df) * TRAIN_TEST_SPLIT_RATIO)
+        if len(self.events_df) > 1:
+            split_idx = min(max(split_idx, 1), len(self.events_df) - 1)
+
+        self.train_df = self.events_df.iloc[:split_idx].copy()
+        self.test_df = self.events_df.iloc[split_idx:].copy()
+
+        if self.train_df.empty:
+            raise ValueError(
+                "PAÜ Market export'u eğitim seti oluşturmak için yeterli değil. "
+                "En az birkaç zaman sıralı etkileşim gerekir."
+            )
+
+        print(
+            f"  → Ham train: {len(self.train_df):,} etkileşim | "
+            f"Ham test: {len(self.test_df):,} etkileşim"
+        )
+
     def _filter_sparse_users_items(self):
         print(
-            "[6/8] Sparse filtreleme "
+            "[7/8] Train tabanlı sparse filtreleme "
             f"(min kullanıcı: {self.min_user_interactions}, "
             f"min ilan: {self.min_item_interactions})..."
         )
 
         previous_len = -1
-        current_len = len(self.events_df)
+        current_len = len(self.train_df)
 
         while previous_len != current_len:
             previous_len = current_len
 
-            user_counts = self.events_df["user_id"].value_counts()
+            user_counts = self.train_df["user_id"].value_counts()
             valid_users = user_counts[user_counts >= self.min_user_interactions].index
-            self.events_df = self.events_df[self.events_df["user_id"].isin(valid_users)]
+            self.train_df = self.train_df[self.train_df["user_id"].isin(valid_users)]
 
-            item_counts = self.events_df["listing_id"].value_counts()
+            item_counts = self.train_df["listing_id"].value_counts()
             valid_items = item_counts[item_counts >= self.min_item_interactions].index
-            self.events_df = self.events_df[self.events_df["listing_id"].isin(valid_items)]
+            self.train_df = self.train_df[self.train_df["listing_id"].isin(valid_items)]
 
-            current_len = len(self.events_df)
+            current_len = len(self.train_df)
 
-        print(f"  → {current_len:,} etkileşim kaldı")
+        print(f"  → Filtre sonrası train: {current_len:,} etkileşim")
 
         if current_len == 0:
             raise ValueError(
                 "PAÜ Market export'u eğitim için yeterli etkileşim içermiyor. "
-                "Filtrelerden sonra 0 kayıt kaldı."
+                "Train filtrelerinden sonra 0 kayıt kaldı."
             )
 
-    def _create_id_maps(self):
-        print("[7/8] Gerçek ID → model index eşlemeleri oluşturuluyor...")
+        valid_users = set(self.train_df["user_id"].unique())
+        valid_items = set(self.train_df["listing_id"].unique())
 
-        unique_users = sorted(self.events_df["user_id"].unique())
-        unique_items = sorted(self.events_df["listing_id"].unique())
+        self.test_df = self.test_df[
+            self.test_df["user_id"].isin(valid_users) &
+            self.test_df["listing_id"].isin(valid_items)
+        ].copy()
+
+        print(f"  → Train evrenine hizalanmış test: {len(self.test_df):,} etkileşim")
+
+    def _create_id_maps(self):
+        print("[8/8] Train evreninden ID eşlemeleri oluşturuluyor...")
+
+        unique_users = sorted(self.train_df["user_id"].unique())
+        unique_items = sorted(self.train_df["listing_id"].unique())
 
         self.user_id_map = {int(uid): idx for idx, uid in enumerate(unique_users)}
         self.item_id_map = {int(iid): idx for idx, iid in enumerate(unique_items)}
@@ -201,8 +234,12 @@ class PauMarketPreprocessor:
         self.reverse_user_map = {idx: uid for uid, idx in self.user_id_map.items()}
         self.reverse_item_map = {idx: iid for iid, idx in self.item_id_map.items()}
 
-        self.events_df["user_idx"] = self.events_df["user_id"].map(self.user_id_map)
-        self.events_df["item_idx"] = self.events_df["listing_id"].map(self.item_id_map)
+        self.train_df["user_idx"] = self.train_df["user_id"].map(self.user_id_map)
+        self.train_df["item_idx"] = self.train_df["listing_id"].map(self.item_id_map)
+        self.test_df["user_idx"] = self.test_df["user_id"].map(self.user_id_map)
+        self.test_df["item_idx"] = self.test_df["listing_id"].map(self.item_id_map)
+
+        self.events_df = pd.concat([self.train_df, self.test_df], ignore_index=True)
 
         print(f"  → {len(unique_users):,} kullanıcı, {len(unique_items):,} ilan")
 
@@ -231,27 +268,6 @@ class PauMarketPreprocessor:
 
         coverage = len(self.item_categories) / max(len(self.item_id_map), 1) * 100
         print(f"  → {len(self.item_categories):,} ilan için kategori bulundu ({coverage:.1f}% kapsam)")
-
-    def _time_based_split(self):
-        self.events_df = self.events_df.sort_values("timestamp").reset_index(drop=True)
-
-        split_idx = int(len(self.events_df) * TRAIN_TEST_SPLIT_RATIO)
-        if len(self.events_df) > 1:
-            split_idx = min(max(split_idx, 1), len(self.events_df) - 1)
-
-        self.train_df = self.events_df.iloc[:split_idx].copy()
-        self.test_df = self.events_df.iloc[split_idx:].copy()
-
-        if self.train_df.empty:
-            raise ValueError(
-                "PAÜ Market export'u eğitim seti oluşturmak için yeterli değil. "
-                "En az birkaç zaman sıralı etkileşim gerekir."
-            )
-
-        print(
-            f"  → Train: {len(self.train_df):,} etkileşim | "
-            f"Test: {len(self.test_df):,} etkileşim"
-        )
 
     def _compute_stats(self):
         n_users = len(self.user_id_map)
