@@ -5,12 +5,12 @@ import { Heart, ImageOff, MapPin } from 'lucide-react';
 
 /* ─── Condition badge config ─────────────────────────────────── */
 const CONDITION_CONFIG = {
-    'Sıfır':          { label: 'Sıfır',           bg: 'bg-emerald-100', text: 'text-emerald-700' },
-    'New':            { label: 'Sıfır',           bg: 'bg-emerald-100', text: 'text-emerald-700' },
-    'Az Kullanılmış': { label: 'Az Kullanılmış',  bg: 'bg-blue-100',    text: 'text-blue-700'    },
-    'LikeNew':        { label: 'Az Kullanılmış',  bg: 'bg-blue-100',    text: 'text-blue-700'    },
-    'Çok Kullanılmış':{ label: 'Çok Kullanılmış', bg: 'bg-orange-100',  text: 'text-orange-700'  },
-    'Used':           { label: 'Çok Kullanılmış', bg: 'bg-orange-100',  text: 'text-orange-700'  },
+    'Sıfır':          { label: 'Sıfır',           bg: 'bg-slate-100', text: 'text-slate-700' },
+    'New':            { label: 'Sıfır',           bg: 'bg-slate-100', text: 'text-slate-700' },
+    'Az Kullanılmış': { label: 'Az Kullanılmış',  bg: 'bg-slate-100', text: 'text-slate-600' },
+    'LikeNew':        { label: 'Az Kullanılmış',  bg: 'bg-slate-100', text: 'text-slate-600' },
+    'Çok Kullanılmış':{ label: 'Çok Kullanılmış', bg: 'bg-slate-100', text: 'text-slate-500' },
+    'Used':           { label: 'Çok Kullanılmış', bg: 'bg-slate-100', text: 'text-slate-500' },
 };
 
 const getConditionBadge = (condition) =>
@@ -58,7 +58,7 @@ const ProductCard = ({ item, index = 0, compact = false, isFavorite = false, onT
             initial="hidden"
             animate="visible"
             whileHover={{ y: -4, transition: { duration: 0.2 } }}
-            className={`group relative bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-lg hover:border-blue-100 transition-shadow duration-300 flex flex-col ${compact ? 'w-52 flex-shrink-0' : 'w-full'}`}
+            className={`group relative bg-white rounded-2xl overflow-hidden border border-slate-100/60 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.03)] hover:shadow-[0_12px_32px_-4px_rgba(0,0,0,0.06)] hover:-translate-y-1 hover:border-slate-200/80 transition-all duration-400 flex flex-col ${compact ? 'w-52 flex-shrink-0' : 'w-full'}`}
         >
             <Link to={`/listings/${item.id}`} className="flex flex-col flex-grow" tabIndex={0}>
 
@@ -89,30 +89,30 @@ const ProductCard = ({ item, index = 0, compact = false, isFavorite = false, onT
                 </div>
 
                 {/* ── Details ── */}
-                <div className="p-4 flex flex-col flex-grow">
+                <div className="p-4 sm:p-5 flex flex-col flex-grow">
 
                     {/* Title */}
                     <h3
-                        className="font-semibold text-gray-900 text-sm leading-snug truncate group-hover:text-blue-600 transition-colors"
+                        className="font-medium text-slate-800 text-[15px] leading-snug truncate group-hover:text-blue-600 transition-colors"
                         title={item.title}
                     >
                         {item.title}
                     </h3>
 
                     {/* Price */}
-                    <p className="mt-1.5 text-lg font-extrabold text-blue-600 leading-none">
+                    <p className="mt-2 text-lg font-bold text-slate-900 tracking-tight leading-none">
                         {formatPrice(item.price)}
                     </p>
 
                     {/* Condition badge */}
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${badge.bg} ${badge.text}`}>
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                        <span className={`inline-block px-2.5 py-1 rounded-md text-[10px] font-medium tracking-wide uppercase ${badge.bg} ${badge.text}`}>
                             {badge.label}
                         </span>
                     </div>
 
                     {item.recommendationReason && (
-                        <p className="mt-2 text-[11px] leading-4 font-semibold text-indigo-600">
+                        <p className="mt-2.5 text-[11px] leading-relaxed font-medium text-slate-500 line-clamp-2">
                             {item.recommendationReason}
                         </p>
                     )}
