@@ -13,7 +13,7 @@ public class InteractionService(PauMarketDbContext context) : IInteractionServic
             .AsNoTracking()
             .FirstOrDefaultAsync(l => l.Id == listingId);
 
-        if (listing is null || !listing.IsActive || listing.IsSold)
+        if (listing is null || !listing.IsActive || listing.IsSold || !listing.IsApproved)
             return false;
 
         // Kullanıcı var mı kontrolü
@@ -70,7 +70,7 @@ public class InteractionService(PauMarketDbContext context) : IInteractionServic
             .Include(i => i.Listing)
             .ThenInclude(listing => listing.Images)
             .Select(i => i.Listing)
-            .Where(listing => listing.IsActive && !listing.IsSold)
+            .Where(listing => listing.IsActive && !listing.IsSold && listing.IsApproved)
             .AsNoTracking()
             .ToListAsync();
 
@@ -93,6 +93,10 @@ public class InteractionService(PauMarketDbContext context) : IInteractionServic
             ImageUrls = listing.Images?.OrderBy(img => img.SortOrder).Select(img => img.ImageUrl).ToList() ?? [],
             IsActive = listing.IsActive,
             IsSold = listing.IsSold,
+            IsApproved = listing.IsApproved,
+            ModerationStatus = (int)listing.ModerationStatus,
+            ModerationStatusName = listing.ModerationStatus.ToString(),
+            ModerationReason = listing.ModerationReason,
             SoldAt = listing.SoldAt,
             SoldToUserId = listing.SoldToUserId,
             CreatedAt = listing.CreatedAt

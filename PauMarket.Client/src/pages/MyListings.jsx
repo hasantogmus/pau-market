@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { BadgeCheck, CheckCircle2, Package, Pencil, PlusCircle, Tag, Trash2, UploadCloud, X } from 'lucide-react';
+import { BadgeCheck, CheckCircle2, Clock3, Package, Pencil, PlusCircle, ShieldAlert, Tag, Trash2, UploadCloud, X } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import listingService from '../services/listingService';
 import messageService from '../services/messageService';
@@ -17,6 +17,22 @@ const currency = (value) =>
 
 const formatDate = (value) =>
     new Date(value).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' });
+
+const getModerationInfo = (listing) => {
+    if (listing.isSold) {
+        return { label: 'Satıldı', tone: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: CheckCircle2 };
+    }
+
+    if (listing.moderationStatusName === 'Rejected' || listing.moderationStatus === 3) {
+        return { label: 'Reddedildi', tone: 'bg-red-50 text-red-700 border-red-200', icon: ShieldAlert };
+    }
+
+    if (listing.moderationStatusName === 'Pending' || listing.moderationStatus === 1 || !listing.isApproved) {
+        return { label: 'Onay Bekliyor', tone: 'bg-amber-50 text-amber-700 border-amber-200', icon: Clock3 };
+    }
+
+    return { label: 'Yayında', tone: 'bg-green-50 text-green-700 border-green-200', icon: BadgeCheck };
+};
 
 const formatFileSize = (bytes) => {
     const megabytes = bytes / 1024 / 1024;
@@ -155,7 +171,7 @@ const MyListings = () => {
     }, [isAuthenticated]);
 
     const summary = useMemo(() => {
-        const activeCount = listings.filter((item) => !item.isSold).length;
+        const activeCount = listings.filter((item) => !item.isSold && item.isApproved).length;
         const soldCount = listings.filter((item) => item.isSold).length;
         const totalValue = listings.reduce((sum, item) => sum + Number(item.price || 0), 0);
 
@@ -492,6 +508,9 @@ const MyListings = () => {
                     <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                         {listings.map((listing) => {
                             const isBusy = savingListingId === listing.id || deletingListingId === listing.id;
+                            const moderationInfo = getModerationInfo(listing);
+                            const StatusIcon = moderationInfo.icon;
+                            const canChangeSaleStatus = listing.isSold || listing.isApproved;
 
                             return (
                                 <article
@@ -515,12 +534,9 @@ const MyListings = () => {
                                             <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
                                                 <div className="min-w-0">
                                                     <div className="flex flex-wrap items-center gap-2 mb-2">
-                                                        <span className={`inline-flex px-3 py-1 rounded-full text-xs font-bold border ${
-                                                            listing.isSold
-                                                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                                                : 'bg-green-50 text-green-700 border-green-200'
-                                                        }`}>
-                                                            {listing.isSold ? 'Satıldı' : 'Yayında'}
+                                                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${moderationInfo.tone}`}>
+                                                            <StatusIcon className="w-3.5 h-3.5" />
+                                                            {moderationInfo.label}
                                                         </span>
                                                         <span className="inline-flex px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
                                                             {listing.category}
@@ -541,6 +557,11 @@ const MyListings = () => {
                                                 {(listing.soldToUserName || listing.acceptedBuyerName) && (
                                                     <span className="px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100">
                                                         {listing.isSold ? `Alıcı: ${listing.soldToUserName}` : `Anlaşılan öğrenci: ${listing.acceptedBuyerName}`}
+                                                    </span>
+                                                )}
+                                                {listing.moderationStatusName === 'Rejected' && listing.moderationReason && (
+                                                    <span className="px-3 py-1 rounded-full bg-red-50 text-red-700 border border-red-100">
+                                                        {listing.moderationReason}
                                                     </span>
                                                 )}
                                             </div>
@@ -564,7 +585,7 @@ const MyListings = () => {
                                                         event.stopPropagation();
                                                         handleToggleSold(listing);
                                                     }}
-                                                    disabled={isBusy}
+                                                    disabled={isBusy || !canChangeSaleStatus}
                                                     className="inline-flex items-center gap-1.5 text-slate-500 hover:text-emerald-600 transition-colors text-[13px] font-semibold tracking-wide disabled:opacity-60"
                                                 >
                                                     <CheckCircle2 className="w-4 h-4" />

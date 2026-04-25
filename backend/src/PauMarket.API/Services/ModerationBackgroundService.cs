@@ -1,20 +1,27 @@
 using Microsoft.EntityFrameworkCore;
 using PauMarket.API.Data;
+using PauMarket.API.Models;
+using System.Globalization;
 
 namespace PauMarket.API.Services;
 
 /// <summary>
 /// Arka planda çalışan otomatik içerik moderatörü.
-/// Yeni eklenen (IsApproved = false) ilanları belirli aralıklarla (örn: 10 saniye) tarar.
-/// Küfür, hakaret veya yasaklı kelime içermiyorsa onaylar (IsApproved = true yapar).
-/// Eğer içeriyorsa pasife alır (IsActive = false).
+/// Yeni eklenen veya düzenlenen ilanları belirli aralıklarla tarar.
+/// Temiz içerik onaylanır; uygunsuz içerik reddedilir ve public vitrinden gizlenir.
 /// </summary>
 public class ModerationBackgroundService(IServiceProvider serviceProvider, ILogger<ModerationBackgroundService> logger) : BackgroundService
 {
-    private readonly string[] _bannedWords = {
+    private static readonly CultureInfo TurkishCulture = CultureInfo.GetCultureInfo("tr-TR");
+
+    private readonly string[] _bannedWords =
+    [
         "kaçak", "silah", "bıçak", "kumar", "bahis", "kopya", "çalıntı",
-        // Gerçek bir sistemde AWS Rekognition veya detaylı bir küfür/spam sözlüğü kullanılır.
-    };
+        "uyuşturucu", "sahte kimlik", "reçetesiz ilaç",
+        "porno", "pornografi", "seks", "cinsel", "escort", "erotik",
+        "müstehcen", "çıplak", "nude", "18+",
+        // Görsel moderasyon için ileride Cloudinary/AWS Rekognition gibi provider bağlanabilir.
+    ];
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -42,10 +49,10 @@ public class ModerationBackgroundService(IServiceProvider serviceProvider, ILogg
         using var scope = serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<PauMarketDbContext>();
 
-        // Sadece Onay bekleyen ve Aktif olan ilanları çek
+        // Sadece moderasyon bekleyen ilanları çek.
         var pendingListings = await context.Listings
-            .Where(l => !l.IsApproved && l.IsActive)
-            .Take(50) // Her döngüde en fazla 50 ilan işle
+            .Where(l => l.ModerationStatus == ListingModerationStatus.Pending && l.IsActive && !l.IsSold)
+            .Take(50)
             .ToListAsync(stoppingToken);
 
         if (pendingListings.Count == 0)
@@ -56,20 +63,23 @@ public class ModerationBackgroundService(IServiceProvider serviceProvider, ILogg
 
         foreach (var listing in pendingListings)
         {
-            var contentToScan = $"{listing.Title} {listing.Description}".ToLowerInvariant();
+            var contentToScan = $"{listing.Title} {listing.Description}".ToLower(TurkishCulture);
 
             bool isClean = !_bannedWords.Any(word => contentToScan.Contains(word));
 
             if (isClean)
             {
                 listing.IsApproved = true;
+                listing.ModerationStatus = ListingModerationStatus.Approved;
+                listing.ModerationReason = null;
                 approvedCount++;
             }
             else
             {
-                // Yasaklı içerik bulundu! İlanı hem reddet hem de pasife al.
+                // Reddedilen ilan aktif kalır; sadece public vitrinden gizlenir.
                 listing.IsApproved = false;
-                listing.IsActive = false;
+                listing.ModerationStatus = ListingModerationStatus.Rejected;
+                listing.ModerationReason = "İlan metninde platform kurallarına uygun olmayan ifade tespit edildi.";
                 rejectedCount++;
             }
         }

@@ -67,6 +67,9 @@ public class PauMarketDbContext(DbContextOptions<PauMarketDbContext> options) : 
                 table.HasCheckConstraint(
                     "CK_Listings_SaleState",
                     "([IsSold] = 0 AND [SoldAt] IS NULL AND [SoldToUserId] IS NULL) OR ([IsSold] = 1 AND [SoldAt] IS NOT NULL AND [SoldToUserId] IS NOT NULL)");
+                table.HasCheckConstraint(
+                    "CK_Listings_ModerationState",
+                    "[ModerationStatus] IN (1, 2, 3) AND (([IsApproved] = 1 AND [ModerationStatus] = 2) OR ([IsApproved] = 0 AND [ModerationStatus] <> 2))");
             });
             entity.HasKey(l => l.Id);
 
@@ -78,6 +81,10 @@ public class PauMarketDbContext(DbContextOptions<PauMarketDbContext> options) : 
             entity.Property(l => l.IsActive).HasDefaultValue(true);
             entity.Property(l => l.IsSold).HasDefaultValue(false);
             entity.Property(l => l.IsApproved).HasDefaultValue(false);
+            entity.Property(l => l.ModerationStatus)
+                  .HasConversion<int>()
+                  .HasDefaultValue(ListingModerationStatus.Pending);
+            entity.Property(l => l.ModerationReason).HasMaxLength(500);
             entity.Property(l => l.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
 
             // Listing → User (N:1)

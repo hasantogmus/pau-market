@@ -155,6 +155,15 @@ namespace PauMarket.API.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
 
+                    b.Property<string>("ModerationReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("ModerationStatus")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1);
+
                     b.Property<decimal>("Price")
                         .HasColumnType("decimal(18,2)");
 
@@ -183,6 +192,8 @@ namespace PauMarket.API.Migrations
 
                     b.ToTable("Listings", null, t =>
                         {
+                            t.HasCheckConstraint("CK_Listings_ModerationState", "[ModerationStatus] IN (1, 2, 3) AND (([IsApproved] = 1 AND [ModerationStatus] = 2) OR ([IsApproved] = 0 AND [ModerationStatus] <> 2))");
+
                             t.HasCheckConstraint("CK_Listings_SaleState", "([IsSold] = 0 AND [SoldAt] IS NULL AND [SoldToUserId] IS NULL) OR ([IsSold] = 1 AND [SoldAt] IS NOT NULL AND [SoldToUserId] IS NOT NULL)");
                         });
                 });

@@ -19,6 +19,9 @@ public class DealRequestService(PauMarketDbContext db) : IDealRequestService
         if (listing.UserId == buyerId)
             throw new InvalidOperationException("Kendi ilanınız için anlaşma isteği gönderemezsiniz.");
 
+        if (!listing.IsActive || !listing.IsApproved)
+            throw new InvalidOperationException("Bu ilan henüz yayında olmadığı için anlaşma isteği gönderilemez.");
+
         if (listing.IsSold)
             throw new InvalidOperationException("Satılmış ilan için yeni anlaşma isteği gönderilemez.");
 
@@ -111,6 +114,9 @@ public class DealRequestService(PauMarketDbContext db) : IDealRequestService
 
         if (request.Status != DealRequestStatus.Pending)
             throw new InvalidOperationException("Bu anlaşma isteği zaten yanıtlanmış.");
+
+        if (!request.Listing.IsApproved)
+            throw new InvalidOperationException("Onay bekleyen veya reddedilmiş ilan için alıcı kabul edilemez.");
 
         if (request.Listing.IsSold)
             throw new InvalidOperationException("Satılmış ilan için yeni alıcı kabul edilemez.");

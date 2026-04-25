@@ -17,6 +17,10 @@ public class ListingResponseDto
     public List<string> ImageUrls { get; set; } = [];
     public bool IsActive { get; set; }
     public bool IsSold { get; set; }
+    public bool IsApproved { get; set; }
+    public int ModerationStatus { get; set; }
+    public string ModerationStatusName { get; set; } = "Pending";
+    public string? ModerationReason { get; set; }
     public DateTime? SoldAt { get; set; }
     public int? SoldToUserId { get; set; }
     public string? SoldToUserName { get; set; }

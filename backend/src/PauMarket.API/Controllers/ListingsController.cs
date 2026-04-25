@@ -65,7 +65,7 @@ public class ListingsController(
         if (callerId is null)
             return Unauthorized(new { error = "Geçersiz token." });
 
-        var listings = await listingService.GetUserListingsAsync(callerId.Value);
+        var listings = await listingService.GetUserListingsAsync(callerId.Value, callerId.Value);
         return Ok(listings);
     }
 
@@ -85,7 +85,8 @@ public class ListingsController(
     [AllowAnonymous]
     public async Task<ActionResult<IEnumerable<ListingResponseDto>>> GetByUser(int userId)
     {
-        var listings = await listingService.GetUserListingsAsync(userId);
+        int? callerId = User.GetUserId();
+        var listings = await listingService.GetUserListingsAsync(userId, callerId);
         return Ok(listings);
     }
 

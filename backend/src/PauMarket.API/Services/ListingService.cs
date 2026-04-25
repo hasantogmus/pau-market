@@ -70,6 +70,9 @@ public class ListingService(PauMarketDbContext context, IPhotoService photoServi
         if (listing is null)
             return null;
 
+        if (!listing.IsApproved && !CanAccessUnapprovedListing(listing, callerId))
+            return null;
+
         return MapToResponseDto(listing, callerId);
     }
 
@@ -88,15 +91,22 @@ public class ListingService(PauMarketDbContext context, IPhotoService photoServi
         return listings.Select(item => MapToResponseDto(item, buyerId));
     }
 
-    public async Task<IEnumerable<ListingResponseDto>> GetUserListingsAsync(int userId)
+    public async Task<IEnumerable<ListingResponseDto>> GetUserListingsAsync(int userId, int? viewerId = null)
     {
-        var listings = await context.Listings
+        var query = context.Listings
             .Include(item => item.User)
             .Include(item => item.Images)
             .Include(item => item.DealRequests)
                 .ThenInclude(item => item.Buyer)
             .AsNoTracking()
-            .Where(l => l.UserId == userId)
+            .Where(l => l.UserId == userId);
+
+        if (viewerId != userId)
+        {
+            query = query.Where(item => item.IsApproved);
+        }
+
+        var listings = await query
             .OrderByDescending(l => l.CreatedAt)
             .ToListAsync();
 
@@ -125,6 +135,9 @@ public class ListingService(PauMarketDbContext context, IPhotoService photoServi
             ImageUrl    = imageUrls[0],      // İlk görsel kapak olarak saklanır
             IsActive    = true,
             IsSold      = false,
+            IsApproved  = false,
+            ModerationStatus = ListingModerationStatus.Pending,
+            ModerationReason = null,
             CreatedAt   = DateTime.UtcNow,
             Images      = imageUrls.Select((url, index) => new ListingImage
             {
@@ -163,6 +176,7 @@ public class ListingService(PauMarketDbContext context, IPhotoService photoServi
         listing.Category    = dto.Category;
         listing.Condition   = dto.Condition;
         listing.IsActive    = !listing.IsSold;
+        ResetModerationForReview(listing);
 
         await context.SaveChangesAsync();
         await context.Entry(listing).Reference(item => item.User).LoadAsync();
@@ -198,6 +212,7 @@ public class ListingService(PauMarketDbContext context, IPhotoService photoServi
             listing.Condition   = dto.Condition;
             listing.ImageUrl    = imageUrls[0];
             listing.IsActive    = !listing.IsSold;
+            ResetModerationForReview(listing);
 
             context.ListingImages.RemoveRange(listing.Images);
             await context.SaveChangesAsync();
@@ -301,6 +316,9 @@ public class ListingService(PauMarketDbContext context, IPhotoService photoServi
 
         if (isSold)
         {
+            if (!listing.IsApproved)
+                throw new InvalidOperationException("Onay bekleyen veya reddedilmiş ilan satıldı olarak işaretlenemez.");
+
             if (soldToUserId is null)
                 throw new InvalidOperationException("İlanı satıldı yapmak için önce kabul edilmiş bir anlaşma isteği seçmelisiniz.");
 
@@ -431,10 +449,32 @@ public class ListingService(PauMarketDbContext context, IPhotoService photoServi
             ImageUrls = imageUrls,
             IsActive = listing.IsActive,
             IsSold = listing.IsSold,
+            IsApproved = listing.IsApproved,
+            ModerationStatus = (int)listing.ModerationStatus,
+            ModerationStatusName = listing.ModerationStatus.ToString(),
+            ModerationReason = listing.ModerationReason,
             SoldAt = listing.SoldAt,
             SoldToUserId = listing.SoldToUserId,
             SoldToUserName = listing.IsSold ? soldBuyerName : null,
             CreatedAt = listing.CreatedAt
         };
+    }
+
+    private static void ResetModerationForReview(Listing listing)
+    {
+        listing.IsApproved = false;
+        listing.ModerationStatus = ListingModerationStatus.Pending;
+        listing.ModerationReason = null;
+    }
+
+    private static bool CanAccessUnapprovedListing(Listing listing, int? callerId)
+    {
+        if (callerId is null)
+            return false;
+
+        if (callerId == listing.UserId)
+            return true;
+
+        return listing.IsSold && listing.SoldToUserId == callerId;
     }
 }

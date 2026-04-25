@@ -52,7 +52,7 @@ public class RecommendationService(
                     // 2. Python'dan gelen ID'leri SQL DB'den bul ve getir. Kullanıcının KENDİ ilanlarını gösterme.
                     var listings = await db.Listings
                         .Include(l => l.Images)
-                        .Where(l => pythonItemIds.Contains(l.Id) && l.IsActive && !l.IsSold && l.UserId != userId)
+                        .Where(l => pythonItemIds.Contains(l.Id) && l.IsActive && l.IsApproved && !l.IsSold && l.UserId != userId)
                         .ToListAsync();
 
                     // Python'un sıralamasını koru
@@ -102,7 +102,7 @@ public class RecommendationService(
             .Where(v => v.UserId == userId)
             .Include(v => v.Listing)
             .ThenInclude(l => l.Images)
-            .Where(v => v.Listing.IsActive && !v.Listing.IsSold)
+            .Where(v => v.Listing.IsActive && v.Listing.IsApproved && !v.Listing.IsSold)
             .OrderByDescending(v => v.ViewedAt)
             .Take(count)
             .Select(v => v.Listing)
@@ -116,12 +116,12 @@ public class RecommendationService(
     /// <inheritdoc/>
     public async Task TrackViewAsync(int userId, int listingId)
     {
-        var listingOwnerId = await db.Listings
+        var listingInfo = await db.Listings
             .Where(listing => listing.Id == listingId)
-            .Select(listing => (int?)listing.UserId)
+            .Select(listing => new { listing.UserId, listing.IsActive, listing.IsApproved, listing.IsSold })
             .FirstOrDefaultAsync();
 
-        if (listingOwnerId is null || listingOwnerId == userId)
+        if (listingInfo is null || listingInfo.UserId == userId || !listingInfo.IsActive || !listingInfo.IsApproved || listingInfo.IsSold)
             return;
 
         var existingView = await db.UserViews
@@ -182,6 +182,7 @@ public class RecommendationService(
             var preferredListings = await db.Listings
                 .Include(l => l.Images)
                 .Where(l => l.IsActive
+                         && l.IsApproved
                          && !l.IsSold
                          && l.UserId != userId
                          && !alreadyIncludedIds.Contains(l.Id)
@@ -208,6 +209,7 @@ public class RecommendationService(
                     .Include(l => l.User)
                     .Include(l => l.Images)
                     .Where(l => l.IsActive
+                             && l.IsApproved
                              && !l.IsSold
                              && l.UserId != userId
                              && !excluded.Contains(l.Id)
@@ -231,6 +233,7 @@ public class RecommendationService(
             var generalListings = await db.Listings
                 .Include(l => l.Images)
                 .Where(l => l.IsActive
+                         && l.IsApproved
                          && !l.IsSold
                          && l.UserId != userId
                          && !excluded.Contains(l.Id))
@@ -273,6 +276,10 @@ public class RecommendationService(
             ImageUrls   = imageUrls,
             IsActive    = listing.IsActive,
             IsSold      = listing.IsSold,
+            IsApproved = listing.IsApproved,
+            ModerationStatus = (int)listing.ModerationStatus,
+            ModerationStatusName = listing.ModerationStatus.ToString(),
+            ModerationReason = listing.ModerationReason,
             SoldAt      = listing.SoldAt,
             SoldToUserId = listing.SoldToUserId,
             RecommendationReason = recommendationReason,

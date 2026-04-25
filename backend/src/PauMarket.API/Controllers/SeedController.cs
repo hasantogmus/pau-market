@@ -88,6 +88,7 @@ public class SeedController(PauMarketDbContext dbContext) : ControllerBase
                     Condition = conditions[random.Next(conditions.Length)],
                     IsActive = true,
                     IsApproved = true,
+                    ModerationStatus = ListingModerationStatus.Approved,
                     IsSold = isSold,
                     SoldAt = isSold ? DateTime.UtcNow.AddDays(-random.Next(1, 10)) : null,
                     SoldToUserId = isSold ? activeUsers[random.Next(activeUsers.Count)].Id : null,

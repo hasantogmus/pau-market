@@ -73,7 +73,7 @@ public class MessageService(PauMarketDbContext context, IHubContext<ChatHub> hub
                                            !latest.Listing.IsSold
                 };
             })
-            .Where(thread => CanAccessThread(thread.ListingIsSold, currentUserId, thread.OtherUserId, rawMessages.First(item => item.ListingId == thread.ListingId).Listing))
+            .Where(thread => CanAccessThread(currentUserId, thread.OtherUserId, rawMessages.First(item => item.ListingId == thread.ListingId).Listing))
             .ToList();
 
         foreach (var request in dealRequests)
@@ -82,7 +82,7 @@ public class MessageService(PauMarketDbContext context, IHubContext<ChatHub> hub
             var existingThread = messageThreads.FirstOrDefault(item =>
                 item.ListingId == request.ListingId && item.OtherUserId == otherUser.Id);
 
-            if (!CanAccessSoldListing(request.Listing, currentUserId, otherUser.Id))
+            if (!CanAccessThread(currentUserId, otherUser.Id, request.Listing))
                 continue;
 
             if (existingThread is not null)
@@ -123,6 +123,10 @@ public class MessageService(PauMarketDbContext context, IHubContext<ChatHub> hub
 
         if (listing is null)
             throw new InvalidOperationException("Mesaj gönderilecek ilan bulunamadı.");
+
+        var canUseUnapprovedSoldThread = listing.IsSold && CanAccessSoldListing(listing, senderId, dto.ReceiverId);
+        if (!listing.IsApproved && !canUseUnapprovedSoldThread)
+            throw new InvalidOperationException("Onay bekleyen veya reddedilmiş ilanlar için mesaj başlatılamaz.");
 
         if (senderId == dto.ReceiverId)
             throw new InvalidOperationException("Kendi kendinize mesaj gönderemezsiniz.");
@@ -173,6 +177,11 @@ public class MessageService(PauMarketDbContext context, IHubContext<ChatHub> hub
         if (listing is null)
             throw new InvalidOperationException("Konuşma ilanı bulunamadı.");
 
+        var canViewUnapprovedConversation = listing.UserId == currentUserId ||
+                                            (listing.IsSold && listing.SoldToUserId == currentUserId);
+        if (!listing.IsApproved && !canViewUnapprovedConversation)
+            throw new UnauthorizedAccessException("Bu ilana ait konuşmayı görüntüleme yetkiniz yok.");
+
         if (!CanAccessSoldListing(listing, currentUserId, otherUserId))
             throw new UnauthorizedAccessException("Bu satılmış ilana ait konuşmayı görüntüleyemezsiniz.");
 
@@ -217,12 +226,15 @@ public class MessageService(PauMarketDbContext context, IHubContext<ChatHub> hub
         SentAt     = m.SentAt
     };
 
-    private static bool CanAccessThread(bool listingIsSold, int currentUserId, int otherUserId, Listing listing)
+    private static bool CanAccessThread(int currentUserId, int otherUserId, Listing listing)
     {
-        if (!listingIsSold)
+        if (listing.IsApproved && !listing.IsSold)
             return true;
 
-        return CanAccessSoldListing(listing, currentUserId, otherUserId);
+        if (listing.IsSold)
+            return CanAccessSoldListing(listing, currentUserId, otherUserId);
+
+        return listing.UserId == currentUserId;
     }
 
     private static bool CanAccessSoldListing(Listing listing, int currentUserId, int otherUserId)
