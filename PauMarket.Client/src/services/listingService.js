@@ -113,7 +113,7 @@ const listingService = {
     },
 
     getRecommendations: async () => {
-        const response = await api.get('/recommendations/hybrid?count=4', { timeout: 8000 });
+        const response = await api.get('/recommendations/hybrid?count=15', { timeout: 8000 });
         return normalizeListingCollection(response.data);
     }
 };

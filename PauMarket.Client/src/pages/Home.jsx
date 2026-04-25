@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Heart, Search, ChevronRight, ImageOff,
+    Heart, Search, ChevronRight, ChevronLeft, ImageOff,
     ListFilter, X, SlidersHorizontal,
     Laptop, BookOpen, Shirt, Home as HomeIcon,
     Gamepad2, Coffee, Bike, Sparkles,
@@ -266,6 +266,7 @@ const Home = () => {
     /* ── State ── */
     const [listings, setListings] = useState([]);
     const [aiRecommendations, setAiRecommendations] = useState([]);
+    const [recIndex, setRecIndex] = useState(0);
     const [favoriteIds, setFavoriteIds] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -431,15 +432,35 @@ const Home = () => {
             {/* ── AI Picks Band ── */}
             <section className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-indigo-100 py-10">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex items-center gap-2 mb-6">
-                        <Sparkles className="w-5 h-5 text-indigo-500" />
-                        <h2 className="text-lg font-bold text-gray-900 tracking-tight">Sana Özel Öneriler</h2>
-                        <span className="ml-1 px-2.5 py-1 bg-indigo-100 text-indigo-700 text-[10px] font-bold rounded-md tracking-widest uppercase">AI Picks</span>
+                    <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-2">
+                            <Sparkles className="w-5 h-5 text-indigo-500" />
+                            <h2 className="text-lg font-bold text-gray-900 tracking-tight">Sana Özel Öneriler</h2>
+                            <span className="ml-1 px-2.5 py-1 bg-indigo-100 text-indigo-700 text-[10px] font-bold rounded-md tracking-widest uppercase">AI Picks</span>
+                        </div>
+                        {aiRecommendations.length > 5 && (
+                            <div className="flex gap-2">
+                                <button 
+                                    onClick={() => setRecIndex(Math.max(0, recIndex - 5))}
+                                    disabled={recIndex === 0}
+                                    className={`p-2 rounded-full border transition-colors ${recIndex > 0 ? 'border-indigo-200 text-indigo-600 hover:bg-indigo-100 bg-white shadow-sm' : 'border-gray-200 text-gray-300 bg-gray-50 cursor-not-allowed'}`}
+                                >
+                                    <ChevronLeft className="w-5 h-5" />
+                                </button>
+                                <button 
+                                    onClick={() => setRecIndex(Math.min(aiRecommendations.length, recIndex + 5))}
+                                    disabled={recIndex + 5 >= aiRecommendations.length}
+                                    className={`p-2 rounded-full border transition-colors ${recIndex + 5 < aiRecommendations.length ? 'border-indigo-200 text-indigo-600 hover:bg-indigo-100 bg-white shadow-sm' : 'border-gray-200 text-gray-300 bg-gray-50 cursor-not-allowed'}`}
+                                >
+                                    <ChevronRight className="w-5 h-5" />
+                                </button>
+                            </div>
+                        )}
                     </div>
-                    <div className="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-hide">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                         {aiRecommendations.length > 0 ? (
-                            aiRecommendations.map((item, i) => (
-                                <div key={item.id} className="snap-start">
+                            aiRecommendations.slice(recIndex, recIndex + 5).map((item, i) => (
+                                <div key={item.id}>
                                     <ProductCard
                                         item={item}
                                         index={i}
@@ -450,7 +471,7 @@ const Home = () => {
                                 </div>
                             ))
                         ) : (
-                            <div className="w-full rounded-2xl border border-dashed border-indigo-200 bg-white/70 px-5 py-8 text-center">
+                            <div className="col-span-1 sm:col-span-2 md:col-span-3 lg:col-span-5 rounded-2xl border border-dashed border-indigo-200 bg-white/70 px-5 py-8 text-center">
                                 <p className="text-sm font-bold text-gray-800">Öneriler henüz hazır değil</p>
                                 <p className="text-sm text-gray-500 mt-1">
                                     Birkaç ilan görüntüleyip favoriledikten sonra bu alan kişiselleşecek.
