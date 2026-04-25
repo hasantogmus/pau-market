@@ -47,6 +47,7 @@ services:
       - AllowedEmailDomain=${ALLOWED_EMAIL_DOMAIN:-@posta.pau.edu.tr}
       - EmailVerification__AutoVerify=${EMAIL_VERIFICATION_AUTO_VERIFY:-false}
       - EmailVerification__CodeLifetimeSeconds=${EMAIL_VERIFICATION_CODE_LIFETIME_SECONDS:-120}
+      - Moderation__EnableAutomaticModeration=${MODERATION_ENABLE_AUTOMATIC_MODERATION:-false}
       - Cors__AllowedOrigins__0=${CORS_ALLOWED_ORIGIN_1:-http://localhost:5173}
       - Cors__AllowedOrigins__1=${CORS_ALLOWED_ORIGIN_2:-http://127.0.0.1:5173}
       - Smtp__Host=${SMTP_HOST:-}

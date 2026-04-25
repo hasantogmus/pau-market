@@ -178,7 +178,10 @@ builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IRecommenderExportService, RecommenderExportService>();
 
 // ─── Background Services ─────────────────────────────────────────────────────
-builder.Services.AddHostedService<ModerationBackgroundService>();
+if (builder.Configuration.GetValue("Moderation:EnableAutomaticModeration", false))
+{
+    builder.Services.AddHostedService<ModerationBackgroundService>();
+}
 
 // ─── SignalR ────────────────────────────────────────────────────────────────
 builder.Services.AddSignalR();

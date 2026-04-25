@@ -16,6 +16,7 @@ import {
     Package,
     Home,
     Heart,
+    ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import messageService from '../services/messageService';
@@ -73,6 +74,7 @@ const Navbar = () => {
     const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
 
     const profileRef = useRef(null);
+    const isAdmin = String(user?.role || '').toLowerCase() === 'admin';
 
     /* Close profile dropdown on outside click */
     useEffect(() => {
@@ -269,6 +271,9 @@ const Navbar = () => {
                                                 <DropdownItem to="/profile" icon={<User className="w-4 h-4" />} label="Profilim" onClick={() => setProfileOpen(false)} />
                                                 <DropdownItem to="/my-listings" icon={<Package className="w-4 h-4" />} label="İlanlarım" onClick={() => setProfileOpen(false)} />
                                                 <DropdownItem to="/favorites" icon={<Heart className="w-4 h-4" />} label="Favorilerim" onClick={() => setProfileOpen(false)} />
+                                                {isAdmin && (
+                                                    <DropdownItem to="/admin/moderation" icon={<ShieldCheck className="w-4 h-4" />} label="Admin Onayları" onClick={() => setProfileOpen(false)} />
+                                                )}
                                                 <DropdownItem to="/settings" icon={<Settings className="w-4 h-4" />} label="Ayarlar" onClick={() => setProfileOpen(false)} />
                                             </div>
 
@@ -409,6 +414,9 @@ const Navbar = () => {
                                         <MobileNavLink to="/profile" icon={<User className="w-5 h-5" />} label="Profilim" onClick={() => setMobileOpen(false)} />
                                         <MobileNavLink to="/my-listings" icon={<Package className="w-5 h-5" />} label="İlanlarım" onClick={() => setMobileOpen(false)} />
                                         <MobileNavLink to="/favorites" icon={<Heart className="w-5 h-5" />} label="Favorilerim" onClick={() => setMobileOpen(false)} />
+                                        {isAdmin && (
+                                            <MobileNavLink to="/admin/moderation" icon={<ShieldCheck className="w-5 h-5" />} label="Admin Onayları" onClick={() => setMobileOpen(false)} />
+                                        )}
                                         <MobileNavLink to="/settings" icon={<Settings className="w-5 h-5" />} label="Ayarlar" onClick={() => setMobileOpen(false)} />
                                         <button
                                             onClick={handleLogout}

@@ -14,6 +14,7 @@ import MyListings from './pages/MyListings';
 import Purchases from './pages/Purchases';
 import Favorites from './pages/Favorites';
 import Settings from './pages/Settings';
+import AdminModeration from './pages/AdminModeration';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 import { AuthProvider } from './context/AuthContext';
@@ -149,6 +150,16 @@ function App() {
                 <ProtectedRoute>
                   <MainLayout>
                     <Settings />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/moderation"
+              element={
+                <ProtectedRoute requiredRole="Admin">
+                  <MainLayout>
+                    <AdminModeration />
                   </MainLayout>
                 </ProtectedRoute>
               }
