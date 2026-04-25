@@ -250,7 +250,7 @@ def load_mercari() -> pd.DataFrame:
     # ── train.tsv (~1.48M satır) ──
     if MERCARI_TRAIN_FILE.exists():
         print("[loader] Mercari train.tsv yükleniyor...")
-        df_train = pd.read_csv(MERCARI_TRAIN_FILE, sep="\t")
+        df_train = pd.read_csv(MERCARI_TRAIN_FILE, sep="\t", nrows=10000)
         df_train["source"] = "train"
         dfs.append(df_train)
         print(f"  → train.tsv: {len(df_train):,} satır")
@@ -260,7 +260,7 @@ def load_mercari() -> pd.DataFrame:
     # ── test_stg2.tsv (~3.46M satır) ──
     if MERCARI_TEST_FILE.exists():
         print("[loader] Mercari test_stg2.tsv yükleniyor...")
-        df_test = pd.read_csv(MERCARI_TEST_FILE, sep="\t")
+        df_test = pd.read_csv(MERCARI_TEST_FILE, sep="\t", nrows=10000)
         df_test["source"] = "test"
         # Test setinde price yok, NaN olarak kalacak
         if "price" not in df_test.columns:
