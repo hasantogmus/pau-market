@@ -40,10 +40,24 @@ public class AuthService : IAuthService
             throw new InvalidOperationException(
                 $"Sadece {emailSuffix} uzantılı üniversite e-posta adresleri ile kayıt olabilirsiniz.");
 
-        bool emailExists = await _db.Users
-            .AnyAsync(u => u.Email == normalizedEmail);
-        if (emailExists)
-            throw new InvalidOperationException("Bu e-posta adresi zaten kayıtlı.");
+        var existingUser = await _db.Users
+            .FirstOrDefaultAsync(u => u.Email == normalizedEmail);
+        if (existingUser is not null)
+        {
+            if (existingUser.IsEmailVerified)
+                throw new InvalidOperationException("Bu e-posta adresi zaten kayıtlı. Lütfen giriş yapın.");
+
+            if (!IsEmailDeliveryConfigured())
+                throw new InvalidOperationException("Doğrulama kodu şu anda gönderilemiyor. Lütfen daha sonra tekrar deneyin.");
+
+            var resendToken = GenerateVerificationToken();
+            var resendExpiresAt = GetVerificationCodeExpiry();
+            await SendVerificationEmailAsync(existingUser.Email, resendToken);
+            existingUser.EmailVerificationToken = BuildStoredVerificationToken(resendToken, resendExpiresAt);
+            await _db.SaveChangesAsync();
+
+            return "Bu e-posta ile başlatılmış bir kayıt bulundu. Hesabını aktifleştirmek için yeni doğrulama kodu okul e-posta adresine gönderildi.";
+        }
 
         string passwordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password, workFactor: 12);
         string verificationToken = GenerateVerificationToken();
