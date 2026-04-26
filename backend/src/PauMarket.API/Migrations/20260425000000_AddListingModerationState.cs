@@ -1,9 +1,13 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
+using PauMarket.API.Data;
 
 #nullable disable
 
 namespace PauMarket.API.Migrations
 {
+    [DbContext(typeof(PauMarketDbContext))]
+    [Migration("20260425000000_AddListingModerationState")]
     public partial class AddListingModerationState : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)
