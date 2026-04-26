@@ -47,6 +47,7 @@ services:
       - AllowedEmailDomain=${ALLOWED_EMAIL_DOMAIN:-@posta.pau.edu.tr}
       - EmailVerification__AutoVerify=${EMAIL_VERIFICATION_AUTO_VERIFY:-false}
       - EmailVerification__CodeLifetimeSeconds=${EMAIL_VERIFICATION_CODE_LIFETIME_SECONDS:-120}
+      - EmailVerification__SendWithBackupSenderAlso=${EMAIL_VERIFICATION_SEND_WITH_BACKUP_SENDER_ALSO:-true}
       - Moderation__EnableAutomaticModeration=${MODERATION_ENABLE_AUTOMATIC_MODERATION:-false}
       - Cors__AllowedOrigins__0=${CORS_ALLOWED_ORIGIN_1:-http://localhost:5173}
       - Cors__AllowedOrigins__1=${CORS_ALLOWED_ORIGIN_2:-http://127.0.0.1:5173}
@@ -57,6 +58,13 @@ services:
       - Smtp__EnableSsl=${SMTP_ENABLE_SSL:-true}
       - Smtp__FromEmail=${SMTP_FROM_EMAIL:-}
       - Smtp__FromName=${SMTP_FROM_NAME:-PAÜ Market}
+      - SmtpBackup__Host=${SMTP_BACKUP_HOST:-}
+      - SmtpBackup__Port=${SMTP_BACKUP_PORT:-587}
+      - SmtpBackup__Username=${SMTP_BACKUP_USERNAME:-}
+      - SmtpBackup__Password=${SMTP_BACKUP_PASSWORD:-}
+      - SmtpBackup__EnableSsl=${SMTP_BACKUP_ENABLE_SSL:-true}
+      - SmtpBackup__FromEmail=${SMTP_BACKUP_FROM_EMAIL:-}
+      - SmtpBackup__FromName=${SMTP_BACKUP_FROM_NAME:-PAÜ Market}
       - CloudinarySettings__CloudName=${CLOUDINARY_CLOUD_NAME}
       - CloudinarySettings__ApiKey=${CLOUDINARY_API_KEY}
       - CloudinarySettings__ApiSecret=${CLOUDINARY_API_SECRET}

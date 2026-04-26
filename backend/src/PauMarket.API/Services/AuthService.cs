@@ -21,6 +21,16 @@ public class AuthService : IAuthService
     private readonly IConfiguration      _config;
     private readonly ILogger<AuthService> _logger;
 
+    private sealed record SmtpSenderSettings(
+        string Label,
+        string? Host,
+        int Port,
+        string? Username,
+        string? Password,
+        bool EnableSsl,
+        string? FromEmail,
+        string FromName);
+
     public AuthService(PauMarketDbContext db, IConfiguration config, ILogger<AuthService> logger)
     {
         _db     = db;
@@ -205,82 +215,143 @@ public class AuthService : IAuthService
     }
 
     private bool IsEmailDeliveryConfigured() =>
-        !string.IsNullOrWhiteSpace(_config["Smtp:Host"]) &&
-        !string.IsNullOrWhiteSpace(_config["Smtp:FromEmail"]);
+        GetConfiguredSmtpSenders().Count > 0;
 
     private async Task SendVerificationEmailAsync(string toEmail, string code)
     {
-        if (!TryBuildSmtpClient(out var smtpClient, out var fromEmail, out var fromName))
+        var senders = GetConfiguredSmtpSenders();
+        if (senders.Count == 0)
         {
             throw new InvalidOperationException("Doğrulama kodu şu anda gönderilemiyor. Lütfen daha sonra tekrar deneyin.");
         }
 
-        var client = smtpClient!;
-        using var disposableClient = client;
-        using var message = new MailMessage
+        var sendWithBackupAlso = _config.GetValue("EmailVerification:SendWithBackupSenderAlso", true);
+        var successfulSends = 0;
+        Exception? lastError = null;
+
+        foreach (var sender in senders)
         {
-            From = new MailAddress(fromEmail!),
-            Subject = "PAU Market kodunuz",
+            if (successfulSends > 0 && !sendWithBackupAlso)
+                break;
+
+            try
+            {
+                using var client = BuildSmtpClient(sender);
+                using var message = BuildVerificationEmail(sender, toEmail, code);
+                await client.SendMailAsync(message);
+                successfulSends++;
+
+                _logger.LogInformation(
+                    "Doğrulama e-postası {SenderLabel} göndericisiyle başarıyla gönderildi: {Email}",
+                    sender.Label,
+                    toEmail);
+            }
+            catch (Exception ex)
+            {
+                lastError = ex;
+                _logger.LogWarning(
+                    ex,
+                    "Doğrulama e-postası {SenderLabel} göndericisiyle gönderilemedi: {Email}",
+                    sender.Label,
+                    toEmail);
+            }
+        }
+
+        if (successfulSends == 0)
+        {
+            _logger.LogError(lastError, "Doğrulama e-postası hiçbir SMTP göndericisiyle gönderilemedi: {Email}", toEmail);
+            throw new InvalidOperationException("Doğrulama e-postası gönderilemedi. Lütfen daha sonra tekrar deneyin.");
+        }
+
+        if (successfulSends > 1)
+        {
+            _logger.LogInformation(
+                "Doğrulama kodu teslim edilebilirliği artırmak için {Count} SMTP göndericisiyle gönderildi: {Email}",
+                successfulSends,
+                toEmail);
+        }
+    }
+
+    private List<SmtpSenderSettings> GetConfiguredSmtpSenders()
+    {
+        var senders = new List<SmtpSenderSettings>();
+        AddIfConfigured(senders, BuildSmtpSenderSettings("Primary", "Smtp"));
+        AddIfConfigured(senders, BuildSmtpSenderSettings("Backup", "SmtpBackup"));
+
+        return senders
+            .GroupBy(sender => new
+            {
+                Host = sender.Host?.Trim().ToLowerInvariant(),
+                Username = sender.Username?.Trim().ToLowerInvariant(),
+                FromEmail = sender.FromEmail?.Trim().ToLowerInvariant()
+            })
+            .Select(group => group.First())
+            .ToList();
+    }
+
+    private SmtpSenderSettings BuildSmtpSenderSettings(string label, string sectionName) =>
+        new(
+            label,
+            _config[$"{sectionName}:Host"],
+            _config.GetValue($"{sectionName}:Port", 587),
+            _config[$"{sectionName}:Username"],
+            _config[$"{sectionName}:Password"],
+            _config.GetValue($"{sectionName}:EnableSsl", true),
+            _config[$"{sectionName}:FromEmail"],
+            _config[$"{sectionName}:FromName"] ?? "PAU Market");
+
+    private static void AddIfConfigured(List<SmtpSenderSettings> senders, SmtpSenderSettings sender)
+    {
+        if (!string.IsNullOrWhiteSpace(sender.Host) && !string.IsNullOrWhiteSpace(sender.FromEmail))
+            senders.Add(sender);
+    }
+
+    private static SmtpClient BuildSmtpClient(SmtpSenderSettings sender)
+    {
+        var client = new SmtpClient(sender.Host, sender.Port)
+        {
+            EnableSsl = sender.EnableSsl,
+            DeliveryMethod = SmtpDeliveryMethod.Network
+        };
+
+        if (!string.IsNullOrWhiteSpace(sender.Username))
+            client.Credentials = new NetworkCredential(sender.Username, sender.Password);
+
+        return client;
+    }
+
+    private static MailMessage BuildVerificationEmail(SmtpSenderSettings sender, string toEmail, string code)
+    {
+        var fromAddress = string.IsNullOrWhiteSpace(sender.FromName)
+            ? new MailAddress(sender.FromEmail!)
+            : new MailAddress(sender.FromEmail!, sender.FromName, Encoding.UTF8);
+
+        var message = new MailMessage
+        {
+            From = fromAddress,
+            Sender = fromAddress,
+            Subject = "PAU Market dogrulama kodu",
             Body = $"""
                    Merhaba,
 
-                   PAU Market hesabiniz icin dogrulama kodunuz: {code}
+                   PAU Market hesabini dogrulamak icin kodun: {code}
 
-                   Bu kod 2 dakika gecerlidir.
+                   Bu kod 2 dakika gecerlidir. Kodu sen istemediysen bu e-postayi yok sayabilirsin.
 
-                   Tesekkurler.
+                   PAU Market
                    """,
             IsBodyHtml = false,
+            Priority = MailPriority.Normal,
             SubjectEncoding = Encoding.UTF8,
             BodyEncoding = Encoding.UTF8,
             HeadersEncoding = Encoding.UTF8
         };
 
-        if (!string.IsNullOrWhiteSpace(fromName))
-            message.From = new MailAddress(fromEmail!, fromName);
-
-        message.ReplyToList.Add(new MailAddress(fromEmail!));
+        message.ReplyToList.Add(fromAddress);
         message.To.Add(toEmail);
+        message.Headers.Add("X-Auto-Response-Suppress", "All");
 
-        try
-        {
-            await client.SendMailAsync(message);
-            _logger.LogInformation("Doğrulama e-postası başarıyla gönderildi: {Email}", toEmail);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Doğrulama e-postası gönderilemedi: {Email}", toEmail);
-            throw new InvalidOperationException("Doğrulama e-postası gönderilemedi. Lütfen daha sonra tekrar deneyin.");
-        }
-    }
-
-    private bool TryBuildSmtpClient(out SmtpClient? client, out string? fromEmail, out string fromName)
-    {
-        var host = _config["Smtp:Host"];
-        fromEmail = _config["Smtp:FromEmail"];
-        fromName = _config["Smtp:FromName"] ?? "PAÜ Market";
-
-        if (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(fromEmail))
-        {
-            client = null;
-            return false;
-        }
-
-        var port = _config.GetValue("Smtp:Port", 587);
-        var username = _config["Smtp:Username"];
-        var password = _config["Smtp:Password"];
-        var enableSsl = _config.GetValue("Smtp:EnableSsl", true);
-
-        client = new SmtpClient(host, port)
-        {
-            EnableSsl = enableSsl,
-            DeliveryMethod = SmtpDeliveryMethod.Network
-        };
-
-        if (!string.IsNullOrWhiteSpace(username))
-            client.Credentials = new NetworkCredential(username, password);
-
-        return true;
+        return message;
     }
 
     // ─── JWT ──────────────────────────────────────────────────────────────────
