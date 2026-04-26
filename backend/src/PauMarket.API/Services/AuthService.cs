@@ -240,13 +240,12 @@ public class AuthService : IAuthService
             throw new InvalidOperationException("Doğrulama kodu şu anda gönderilemiyor. Lütfen daha sonra tekrar deneyin.");
         }
 
-        var sendWithBackupAlso = _config.GetValue("EmailVerification:SendWithBackupSenderAlso", true);
         var successfulSends = 0;
         Exception? lastError = null;
 
-        foreach (var sender in senders)
+        foreach (var sender in OrderSmtpSendersForAttempt(senders, isResend))
         {
-            if (successfulSends > 0 && !sendWithBackupAlso)
+            if (successfulSends > 0)
                 break;
 
             try
@@ -302,6 +301,26 @@ public class AuthService : IAuthService
             })
             .Select(group => group.First())
             .ToList();
+    }
+
+    private static IEnumerable<SmtpSenderSettings> OrderSmtpSendersForAttempt(
+        List<SmtpSenderSettings> senders,
+        bool isResend)
+    {
+        var primary = senders.FirstOrDefault(sender => sender.Label == "Primary");
+        var backup = senders.FirstOrDefault(sender => sender.Label == "Backup");
+
+        if (isResend && backup is not null)
+            yield return backup;
+
+        if (primary is not null)
+            yield return primary;
+
+        if (!isResend && backup is not null)
+            yield return backup;
+
+        foreach (var sender in senders.Where(sender => sender != primary && sender != backup))
+            yield return sender;
     }
 
     private SmtpSenderSettings BuildSmtpSenderSettings(string label, string sectionName) =>
