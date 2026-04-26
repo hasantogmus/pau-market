@@ -67,7 +67,7 @@ public class AuthService : IAuthService
 
             var resendToken = GenerateVerificationToken();
             var resendExpiresAt = GetVerificationCodeExpiry();
-            await SendVerificationEmailAsync(existingUser.Email, resendToken);
+            await SendVerificationEmailAsync(existingUser.Email, resendToken, GetUserDisplayName(existingUser), isResend: true);
             existingUser.EmailVerificationToken = BuildStoredVerificationToken(resendToken, resendExpiresAt);
             await _db.SaveChangesAsync();
 
@@ -101,7 +101,7 @@ public class AuthService : IAuthService
             return "Kayıt başarılı. Bu ortamda e-posta doğrulaması otomatik açık olduğu için giriş yapabilirsiniz.";
         }
 
-        await SendVerificationEmailAsync(user.Email, verificationToken);
+        await SendVerificationEmailAsync(user.Email, verificationToken, GetUserDisplayName(user), isResend: false);
         _db.Users.Add(user);
         await _db.SaveChangesAsync();
         return "Kayıt başarılı. Hesabını aktifleştirmek için okul e-posta adresine gönderilen 6 haneli doğrulama kodunu gir.";
@@ -173,7 +173,7 @@ public class AuthService : IAuthService
         if (!IsEmailDeliveryConfigured())
             throw new InvalidOperationException("Doğrulama kodu şu anda gönderilemiyor. Lütfen daha sonra tekrar deneyin.");
 
-        await SendVerificationEmailAsync(user.Email, verificationToken);
+        await SendVerificationEmailAsync(user.Email, verificationToken, GetUserDisplayName(user), isResend: true);
         user.EmailVerificationToken = BuildStoredVerificationToken(verificationToken, verificationExpiresAt);
         await _db.SaveChangesAsync();
 
@@ -203,6 +203,9 @@ public class AuthService : IAuthService
         TryParseStoredVerificationToken(storedValue, out _, out var expiresAt) &&
         expiresAt > DateTime.UtcNow;
 
+    private static string GetUserDisplayName(User user) =>
+        $"{user.FirstName} {user.LastName}".Trim();
+
     private static string BuildStoredVerificationToken(string token, DateTime expiresAt) =>
         $"{token}:{expiresAt.Ticks}";
 
@@ -229,7 +232,7 @@ public class AuthService : IAuthService
     private bool IsEmailDeliveryConfigured() =>
         GetConfiguredSmtpSenders().Count > 0;
 
-    private async Task SendVerificationEmailAsync(string toEmail, string code)
+    private async Task SendVerificationEmailAsync(string toEmail, string code, string recipientName, bool isResend)
     {
         var senders = GetConfiguredSmtpSenders();
         if (senders.Count == 0)
@@ -249,7 +252,7 @@ public class AuthService : IAuthService
             try
             {
                 using var client = BuildSmtpClient(sender);
-                using var message = BuildVerificationEmail(sender, toEmail, code);
+                using var message = BuildVerificationEmail(sender, toEmail, code, recipientName, isResend);
                 await client.SendMailAsync(message);
                 successfulSends++;
 
@@ -332,20 +335,27 @@ public class AuthService : IAuthService
         return client;
     }
 
-    private static MailMessage BuildVerificationEmail(SmtpSenderSettings sender, string toEmail, string code)
+    private static MailMessage BuildVerificationEmail(
+        SmtpSenderSettings sender,
+        string toEmail,
+        string code,
+        string recipientName,
+        bool isResend)
     {
         var fromAddress = string.IsNullOrWhiteSpace(sender.FromName)
             ? new MailAddress(sender.FromEmail!)
             : new MailAddress(sender.FromEmail!, sender.FromName, Encoding.UTF8);
 
-        var plainTextBody = BuildVerificationPlainText(code);
-        var htmlBody = BuildVerificationHtml(code);
+        var safeRecipientName = NormalizeRecipientName(recipientName);
+        var subject = BuildVerificationSubject(safeRecipientName, isResend);
+        var plainTextBody = BuildVerificationPlainText(code, safeRecipientName, isResend);
+        var htmlBody = BuildVerificationHtml(code, safeRecipientName, isResend);
 
         var message = new MailMessage
         {
             From = fromAddress,
             Sender = fromAddress,
-            Subject = "PAU Market dogrulama kodu",
+            Subject = subject,
             Body = plainTextBody,
             IsBodyHtml = false,
             Priority = MailPriority.Normal,
@@ -371,18 +381,46 @@ public class AuthService : IAuthService
         return message;
     }
 
-    private static string BuildVerificationPlainText(string code) =>
-        $"""
-        Merhaba,
+    private static string NormalizeRecipientName(string recipientName) =>
+        string.Join(' ', recipientName.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            .Replace('\r', ' ')
+            .Replace('\n', ' ');
 
-        PAU Market hesabini dogrulamak icin kodun: {code}
+    private static string BuildVerificationSubject(string recipientName, bool isResend)
+    {
+        var prefix = isResend ? "PAU Market yeni dogrulama kodu" : "PAU Market dogrulama kodu";
+        return string.IsNullOrWhiteSpace(recipientName)
+            ? prefix
+            : $"{prefix} - {recipientName}";
+    }
+
+    private static string BuildVerificationPlainText(string code, string recipientName, bool isResend)
+    {
+        var greeting = string.IsNullOrWhiteSpace(recipientName) ? "Merhaba," : $"Merhaba {recipientName},";
+        var intro = isResend
+            ? "PAU Market hesabin icin yeni dogrulama kodun:"
+            : "PAU Market hesabini dogrulamak icin kodun:";
+
+        return $"""
+        {greeting}
+
+        {intro} {code}
 
         Bu kod 2 dakika gecerlidir. Kodu sen istemediysen bu e-postayi yok sayabilirsin.
 
         PAU Market
         """;
+    }
 
-    private static string BuildVerificationHtml(string code) =>
+    private static string BuildVerificationHtml(string code, string recipientName, bool isResend)
+    {
+        var greeting = string.IsNullOrWhiteSpace(recipientName) ? "Merhaba," : $"Merhaba {WebUtility.HtmlEncode(recipientName)},";
+        var title = isResend ? "Yeni e-posta dogrulama kodun" : "E-posta dogrulama kodun";
+        var intro = isResend
+            ? "PAU Market hesabini aktifleştirmek icin yeni kodun hazir."
+            : "PAU Market hesabini aktifleştirmek icin asagidaki 6 haneli kodu kullanabilirsin.";
+
+        return
         $$"""
         <!doctype html>
         <html lang="tr">
@@ -404,13 +442,13 @@ public class AuthService : IAuthService
                   <tr>
                     <td style="background:#155eef;padding:24px 28px;color:#ffffff;">
                       <div style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;opacity:.9;">PAU Market</div>
-                      <h1 style="margin:10px 0 0;font-size:26px;line-height:1.25;font-weight:800;">E-posta dogrulama kodun</h1>
+                      <h1 style="margin:10px 0 0;font-size:26px;line-height:1.25;font-weight:800;">{{title}}</h1>
                     </td>
                   </tr>
                   <tr>
                     <td style="padding:30px 28px 8px;">
                       <p style="margin:0 0 18px;font-size:16px;line-height:1.6;color:#374151;">
-                        Merhaba, PAU Market hesabini aktifleştirmek icin asagidaki 6 haneli kodu kullanabilirsin.
+                        {{greeting}} {{intro}}
                       </p>
                       <div style="background:#f5f8ff;border:1px solid #cfe0ff;border-radius:18px;padding:22px;text-align:center;">
                         <div style="font-size:12px;line-height:1.4;color:#64748b;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">Dogrulama kodu</div>
@@ -435,6 +473,7 @@ public class AuthService : IAuthService
         </body>
         </html>
         """;
+    }
 
     // ─── JWT ──────────────────────────────────────────────────────────────────
 
