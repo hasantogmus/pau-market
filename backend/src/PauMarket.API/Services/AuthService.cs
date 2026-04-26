@@ -326,20 +326,15 @@ public class AuthService : IAuthService
             ? new MailAddress(sender.FromEmail!)
             : new MailAddress(sender.FromEmail!, sender.FromName, Encoding.UTF8);
 
+        var plainTextBody = BuildVerificationPlainText(code);
+        var htmlBody = BuildVerificationHtml(code);
+
         var message = new MailMessage
         {
             From = fromAddress,
             Sender = fromAddress,
             Subject = "PAU Market dogrulama kodu",
-            Body = $"""
-                   Merhaba,
-
-                   PAU Market hesabini dogrulamak icin kodun: {code}
-
-                   Bu kod 2 dakika gecerlidir. Kodu sen istemediysen bu e-postayi yok sayabilirsin.
-
-                   PAU Market
-                   """,
+            Body = plainTextBody,
             IsBodyHtml = false,
             Priority = MailPriority.Normal,
             SubjectEncoding = Encoding.UTF8,
@@ -347,12 +342,87 @@ public class AuthService : IAuthService
             HeadersEncoding = Encoding.UTF8
         };
 
+        message.AlternateViews.Add(AlternateView.CreateAlternateViewFromString(
+            plainTextBody,
+            Encoding.UTF8,
+            "text/plain"));
+        message.AlternateViews.Add(AlternateView.CreateAlternateViewFromString(
+            htmlBody,
+            Encoding.UTF8,
+            "text/html"));
         message.ReplyToList.Add(fromAddress);
         message.To.Add(toEmail);
         message.Headers.Add("X-Auto-Response-Suppress", "All");
+        message.Headers.Add("Auto-Submitted", "auto-generated");
+        message.Headers.Add("X-PauMarket-Email-Type", "email-verification");
 
         return message;
     }
+
+    private static string BuildVerificationPlainText(string code) =>
+        $"""
+        Merhaba,
+
+        PAU Market hesabini dogrulamak icin kodun: {code}
+
+        Bu kod 2 dakika gecerlidir. Kodu sen istemediysen bu e-postayi yok sayabilirsin.
+
+        PAU Market
+        """;
+
+    private static string BuildVerificationHtml(string code) =>
+        $$"""
+        <!doctype html>
+        <html lang="tr">
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <meta name="x-apple-disable-message-reformatting">
+          <title>PAU Market dogrulama kodu</title>
+        </head>
+        <body style="margin:0;padding:0;background:#eef4ff;color:#111827;font-family:Arial,Helvetica,sans-serif;">
+          <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
+            PAU Market hesabini dogrulamak icin 6 haneli kodun hazir.
+          </div>
+
+          <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#eef4ff;margin:0;padding:32px 12px;">
+            <tr>
+              <td align="center">
+                <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:560px;background:#ffffff;border-radius:24px;border:1px solid #dbe7ff;box-shadow:0 18px 50px rgba(37,99,235,.14);overflow:hidden;">
+                  <tr>
+                    <td style="background:#155eef;padding:24px 28px;color:#ffffff;">
+                      <div style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;opacity:.9;">PAU Market</div>
+                      <h1 style="margin:10px 0 0;font-size:26px;line-height:1.25;font-weight:800;">E-posta dogrulama kodun</h1>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:30px 28px 8px;">
+                      <p style="margin:0 0 18px;font-size:16px;line-height:1.6;color:#374151;">
+                        Merhaba, PAU Market hesabini aktifleştirmek icin asagidaki 6 haneli kodu kullanabilirsin.
+                      </p>
+                      <div style="background:#f5f8ff;border:1px solid #cfe0ff;border-radius:18px;padding:22px;text-align:center;">
+                        <div style="font-size:12px;line-height:1.4;color:#64748b;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">Dogrulama kodu</div>
+                        <div style="font-size:38px;line-height:1.2;font-weight:800;letter-spacing:.16em;color:#155eef;margin-top:8px;">{{code}}</div>
+                      </div>
+                      <p style="margin:18px 0 0;font-size:14px;line-height:1.6;color:#64748b;">
+                        Bu kod 2 dakika gecerlidir. Kodu sen istemediysen bu e-postayi yok sayabilirsin.
+                      </p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:18px 28px 28px;">
+                      <div style="border-top:1px solid #e5e7eb;padding-top:18px;font-size:12px;line-height:1.6;color:#94a3b8;">
+                        Bu mesaj PAU Market hesap dogrulama islemi icin otomatik olarak gonderildi.
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+        </html>
+        """;
 
     // ─── JWT ──────────────────────────────────────────────────────────────────
 
