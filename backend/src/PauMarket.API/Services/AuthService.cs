@@ -60,6 +60,11 @@ public class AuthService : IAuthService
             if (!IsEmailDeliveryConfigured())
                 throw new InvalidOperationException("Doğrulama kodu şu anda gönderilemiyor. Lütfen daha sonra tekrar deneyin.");
 
+            if (HasUsableVerificationCode(existingUser.EmailVerificationToken))
+            {
+                return "Bu hesap için yakın zamanda bir doğrulama kodu gönderildi. Lütfen e-posta kutundaki son kodu kullan; süre dolunca yeni kod isteyebilirsin.";
+            }
+
             var resendToken = GenerateVerificationToken();
             var resendExpiresAt = GetVerificationCodeExpiry();
             await SendVerificationEmailAsync(existingUser.Email, resendToken);
@@ -160,6 +165,9 @@ public class AuthService : IAuthService
         if (user.IsEmailVerified)
             return "Bu hesap zaten doğrulanmış durumda. Giriş yapabilirsiniz.";
 
+        if (HasUsableVerificationCode(user.EmailVerificationToken))
+            return "Önceki doğrulama kodun hâlâ geçerli. Gereksiz e-posta filtresine takılmaması için süre dolana kadar yeni kod göndermiyoruz.";
+
         var verificationToken = GenerateVerificationToken();
         var verificationExpiresAt = GetVerificationCodeExpiry();
         if (!IsEmailDeliveryConfigured())
@@ -190,6 +198,10 @@ public class AuthService : IAuthService
 
     private DateTime GetVerificationCodeExpiry() =>
         DateTime.UtcNow.AddSeconds(GetVerificationCodeLifetimeSeconds());
+
+    private static bool HasUsableVerificationCode(string? storedValue) =>
+        TryParseStoredVerificationToken(storedValue, out _, out var expiresAt) &&
+        expiresAt > DateTime.UtcNow;
 
     private static string BuildStoredVerificationToken(string token, DateTime expiresAt) =>
         $"{token}:{expiresAt.Ticks}";

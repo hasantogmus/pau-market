@@ -72,6 +72,13 @@ const VerifyEmail = () => {
     };
 
     const handleResend = async () => {
+        if (timeLeft > 0) {
+            setError(null);
+            setSuccess(null);
+            setInfo(`Son gönderilen kod hâlâ geçerli. Filtreye takılmaması için ${formattedTimeLeft} sonra yeni kod isteyebilirsin.`);
+            return;
+        }
+
         if (!email) {
             setError('Yeni kod gönderebilmek için önce e-posta adresini girin.');
             return;
@@ -222,13 +229,18 @@ const VerifyEmail = () => {
                 <button
                     type="button"
                     onClick={handleResend}
-                    disabled={isResending}
+                    disabled={isResending || timeLeft > 0}
                     className="w-full mt-4 py-3.5 px-4 border border-gray-200 hover:border-blue-300 bg-white hover:bg-blue-50 text-gray-700 font-semibold rounded-xl transition-all flex justify-center items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                 >
                     {isResending ? (
                         <>
                             <Loader2 className="w-5 h-5 animate-spin" />
                             Yeni Kod Gönderiliyor...
+                        </>
+                    ) : timeLeft > 0 ? (
+                        <>
+                            <RotateCcw className="w-4 h-4" />
+                            Yeni kod için bekle: {formattedTimeLeft}
                         </>
                     ) : (
                         <>
