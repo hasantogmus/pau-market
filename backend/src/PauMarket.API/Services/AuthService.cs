@@ -310,11 +310,11 @@ public class AuthService : IAuthService
         var primary = senders.FirstOrDefault(sender => sender.Label == "Primary");
         var backup = senders.FirstOrDefault(sender => sender.Label == "Backup");
 
-        if (backup is not null)
-            yield return backup;
-
         if (primary is not null)
             yield return primary;
+
+        if (backup is not null)
+            yield return backup;
 
         foreach (var sender in senders.Where(sender => sender != primary && sender != backup))
             yield return sender;
