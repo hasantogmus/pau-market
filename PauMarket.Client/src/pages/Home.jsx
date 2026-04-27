@@ -359,6 +359,14 @@ const Home = () => {
             } else {
                 await favoriteService.addFavorite(listingId);
             }
+
+            try {
+                const recData = await listingService.getRecommendations();
+                setAiRecommendations(Array.isArray(recData) ? recData : []);
+                setRecIndex(0);
+            } catch (recommendationErr) {
+                console.error("Öneriler yenilenemedi:", recommendationErr);
+            }
         } catch (err) {
             console.error("Favori işlemi başarısız:", err);
 

@@ -22,7 +22,15 @@ public class RecommendationService(
     /// <inheritdoc/>
     public async Task<IEnumerable<ListingResponseDto>> GetHybridRecommendationsAsync(int userId, int count = 5)
     {
+        count = Math.Clamp(count, 1, 50);
         var recommendedListings = new List<ListingResponseDto>();
+        var excludedIds = new HashSet<int>();
+
+        var liveSignalTarget = Math.Min(count, Math.Max(3, count / 3));
+        var liveRecommendations = await GetLiveInteractionRecommendationsAsync(userId, liveSignalTarget, excludedIds);
+        recommendedListings.AddRange(liveRecommendations);
+        foreach (var listingId in liveRecommendations.Select(listing => listing.Id))
+            excludedIds.Add(listingId);
 
         try
         {
@@ -31,8 +39,9 @@ public class RecommendationService(
             // URL'yi appsettings'den veya Docker ENV vars'dan al (Yoksa varsayılan Docker hostu veya localhost'u dene)
             var recommenderUrl = configuration["RecommenderApiUrl"] ?? "http://recommender:8000";
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var pythonTargetCount = Math.Max(count - recommendedListings.Count, 0);
             var response = await httpClient.GetAsync(
-                $"{recommenderUrl}/recommend/by-user-id/{userId}?n={count * 2}", cts.Token);
+                $"{recommenderUrl}/recommend/by-user-id/{userId}?n={Math.Max(pythonTargetCount * 2, count)}", cts.Token);
             
             if (response.IsSuccessStatusCode)
             {
@@ -52,14 +61,19 @@ public class RecommendationService(
                     // 2. Python'dan gelen ID'leri SQL DB'den bul ve getir. Kullanıcının KENDİ ilanlarını gösterme.
                     var listings = await db.Listings
                         .Include(l => l.Images)
-                        .Where(l => pythonItemIds.Contains(l.Id) && l.IsActive && l.IsApproved && !l.IsSold && l.UserId != userId)
+                        .Where(l => pythonItemIds.Contains(l.Id)
+                                 && l.IsActive
+                                 && l.IsApproved
+                                 && !l.IsSold
+                                 && l.UserId != userId
+                                 && !excludedIds.Contains(l.Id))
                         .ToListAsync();
 
                     // Python'un sıralamasını koru
                     var orderedListings = pythonItemIds
                         .Select(id => listings.FirstOrDefault(l => l.Id == id))
                         .Where(l => l != null)
-                        .Take(count)
+                        .Take(Math.Max(count - recommendedListings.Count, 0))
                         .Select(l => MapToDto(l!, "Geçmiş etkileşimlerine benzeyen ilanlardan biri olduğu için önerildi."))
                         .ToList();
 
@@ -84,8 +98,6 @@ public class RecommendationService(
         if (recommendedListings.Count < count)
         {
             int needed = count - recommendedListings.Count;
-            var excludedIds = recommendedListings.Select(l => l.Id).ToHashSet();
-            
             var fallback = await GetColdStartRecommendationsAsync(userId, needed, excludedIds);
             recommendedListings.AddRange(fallback);
         }
@@ -154,6 +166,105 @@ public class RecommendationService(
     // ═══════════════════════════════════════════════════════════════════════════
     //  PRIVATE — Cold Start / Fallback
     // ═══════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Model yeniden eğitimi beklenmeden, kullanıcının canlı görüntüleme/favori/anlaşma
+    /// sinyallerinden kategori profili çıkarır. Böylece yeni favoriler ana sayfaya
+    /// hızlıca etki eder; Python modeli ise bu katmanın üstünü tamamlar.
+    /// </summary>
+    private async Task<List<ListingResponseDto>> GetLiveInteractionRecommendationsAsync(
+        int userId,
+        int count,
+        HashSet<int> alreadyIncludedIds)
+    {
+        if (count <= 0)
+            return [];
+
+        var signals = await db.Interactions
+            .AsNoTracking()
+            .Where(interaction =>
+                interaction.UserId == userId &&
+                interaction.Listing.UserId != userId &&
+                interaction.Listing.IsApproved)
+            .OrderByDescending(interaction => interaction.Timestamp)
+            .Take(80)
+            .Select(interaction => new
+            {
+                interaction.ListingId,
+                interaction.InteractionType,
+                interaction.Timestamp,
+                interaction.Listing.Category,
+                interaction.Listing.Condition
+            })
+            .ToListAsync();
+
+        if (signals.Count == 0)
+            return [];
+
+        var now = DateTime.UtcNow;
+        static double RecencyBoost(DateTime timestamp, DateTime now)
+        {
+            var ageDays = Math.Max(0, (now - timestamp).TotalDays);
+            return Math.Max(0.25, 1.0 - (ageDays / 30.0));
+        }
+
+        var categoryScores = signals
+            .Where(signal => !string.IsNullOrWhiteSpace(signal.Category))
+            .GroupBy(signal => signal.Category)
+            .ToDictionary(
+                group => group.Key,
+                group => group.Sum(signal => signal.InteractionType.ToRecommenderWeight() * RecencyBoost(signal.Timestamp, now)));
+
+        if (categoryScores.Count == 0)
+            return [];
+
+        var conditionScores = signals
+            .Where(signal => !string.IsNullOrWhiteSpace(signal.Condition))
+            .GroupBy(signal => signal.Condition)
+            .ToDictionary(
+                group => group.Key,
+                group => group.Sum(signal => signal.InteractionType.ToRecommenderWeight() * RecencyBoost(signal.Timestamp, now)));
+
+        var topCategories = categoryScores
+            .OrderByDescending(pair => pair.Value)
+            .Take(5)
+            .Select(pair => pair.Key)
+            .ToList();
+
+        var interactedListingIds = signals
+            .Select(signal => signal.ListingId)
+            .ToHashSet();
+
+        var candidates = await db.Listings
+            .Include(listing => listing.Images)
+            .AsNoTracking()
+            .Where(listing => listing.IsActive
+                           && listing.IsApproved
+                           && !listing.IsSold
+                           && listing.UserId != userId
+                           && !alreadyIncludedIds.Contains(listing.Id)
+                           && !interactedListingIds.Contains(listing.Id)
+                           && topCategories.Contains(listing.Category))
+            .OrderByDescending(listing => listing.CreatedAt)
+            .Take(80)
+            .ToListAsync();
+
+        return candidates
+            .Select(listing => new
+            {
+                Listing = listing,
+                Score = categoryScores.GetValueOrDefault(listing.Category)
+                        + (conditionScores.GetValueOrDefault(listing.Condition) * 0.35)
+                        + Math.Max(0, 1.0 - (now - listing.CreatedAt).TotalDays / 14.0)
+            })
+            .OrderByDescending(item => item.Score)
+            .ThenByDescending(item => item.Listing.CreatedAt)
+            .Take(count)
+            .Select(item => MapToDto(
+                item.Listing,
+                "Son görüntüleme ve favorilerine benzediği için önerildi."))
+            .ToList();
+    }
 
     /// <summary>
     /// Eğer yapay zeka servisi çökükse veya hiç veri getiremezse 

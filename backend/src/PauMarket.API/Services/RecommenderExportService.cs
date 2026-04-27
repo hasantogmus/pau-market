@@ -14,6 +14,9 @@ public class RecommenderExportService(PauMarketDbContext db) : IRecommenderExpor
 
         var interactions = await db.Interactions
             .AsNoTracking()
+            .Where(interaction =>
+                interaction.Listing.IsApproved &&
+                interaction.Listing.UserId != interaction.UserId)
             .OrderBy(interaction => interaction.Timestamp)
             .Select(interaction => new
             {
@@ -39,6 +42,9 @@ public class RecommenderExportService(PauMarketDbContext db) : IRecommenderExpor
 
         var legacyViews = await db.UserViews
             .AsNoTracking()
+            .Where(view =>
+                view.Listing.IsApproved &&
+                view.Listing.UserId != view.UserId)
             .OrderBy(view => view.ViewedAt)
             .Select(view => new
             {
@@ -79,6 +85,7 @@ public class RecommenderExportService(PauMarketDbContext db) : IRecommenderExpor
     {
         var listings = await db.Listings
             .AsNoTracking()
+            .Where(listing => listing.IsApproved)
             .OrderBy(listing => listing.Id)
             .Select(listing => new
             {
