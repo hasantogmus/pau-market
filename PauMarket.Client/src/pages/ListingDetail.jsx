@@ -528,17 +528,47 @@ const ListingDetail = () => {
                             </motion.div>
                         )}
 
+                        <motion.div
+                            variants={fadeUpVariants}
+                            initial="hidden"
+                            animate="visible"
+                            custom={0.35}
+                            className="rounded-2xl border border-blue-100 bg-blue-50/80 p-4"
+                        >
+                            <div className="flex items-start gap-3">
+                                <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-blue-600 shadow-sm">
+                                    <ShieldCheck className="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <h2 className="text-sm font-black text-blue-950">Güvenli kampüs alışverişi</h2>
+                                    <p className="mt-1 text-sm leading-6 text-blue-800">
+                                        Mesajlaşmada fiyat ve buluşma yerini netleştir. Ürünü kampüste yüz yüze kontrol etmeden ödeme yapmamanı öneririz.
+                                    </p>
+                                </div>
+                            </div>
+                        </motion.div>
+
                         {/* Aksiyon: Satıcıya Mesaj At */}
                         <motion.div variants={fadeUpVariants} initial="hidden" animate="visible" custom={0.38} className="mt-auto">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <button
-                                    disabled={listing.isSold}
-                                    onClick={() => navigate(`/messages?listingId=${listing.id}&sellerId=${listing.userId}`)}
-                                    className="w-full flex items-center justify-center gap-3 py-4 px-6 bg-blue-600 hover:bg-blue-700 text-white text-lg font-extrabold rounded-2xl shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5 active:scale-[0.98] disabled:bg-gray-300 disabled:hover:bg-gray-300 disabled:shadow-none disabled:hover:translate-y-0 disabled:cursor-not-allowed"
-                                >
-                                    <MessageCircle className="w-6 h-6" />
-                                    {listing.isSold ? 'Bu İlan Satıldı' : 'Satıcıya Mesaj At'}
-                                </button>
+                                {isOwnListing ? (
+                                    <Link
+                                        to="/my-listings"
+                                        className="w-full flex items-center justify-center gap-3 py-4 px-6 bg-blue-600 hover:bg-blue-700 text-white text-lg font-extrabold rounded-2xl shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5 active:scale-[0.98]"
+                                    >
+                                        <PencilLine className="w-6 h-6" />
+                                        İlanlarımda Yönet
+                                    </Link>
+                                ) : (
+                                    <button
+                                        disabled={listing.isSold}
+                                        onClick={() => navigate(`/messages?listingId=${listing.id}&sellerId=${listing.userId}`)}
+                                        className="w-full flex items-center justify-center gap-3 py-4 px-6 bg-blue-600 hover:bg-blue-700 text-white text-lg font-extrabold rounded-2xl shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5 active:scale-[0.98] disabled:bg-gray-300 disabled:hover:bg-gray-300 disabled:shadow-none disabled:hover:translate-y-0 disabled:cursor-not-allowed"
+                                    >
+                                        <MessageCircle className="w-6 h-6" />
+                                        {listing.isSold ? 'Bu İlan Satıldı' : 'Satıcıya Mesaj At'}
+                                    </button>
+                                )}
 
                                 <button
                                     type="button"
@@ -571,7 +601,9 @@ const ListingDetail = () => {
                                     <ShieldCheck className="w-5 h-5" />
                                     {isUpdatingDealRequest
                                         ? 'Güncelleniyor...'
-                                        : canWithdrawDealRequest
+                                        : isOwnListing
+                                            ? 'Kendi İlanın'
+                                            : canWithdrawDealRequest
                                             ? 'İsteği Geri Çek'
                                             : canCancelDealRequest
                                                 ? 'Anlaşmayı İptal Et'

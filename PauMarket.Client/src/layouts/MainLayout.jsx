@@ -9,7 +9,7 @@ const MainLayout = ({ children }) => {
             <Navbar />
 
             {/* ─── Ana İçerik ──────────────────────────────────────────── */}
-            <main className="flex-grow w-full max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+            <main className="flex-grow w-full">
                 {children}
             </main>
 

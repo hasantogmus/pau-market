@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { MessageCircle, Send, User } from 'lucide-react';
+import { ArrowLeft, MessageCircle, Send, User, Wifi, WifiOff } from 'lucide-react';
 import { HubConnectionBuilder, LogLevel } from '@microsoft/signalr';
 import { useAuth } from '../hooks/useAuth';
 import messageService from '../services/messageService';
@@ -59,6 +59,8 @@ const Messages = () => {
     const [conversationMeta, setConversationMeta] = useState(null);
     const [isUpdatingDealRequest, setIsUpdatingDealRequest] = useState(false);
     const [hubConnection, setHubConnection] = useState(null);
+    const [connectionStatus, setConnectionStatus] = useState('Bağlanıyor');
+    const messagesEndRef = useRef(null);
 
     // ── SignalR Bağlantısı Kurulumu ──
     useEffect(() => {
@@ -76,12 +78,20 @@ const Messages = () => {
             .withAutomaticReconnect()
             .build();
 
+        connection.onreconnecting(() => setConnectionStatus('Bağlanıyor'));
+        connection.onreconnected(() => setConnectionStatus('Canlı'));
+        connection.onclose(() => setConnectionStatus('Çevrimdışı'));
+
         connection.start()
             .then(() => {
                 console.log('SignalR Connected');
                 setHubConnection(connection);
+                setConnectionStatus('Canlı');
             })
-            .catch(err => console.error('SignalR Connection Error: ', err));
+            .catch(err => {
+                console.error('SignalR Connection Error: ', err);
+                setConnectionStatus('Çevrimdışı');
+            });
 
         return () => {
             if (connection) {
@@ -136,6 +146,10 @@ const Messages = () => {
             hubConnection.off('ReceiveMessage', handleReceiveMessage);
         };
     }, [hubConnection, listingId, sellerId]);
+
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }, [messages, isLoadingMessages]);
 
     useEffect(() => {
         if (!isAuthenticated) {
@@ -313,6 +327,13 @@ const Messages = () => {
         }
     };
 
+    const handleComposerKeyDown = (event) => {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            event.currentTarget.form?.requestSubmit();
+        }
+    };
+
     const updateThreadDealStatus = (requestId, statusName) => {
         const statusValue = dealStatusCodes[statusName] ?? null;
         const canCancelDealRequest = statusName === 'Accepted';
@@ -446,12 +467,40 @@ const Messages = () => {
                     <div className="px-6 py-5 border-b border-gray-100">
                         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                             <div>
-                                <h2 className="text-2xl font-extrabold tracking-tight text-gray-900">{conversationTitle}</h2>
+                                {canLoadConversation && (
+                                    <button
+                                        type="button"
+                                        onClick={() => navigate('/messages')}
+                                        className="mb-3 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-blue-600 lg:hidden"
+                                    >
+                                        <ArrowLeft className="w-4 h-4" />
+                                        Mesajlara dön
+                                    </button>
+                                )}
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <h2 className="text-2xl font-extrabold tracking-tight text-gray-900">{conversationTitle}</h2>
+                                    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-black ${
+                                        connectionStatus === 'Canlı'
+                                            ? 'bg-emerald-50 text-emerald-700'
+                                            : 'bg-slate-100 text-slate-500'
+                                    }`}>
+                                        {connectionStatus === 'Canlı' ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
+                                        {connectionStatus}
+                                    </span>
+                                </div>
                                 <p className="text-sm text-gray-500 mt-1">
                                     {activeConversation
                                         ? `${activeConversation.listingTitle} ilanı hakkında konuşuyorsun.`
                                         : 'Sol taraftan bir konuşma seç ya da ilan detayından yeni mesaj başlat.'}
                                 </p>
+                                {activeConversation && (
+                                    <Link
+                                        to={`/listings/${activeConversation.listingId}`}
+                                        className="mt-2 inline-flex text-xs font-bold text-blue-600 hover:text-blue-800"
+                                    >
+                                        İlan detayına git
+                                    </Link>
+                                )}
                                 {activeConversation?.dealRequestStatusName && (
                                     <div className="flex flex-wrap items-center gap-2 mt-3">
                                         <span className={`inline-flex px-3 py-1 rounded-full text-xs font-bold border ${dealStatusTone[activeConversation.dealRequestStatusName] || 'bg-gray-50 text-gray-600 border-gray-200'}`}>
@@ -551,6 +600,7 @@ const Messages = () => {
                                         );
                                     })
                                 )}
+                                <div ref={messagesEndRef} />
                             </div>
 
                             <form onSubmit={handleSend} className="border-t border-gray-100 p-4 sm:p-5 bg-white">
@@ -559,8 +609,9 @@ const Messages = () => {
                                     <textarea
                                         value={content}
                                         onChange={(event) => setContent(event.target.value)}
+                                        onKeyDown={handleComposerKeyDown}
                                         rows={3}
-                                        placeholder="Mesajını yaz..."
+                                        placeholder="Mesajını yaz... Enter ile gönder, Shift+Enter yeni satır"
                                         className="flex-1 resize-none rounded-2xl border border-gray-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition-all"
                                     />
                                     <button

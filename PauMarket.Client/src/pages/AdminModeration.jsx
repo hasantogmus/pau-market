@@ -18,6 +18,12 @@ const STATUS_TABS = [
     { key: 'rejected', label: 'Reddedilenler', icon: XCircle },
 ];
 
+const REJECTION_TEMPLATES = [
+    'Görsel veya açıklama platform kurallarına uygun değil.',
+    'İlan bilgileri eksik veya yanıltıcı görünüyor.',
+    'Ürün PAÜ Market kullanım amacına uygun değil.',
+];
+
 const formatPrice = (price) =>
     new Intl.NumberFormat('tr-TR', {
         style: 'currency',
@@ -37,6 +43,7 @@ const AdminModeration = () => {
     const [loading, setLoading] = useState(true);
     const [actionLoadingId, setActionLoadingId] = useState(null);
     const [error, setError] = useState('');
+    const [summaryCounts, setSummaryCounts] = useState({ pending: 0, approved: 0, rejected: 0 });
 
     useEffect(() => {
         let isMounted = true;
@@ -68,6 +75,31 @@ const AdminModeration = () => {
         };
     }, [status]);
 
+    useEffect(() => {
+        let isMounted = true;
+
+        const loadSummary = async () => {
+            const entries = await Promise.allSettled(
+                STATUS_TABS.map((tab) => adminService.getModerationListings(tab.key))
+            );
+
+            if (!isMounted) return;
+
+            setSummaryCounts(
+                entries.reduce((acc, result, index) => ({
+                    ...acc,
+                    [STATUS_TABS[index].key]: result.status === 'fulfilled' ? result.value.length : 0,
+                }), {})
+            );
+        };
+
+        loadSummary();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [status]);
+
     const removeFromCurrentList = (listingId) => {
         setListings((current) => current.filter((listing) => listing.id !== listingId));
     };
@@ -78,6 +110,11 @@ const AdminModeration = () => {
         try {
             await adminService.approveListing(listingId);
             removeFromCurrentList(listingId);
+            setSummaryCounts((current) => ({
+                ...current,
+                pending: Math.max(0, Number(current.pending || 0) - 1),
+                approved: Number(current.approved || 0) + 1,
+            }));
         } catch {
             setError('İlan onaylanamadı. Lütfen tekrar dene.');
         } finally {
@@ -91,11 +128,23 @@ const AdminModeration = () => {
         try {
             await adminService.rejectListing(listingId, reasons[listingId] || '');
             removeFromCurrentList(listingId);
+            setSummaryCounts((current) => ({
+                ...current,
+                pending: Math.max(0, Number(current.pending || 0) - 1),
+                rejected: Number(current.rejected || 0) + 1,
+            }));
         } catch {
             setError('İlan reddedilemedi. Lütfen tekrar dene.');
         } finally {
             setActionLoadingId(null);
         }
+    };
+
+    const applyRejectTemplate = (listingId, template) => {
+        setReasons((current) => ({
+            ...current,
+            [listingId]: template,
+        }));
     };
 
     return (
@@ -115,9 +164,16 @@ const AdminModeration = () => {
                         </p>
                     </div>
 
-                    <div className="rounded-2xl bg-white border border-slate-200 px-5 py-4 shadow-sm">
-                        <p className="text-sm text-slate-500">Bu sekmedeki kayıt</p>
-                        <p className="text-3xl font-black text-slate-950">{loading ? '-' : listings.length}</p>
+                    <div className="grid grid-cols-3 gap-3">
+                        {STATUS_TABS.map(({ key, label, icon: Icon }) => (
+                            <div key={key} className="rounded-2xl bg-white border border-slate-200 px-4 py-3 shadow-sm min-w-28">
+                                <div className="flex items-center gap-2 text-slate-400">
+                                    <Icon className="w-4 h-4" />
+                                    <p className="text-[11px] font-black uppercase tracking-wider">{label.split(' ')[0]}</p>
+                                </div>
+                                <p className="text-2xl font-black text-slate-950 mt-1">{summaryCounts[key] ?? 0}</p>
+                            </div>
+                        ))}
                     </div>
                 </div>
 
@@ -154,7 +210,13 @@ const AdminModeration = () => {
                     <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center">
                         <ShieldCheck className="w-12 h-12 mx-auto text-blue-500 mb-4" />
                         <h2 className="text-xl font-black text-slate-900">Bu sekmede ilan yok</h2>
-                        <p className="text-slate-500 mt-2">Kuyruk temiz. Küçük bir admin zaferi, sessiz ama tatlı.</p>
+                        <p className="text-slate-500 mt-2">
+                            {status === 'pending'
+                                ? 'Bekleyen ilan yok. Kuyruk temiz.'
+                                : status === 'approved'
+                                    ? 'Henüz onaylanan ilan listelenmiyor.'
+                                    : 'Henüz reddedilen ilan listelenmiyor.'}
+                        </p>
                     </div>
                 ) : (
                     <div className="grid gap-5">
@@ -225,6 +287,18 @@ const AdminModeration = () => {
                                             <div className="mt-6 grid gap-3 lg:grid-cols-[1fr,auto] lg:items-end">
                                                 <label className="block">
                                                     <span className="text-sm font-bold text-slate-600">Reddetme nedeni, opsiyonel</span>
+                                                    <div className="mt-2 flex flex-wrap gap-2">
+                                                        {REJECTION_TEMPLATES.map((template) => (
+                                                            <button
+                                                                key={template}
+                                                                type="button"
+                                                                onClick={() => applyRejectTemplate(listing.id, template)}
+                                                                className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-bold text-slate-600 hover:border-blue-200 hover:text-blue-700"
+                                                            >
+                                                                {template}
+                                                            </button>
+                                                        ))}
+                                                    </div>
                                                     <textarea
                                                         value={reasons[listing.id] || ''}
                                                         onChange={(event) =>
@@ -238,6 +312,9 @@ const AdminModeration = () => {
                                                         placeholder="Örn: Görsel veya açıklama platform kurallarına uygun değil."
                                                         className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
                                                     />
+                                                    <span className="mt-1 block text-right text-xs font-semibold text-slate-400">
+                                                        {(reasons[listing.id] || '').length}/500
+                                                    </span>
                                                 </label>
 
                                                 <div className="flex flex-col sm:flex-row gap-2">

@@ -421,7 +421,7 @@ const NewListing = () => {
                 condition:   formData.condition,
                 imageFiles:  images.map(i => i.file),
             });
-            triggerToast('success', 'Harika! İlanın yayınlandı 🚀');
+            triggerToast('success', 'Harika! İlanın moderasyon için gönderildi.');
             setTimeout(() => navigate('/my-listings'), 2200);
         } catch (err) {
             let msg = 'İlan yayınlanırken bir hata oluştu.';

@@ -19,7 +19,11 @@ const Login = () => {
     const justVerified = searchParams.get('verified') === 'true';
     const verificationMessage = location.state?.verificationMessage
         || 'E-posta adresin doğrulandı. Artık giriş yapabilirsin.';
-    const redirectAfterLogin = location.state?.redirectAfterLogin || '/';
+    const redirectFromProtectedRoute = location.state?.from;
+    const redirectAfterLogin = location.state?.redirectAfterLogin
+        || (redirectFromProtectedRoute
+            ? `${redirectFromProtectedRoute.pathname || '/'}${redirectFromProtectedRoute.search || ''}`
+            : '/');
 
     const handleLogin = async (e) => {
         e.preventDefault();

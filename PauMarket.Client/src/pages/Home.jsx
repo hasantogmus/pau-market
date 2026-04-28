@@ -5,9 +5,9 @@ import {
     ListFilter, X, SlidersHorizontal,
     Laptop, BookOpen, Shirt, Home as HomeIcon,
     Gamepad2, Coffee, Bike, Sparkles,
-    ChevronDown,
+    ShieldCheck, MessageCircle, MapPin, BrainCircuit, PlusCircle,
 } from 'lucide-react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import listingService from '../services/listingService';
 import favoriteService from '../services/favoriteService';
 import ProductCard from '../components/ProductCard';
@@ -142,7 +142,14 @@ const formatPrice = (p) =>
         ? new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 }).format(p)
         : '—';
 
-const Hero = ({ listings, isLoading, searchTerm }) => {
+const TRUST_ITEMS = [
+    { label: 'Sadece PAÜ öğrencileri', icon: <ShieldCheck className="w-4 h-4" /> },
+    { label: 'Güvenli mesajlaşma', icon: <MessageCircle className="w-4 h-4" /> },
+    { label: 'Kampüs içi alışveriş', icon: <MapPin className="w-4 h-4" /> },
+    { label: 'Akıllı öneriler', icon: <BrainCircuit className="w-4 h-4" /> },
+];
+
+const Hero = ({ listings, isLoading, searchTerm, compact = false }) => {
     const navigate = useNavigate();
     const [heroSearch, setHeroSearch] = useState(searchTerm);
     const c1 = listings[0] ?? MOCK_LISTINGS[0];
@@ -156,12 +163,45 @@ const Hero = ({ listings, isLoading, searchTerm }) => {
     const handleHeroSearch = (event) => {
         event.preventDefault();
         const query = heroSearch.trim();
-        navigate(query ? `/?q=${encodeURIComponent(query)}` : '/');
+        navigate(query ? `/listings?q=${encodeURIComponent(query)}` : '/listings');
     };
+
+    if (compact) {
+        return (
+            <section className="relative overflow-hidden rounded-[2rem] border border-blue-100 bg-gradient-to-br from-white via-blue-50 to-indigo-50 p-6 sm:p-8 shadow-sm">
+                <div className="absolute -right-16 -top-20 h-52 w-52 rounded-full bg-blue-200/40 blur-3xl" />
+                <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                    <div>
+                        <span className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-xs font-black uppercase tracking-widest text-blue-700 ring-1 ring-blue-100">
+                            <Sparkles className="h-3.5 w-3.5" />
+                            Kampüs vitrini
+                        </span>
+                        <h1 className="mt-4 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
+                            İlanları keşfet
+                        </h1>
+                        <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-slate-600">
+                            PAÜ öğrencilerinin eklediği onaylı ilanları kategori, durum ve fiyat aralığına göre filtrele.
+                        </p>
+                    </div>
+                    <form onSubmit={handleHeroSearch} className="relative w-full lg:max-w-md">
+                        <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                        <input
+                            type="text"
+                            value={heroSearch}
+                            onChange={(event) => setHeroSearch(event.target.value)}
+                            placeholder="Ders kitabı, kulaklık, bisiklet..."
+                            className="w-full rounded-2xl border border-blue-100 bg-white px-12 py-4 text-sm font-semibold text-slate-700 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
+                        />
+                    </form>
+                </div>
+            </section>
+        );
+    }
 
     return (
         <section className="relative w-full bg-gradient-to-br from-blue-50 via-white to-indigo-50 border-b border-indigo-100 overflow-hidden">
             <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 bg-blue-100/50 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute left-10 top-24 hidden h-28 w-28 rounded-full border border-blue-200/70 md:block" />
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-32 flex flex-col md:flex-row items-center gap-12">
                 {/* Text */}
                 <motion.div
@@ -170,23 +210,39 @@ const Hero = ({ listings, isLoading, searchTerm }) => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.8, ease: 'easeOut' }}
                 >
-                    <span className="inline-block py-1.5 px-4 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold tracking-widest uppercase mb-6 shadow-sm border border-indigo-200">
-                        Öğrenciler İçin Güvenli Ticaret
+                    <span className="inline-flex items-center gap-2 py-1.5 px-4 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold tracking-widest uppercase mb-6 shadow-sm border border-indigo-200">
+                        <ShieldCheck className="w-4 h-4" />
+                        PAÜ doğrulamalı kampüs pazarı
                     </span>
                     <h1 className="text-5xl lg:text-[4rem] font-extrabold text-gray-900 tracking-tight leading-[1.1] mb-6">
-                        Kampüsün Yeni <br />
+                        PAÜ Öğrencileri İçin <br />
                         <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
-                            Pazar Yeri
+                            Güvenli İkinci El Pazarı
                         </span>
                     </h1>
                     <p className="text-lg text-gray-600 mb-8 max-w-xl mx-auto md:mx-0 leading-relaxed font-medium">
-                        İkinci el eşyalarını sat, ihtiyacın olanı ucuza bul. Sadece Pamukkale Üniversitesi öğrencilerine özel, güvenilir alışveriş deneyimi.
+                        Okul e-postanla doğrulan, ilanları keşfet, favorile, mesajlaş ve kampüs içinde güvenle alışveriş yap.
                     </p>
+                    <div className="mb-8 grid grid-cols-2 gap-2.5 sm:flex sm:flex-wrap">
+                        {TRUST_ITEMS.map((item) => (
+                            <span
+                                key={item.label}
+                                className="inline-flex items-center justify-center gap-2 rounded-full border border-blue-100 bg-white/80 px-3 py-2 text-xs font-bold text-slate-700 shadow-sm backdrop-blur"
+                            >
+                                <span className="text-blue-600">{item.icon}</span>
+                                {item.label}
+                            </span>
+                        ))}
+                    </div>
                     <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start items-center">
                         <Link to="/listings" className="px-8 py-4 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-600/30 hover:bg-blue-700 hover:-translate-y-1 transition-all flex items-center justify-center gap-2">
-                            Hemen Keşfet <ChevronRight className="w-5 h-5" />
+                            İlanları Keşfet <ChevronRight className="w-5 h-5" />
                         </Link>
-                        <form onSubmit={handleHeroSearch} className="relative">
+                        <Link to="/listings/new" className="px-8 py-4 bg-white text-blue-700 font-bold rounded-xl border border-blue-100 shadow-sm hover:border-blue-200 hover:bg-blue-50 hover:-translate-y-1 transition-all flex items-center justify-center gap-2">
+                            <PlusCircle className="w-5 h-5" />
+                            İlan Ekle
+                        </Link>
+                        <form onSubmit={handleHeroSearch} className="relative w-full sm:w-auto">
                             <Search className="w-5 h-5 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2" />
                             <input
                                 type="text"
@@ -203,6 +259,21 @@ const Hero = ({ listings, isLoading, searchTerm }) => {
                 <div className="w-full md:w-1/2 relative h-80 md:h-[450px] flex items-center justify-center">
                     {isLoading ? (
                         <div className="text-blue-400/50 animate-pulse font-bold text-xl tracking-widest">Yükleniyor…</div>
+                    ) : listings.length === 0 ? (
+                        <div className="relative z-20 w-full max-w-md rounded-[2rem] border border-blue-100 bg-white/85 p-6 text-left shadow-2xl shadow-blue-100/60 backdrop-blur">
+                            <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-200">
+                                <ShieldCheck className="h-7 w-7" />
+                            </div>
+                            <h3 className="text-2xl font-black text-slate-950">Güvenli vitrin hazırlanıyor</h3>
+                            <p className="mt-3 text-sm font-medium leading-6 text-slate-600">
+                                İlanlar onaylandıkça burada görünecek. Öğrenciler arası alışverişte önce mesajlaş, sonra kampüste yüz yüze kontrol ederek teslim al.
+                            </p>
+                            <div className="mt-5 grid gap-2 text-sm font-bold text-slate-700">
+                                <span className="rounded-2xl bg-blue-50 px-4 py-3">Okul e-postasıyla doğrulama</span>
+                                <span className="rounded-2xl bg-indigo-50 px-4 py-3">Admin moderasyonlu ilanlar</span>
+                                <span className="rounded-2xl bg-slate-50 px-4 py-3">Satıcı puanı ve değerlendirme akışı</span>
+                            </div>
+                        </div>
                     ) : (
                         <>
                             {/* Back card */}
@@ -271,8 +342,11 @@ const Home = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
     const navigate = useNavigate();
+    const location = useLocation();
     const [searchParams] = useSearchParams();
     const searchTerm = (searchParams.get('q') || '').trim();
+    const isListingsRoute = location.pathname === '/listings';
+    const isLoggedIn = Boolean(localStorage.getItem('token'));
 
     // Filters
     const [activeCategory, setActiveCategory] = useState('Tümü');
@@ -331,7 +405,7 @@ const Home = () => {
 
         loadListings();
 
-        if (localStorage.getItem('token')) {
+        if (isLoggedIn) {
             loadRecommendations();
             loadFavorites();
         }
@@ -339,7 +413,7 @@ const Home = () => {
         return () => {
             isMounted = false;
         };
-    }, [searchTerm]);
+    }, [searchTerm, isLoggedIn]);
 
     const handleToggleFavorite = async (listingId) => {
         if (!localStorage.getItem('token')) {
@@ -415,7 +489,14 @@ const Home = () => {
         <div className="flex flex-col min-h-screen bg-gray-50">
 
             {/* ── Hero ── */}
-            <Hero listings={allListings} isLoading={isLoading} searchTerm={searchTerm} />
+            <div className={isListingsRoute ? 'max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 pt-8' : ''}>
+                <Hero
+                    listings={allListings}
+                    isLoading={isLoading}
+                    searchTerm={searchTerm}
+                    compact={isListingsRoute}
+                />
+            </div>
 
             {/* ── Quick category pills ── */}
             <section className="bg-white py-8 border-b border-gray-100">
@@ -480,10 +561,22 @@ const Home = () => {
                             ))
                         ) : (
                             <div className="col-span-1 sm:col-span-2 md:col-span-3 lg:col-span-5 rounded-2xl border border-dashed border-indigo-200 bg-white/70 px-5 py-8 text-center">
-                                <p className="text-sm font-bold text-gray-800">Öneriler henüz hazır değil</p>
-                                <p className="text-sm text-gray-500 mt-1">
-                                    Birkaç ilan görüntüleyip favoriledikten sonra bu alan kişiselleşecek.
+                                <p className="text-sm font-bold text-gray-800">
+                                    {isLoggedIn ? 'Öneriler henüz hazır değil' : 'Kişisel öneriler için giriş yap'}
                                 </p>
+                                <p className="text-sm text-gray-500 mt-1">
+                                    {isLoggedIn
+                                        ? 'Birkaç ilan görüntüleyip favoriledikten sonra bu alan kişiselleşecek.'
+                                        : 'Okul e-postanla giriş yaptıktan sonra favorilerin ve görüntülemelerin önerileri şekillendirir.'}
+                                </p>
+                                {!isLoggedIn && (
+                                    <Link
+                                        to="/login"
+                                        className="mt-4 inline-flex items-center justify-center rounded-full bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-blue-700"
+                                    >
+                                        Giriş Yap
+                                    </Link>
+                                )}
                             </div>
                         )}
                     </div>

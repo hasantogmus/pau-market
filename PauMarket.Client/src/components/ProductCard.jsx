@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Heart, ImageOff, MapPin } from 'lucide-react';
+import { CalendarDays, Heart, ImageOff, MapPin, ShieldCheck } from 'lucide-react';
 
 /* ─── Condition badge config ─────────────────────────────────── */
 const CONDITION_CONFIG = {
@@ -24,6 +24,15 @@ const formatPrice = (price) => {
         currency: 'TRY',
         maximumFractionDigits: 0,
     }).format(price);
+};
+
+const formatShortDate = (value) => {
+    if (!value) return null;
+
+    return new Date(value).toLocaleDateString('tr-TR', {
+        day: 'numeric',
+        month: 'short',
+    });
 };
 
 /* ═══════════════════════════════════════════════════════════════
@@ -50,6 +59,9 @@ const ProductCard = ({ item, index = 0, compact = false, isFavorite = false, onT
     const [likedFallback, setLikedFallback] = useState(false);
     const liked = onToggleFavorite ? isFavorite : likedFallback;
     const badge = getConditionBadge(item.condition);
+    const coverImage = item.imageUrl || item.imageUrls?.[0] || null;
+    const createdAt = formatShortDate(item.createdAt);
+    const location = item.location || item.campusLocation || 'PAÜ Kampüsü';
 
     return (
         <motion.div
@@ -64,9 +76,9 @@ const ProductCard = ({ item, index = 0, compact = false, isFavorite = false, onT
 
                 {/* ── Image area ── */}
                 <div className={`relative overflow-hidden bg-gray-50 ${compact ? 'h-40' : 'aspect-[4/3]'}`}>
-                    {item.imageUrl ? (
+                    {coverImage ? (
                         <img
-                            src={item.imageUrl}
+                            src={coverImage}
                             alt={item.title}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                             loading="lazy"
@@ -83,6 +95,14 @@ const ProductCard = ({ item, index = 0, compact = false, isFavorite = false, onT
                         <div className="absolute bottom-2.5 left-2.5 pointer-events-none">
                             <span className="inline-block px-2 py-0.5 bg-white/90 backdrop-blur-sm text-[10px] font-bold text-gray-600 uppercase tracking-wider rounded-md shadow-sm">
                                 {item.categoryName}
+                            </span>
+                        </div>
+                    )}
+
+                    {item.isSold && (
+                        <div className="absolute top-3 left-3 pointer-events-none">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600/95 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-white shadow-sm">
+                                Satıldı
                             </span>
                         </div>
                     )}
@@ -104,10 +124,14 @@ const ProductCard = ({ item, index = 0, compact = false, isFavorite = false, onT
                         {formatPrice(item.price)}
                     </p>
 
-                    {/* Condition badge */}
+                    {/* Condition and trust badges */}
                     <div className="mt-3 flex flex-wrap gap-1.5">
                         <span className={`inline-block px-2.5 py-1 rounded-md text-[10px] font-medium tracking-wide uppercase ${badge.bg} ${badge.text}`}>
                             {badge.label}
+                        </span>
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-blue-50 text-[10px] font-bold tracking-wide uppercase text-blue-700">
+                            <ShieldCheck className="w-3 h-3" />
+                            PAÜ
                         </span>
                     </div>
 
@@ -117,13 +141,18 @@ const ProductCard = ({ item, index = 0, compact = false, isFavorite = false, onT
                         </p>
                     )}
 
-                    {/* Location (if exists) */}
-                    {item.location && (
-                        <div className="mt-auto pt-3 flex items-center gap-1 text-gray-400">
+                    <div className="mt-auto pt-3 flex items-center justify-between gap-2 text-gray-400">
+                        <div className="min-w-0 flex items-center gap-1">
                             <MapPin className="w-3 h-3 flex-shrink-0" />
-                            <span className="text-[11px] truncate">{item.location}</span>
+                            <span className="text-[11px] truncate">{location}</span>
                         </div>
-                    )}
+                        {createdAt && (
+                            <div className="flex items-center gap-1 shrink-0">
+                                <CalendarDays className="w-3 h-3" />
+                                <span className="text-[11px]">{createdAt}</span>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </Link>
 

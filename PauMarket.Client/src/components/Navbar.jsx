@@ -60,6 +60,11 @@ const getInitials = (name = '') => {
     return name.slice(0, 2).toUpperCase() || 'U';
 };
 
+const isActivePath = (pathname, target) => {
+    if (target === '/') return pathname === '/';
+    return pathname === target || pathname.startsWith(`${target}/`);
+};
+
 /* ═══════════════════════════════════════════════════════════════
    NAVBAR COMPONENT
 ═══════════════════════════════════════════════════════════════ */
@@ -71,10 +76,11 @@ const Navbar = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [mobileOpen, setMobileOpen] = useState(false);
     const [profileOpen, setProfileOpen] = useState(false);
-    const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
+    const [unreadMessageCount, setUnreadMessageCount] = useState(0);
 
     const profileRef = useRef(null);
     const isAdmin = String(user?.role || '').toLowerCase() === 'admin';
+    const hasUnreadMessages = unreadMessageCount > 0;
 
     /* Close profile dropdown on outside click */
     useEffect(() => {
@@ -107,11 +113,13 @@ const Navbar = () => {
             try {
                 const threads = await messageService.getThreads();
                 if (isMounted) {
-                    setHasUnreadMessages(threads.some((thread) => Number(thread.unreadCount) > 0));
+                    setUnreadMessageCount(
+                        threads.reduce((total, thread) => total + Number(thread.unreadCount || 0), 0)
+                    );
                 }
             } catch {
                 if (isMounted) {
-                    setHasUnreadMessages(false);
+                    setUnreadMessageCount(0);
                 }
             }
         };
@@ -126,7 +134,7 @@ const Navbar = () => {
     const handleSearch = (e) => {
         e.preventDefault();
         if (searchQuery.trim()) {
-            navigate(`/?q=${encodeURIComponent(searchQuery.trim())}`);
+            navigate(`/listings?q=${encodeURIComponent(searchQuery.trim())}`);
             setMobileOpen(false);
         }
     };
@@ -158,6 +166,17 @@ const Navbar = () => {
                             > Market</span>
                         </span>
                     </Link>
+
+                    <nav className="hidden xl:flex items-center gap-1 text-sm font-semibold">
+                        <DesktopNavLink to="/" label="Ana Sayfa" active={isActivePath(location.pathname, '/')} />
+                        <DesktopNavLink to="/listings" label="İlanlar" active={isActivePath(location.pathname, '/listings')} />
+                        {isAuthenticated && (
+                            <>
+                                <DesktopNavLink to="/favorites" label="Favoriler" active={isActivePath(location.pathname, '/favorites')} />
+                                <DesktopNavLink to="/profile" label="Profil" active={isActivePath(location.pathname, '/profile')} />
+                            </>
+                        )}
+                    </nav>
 
                     {/* ── CENTER: Search bar (hidden on mobile) ── */}
                     <form
@@ -213,7 +232,9 @@ const Navbar = () => {
                                 <MessageCircle className="w-4 h-4" />
                                 Mesajlar
                                 {hasUnreadMessages && (
-                                    <span className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-white" />
+                                    <span className="absolute -top-0.5 -right-0.5 min-w-5 h-5 px-1 rounded-full bg-red-500 border-2 border-white text-[10px] leading-4 text-white text-center font-black">
+                                        {unreadMessageCount > 9 ? '9+' : unreadMessageCount}
+                                    </span>
                                 )}
                             </Link>
                         )}
@@ -397,6 +418,7 @@ const Navbar = () => {
                             {/* Mobile Nav Links */}
                             <nav className="space-y-1">
                                 <MobileNavLink to="/" icon={<Home className="w-5 h-5" />} label="Ana Sayfa" onClick={() => setMobileOpen(false)} />
+                                <MobileNavLink to="/listings" icon={<Search className="w-5 h-5" />} label="İlanları Keşfet" onClick={() => setMobileOpen(false)} />
 
                                 <MobileNavLink
                                     to="/listings/new"
@@ -467,6 +489,19 @@ const Navbar = () => {
 };
 
 /* ─── Sub-components ──────────────────────────────────────────── */
+
+const DesktopNavLink = ({ to, label, active }) => (
+    <Link
+        to={to}
+        className={`px-3 py-2 rounded-full transition-colors ${
+            active
+                ? 'bg-blue-50 text-blue-700'
+                : 'text-gray-600 hover:bg-gray-100 hover:text-blue-700'
+        }`}
+    >
+        {label}
+    </Link>
+);
 
 const DropdownItem = ({ to, icon, label, onClick }) => (
     <Link

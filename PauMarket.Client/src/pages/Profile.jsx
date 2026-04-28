@@ -265,40 +265,46 @@ const Profile = () => {
                     {sellerListings.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {sellerListings.map((listing) => (
-                                <Link
-                                    key={listing.id}
-                                    to={`/listings/${listing.id}`}
-                                    className="group rounded-2xl border border-gray-100 bg-gray-50 hover:bg-white hover:border-blue-100 hover:shadow-md transition-all overflow-hidden"
-                                >
-                                    <div className="flex gap-4 p-4">
-                                        <div className="w-24 h-24 rounded-2xl bg-gray-100 overflow-hidden shrink-0">
-                                            {listing.imageUrl ? (
-                                                <img src={listing.imageUrl} alt={listing.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                                            ) : (
-                                                <div className="w-full h-full flex items-center justify-center text-xs font-semibold text-gray-400">Görsel yok</div>
-                                            )}
-                                        </div>
-                                        <div className="min-w-0 flex-1">
-                                            <div className="flex flex-wrap items-center gap-2 mb-2">
-                                                <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${
-                                                    listing.isSold
-                                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                                        : 'bg-blue-50 text-blue-700 border-blue-200'
-                                                }`}>
-                                                    {listing.isSold ? 'Satıldı' : 'Yayında'}
-                                                </span>
-                                                <span className="px-2.5 py-1 rounded-full bg-white text-[11px] font-bold text-gray-500 border border-gray-100">
-                                                    {listing.category}
-                                                </span>
+                                (() => {
+                                    const coverImage = listing.imageUrl || listing.imageUrls?.[0];
+
+                                    return (
+                                        <Link
+                                            key={listing.id}
+                                            to={`/listings/${listing.id}`}
+                                            className="group rounded-2xl border border-gray-100 bg-gray-50 hover:bg-white hover:border-blue-100 hover:shadow-md transition-all overflow-hidden"
+                                        >
+                                            <div className="flex gap-4 p-4">
+                                                <div className="w-24 h-24 rounded-2xl bg-gray-100 overflow-hidden shrink-0">
+                                                    {coverImage ? (
+                                                        <img src={coverImage} alt={listing.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center text-xs font-semibold text-gray-400">Görsel yok</div>
+                                                    )}
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                                                        <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${
+                                                            listing.isSold
+                                                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                                                : 'bg-blue-50 text-blue-700 border-blue-200'
+                                                        }`}>
+                                                            {listing.isSold ? 'Satıldı' : 'Yayında'}
+                                                        </span>
+                                                        <span className="px-2.5 py-1 rounded-full bg-white text-[11px] font-bold text-gray-500 border border-gray-100">
+                                                            {listing.category}
+                                                        </span>
+                                                    </div>
+                                                    <h3 className="font-extrabold text-gray-900 truncate">{listing.title}</h3>
+                                                    <p className="text-sm font-black text-blue-600 mt-1">{currency(listing.price)}</p>
+                                                    {listing.isSold && listing.soldToUserName && (
+                                                        <p className="text-xs font-semibold text-emerald-700 mt-2">Alıcı: {listing.soldToUserName}</p>
+                                                    )}
+                                                </div>
                                             </div>
-                                            <h3 className="font-extrabold text-gray-900 truncate">{listing.title}</h3>
-                                            <p className="text-sm font-black text-blue-600 mt-1">{currency(listing.price)}</p>
-                                            {listing.isSold && listing.soldToUserName && (
-                                                <p className="text-xs font-semibold text-emerald-700 mt-2">Alıcı: {listing.soldToUserName}</p>
-                                            )}
-                                        </div>
-                                    </div>
-                                </Link>
+                                        </Link>
+                                    );
+                                })()
                             ))}
                         </div>
                     ) : (
