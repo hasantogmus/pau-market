@@ -130,6 +130,27 @@ const SummaryCard = ({ icon: Icon, label, value, tone }) => (
     </div>
 );
 
+const ListingActionButton = ({ icon: Icon, children, onClick, disabled, tone = 'default', className = '', title }) => {
+    const hoverTone = tone === 'danger'
+        ? 'hover:border-red-600 hover:bg-red-600 hover:text-white hover:shadow-red-100'
+        : tone === 'success'
+            ? 'hover:border-emerald-600 hover:bg-emerald-600 hover:text-white hover:shadow-emerald-100'
+            : 'hover:border-slate-950 hover:bg-slate-950 hover:text-white hover:shadow-slate-200';
+
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            disabled={disabled}
+            title={title}
+            className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-slate-950 bg-white px-4 py-2 text-sm font-black text-slate-950 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 active:scale-[0.98] focus:outline-none focus:ring-4 focus:ring-slate-200 disabled:pointer-events-none disabled:border-slate-200 disabled:text-slate-400 disabled:opacity-70 ${hoverTone} ${className}`}
+        >
+            <Icon className="w-4 h-4" />
+            {children}
+        </button>
+    );
+};
+
 const MyListings = () => {
     const navigate = useNavigate();
     const { isAuthenticated } = useAuth();
@@ -566,43 +587,41 @@ const MyListings = () => {
                                                 )}
                                             </div>
 
-                                            <div className="mt-auto flex flex-wrap items-center gap-5 border-t border-gray-100 pt-5">
-                                                <button
-                                                    type="button"
+                                            <div className="mt-auto flex flex-wrap items-center gap-3 border-t border-gray-100 pt-5">
+                                                <ListingActionButton
+                                                    icon={Pencil}
                                                     onClick={(event) => {
                                                         event.stopPropagation();
                                                         openEditModal(listing);
                                                     }}
                                                     disabled={isBusy}
-                                                    className="inline-flex items-center gap-1.5 text-slate-500 hover:text-blue-600 transition-colors text-[13px] font-semibold tracking-wide disabled:opacity-60"
                                                 >
-                                                    <Pencil className="w-4 h-4" />
                                                     Düzenle
-                                                </button>
-                                                <button
-                                                    type="button"
+                                                </ListingActionButton>
+                                                <ListingActionButton
+                                                    icon={CheckCircle2}
+                                                    tone="success"
                                                     onClick={(event) => {
                                                         event.stopPropagation();
                                                         handleToggleSold(listing);
                                                     }}
                                                     disabled={isBusy || !canChangeSaleStatus}
-                                                    className="inline-flex items-center gap-1.5 text-slate-500 hover:text-emerald-600 transition-colors text-[13px] font-semibold tracking-wide disabled:opacity-60"
+                                                    title={!canChangeSaleStatus ? 'İlan onaylandıktan sonra satış durumu değiştirilebilir.' : undefined}
                                                 >
-                                                    <CheckCircle2 className="w-4 h-4" />
-                                                    {savingListingId === listing.id ? 'Kaydediliyor...' : listing.isSold ? 'Satışı Aç' : 'Satıldı'}
-                                                </button>
-                                                <button
-                                                    type="button"
+                                                    {savingListingId === listing.id ? 'Kaydediliyor...' : listing.isSold ? 'Satışı Geri Al' : 'Satıldı'}
+                                                </ListingActionButton>
+                                                <ListingActionButton
+                                                    icon={Trash2}
+                                                    tone="danger"
                                                     onClick={(event) => {
                                                         event.stopPropagation();
                                                         handleDelete(listing);
                                                     }}
                                                     disabled={isBusy}
-                                                    className="inline-flex items-center gap-1.5 text-slate-500 hover:text-red-600 transition-colors text-[13px] font-semibold tracking-wide disabled:opacity-60 ml-auto"
+                                                    className="sm:ml-auto"
                                                 >
-                                                    <Trash2 className="w-4 h-4" />
                                                     {deletingListingId === listing.id ? 'Siliniyor...' : 'Sil'}
-                                                </button>
+                                                </ListingActionButton>
                                             </div>
                                         </div>
                                     </div>
