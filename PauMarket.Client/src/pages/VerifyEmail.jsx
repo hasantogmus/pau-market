@@ -186,7 +186,6 @@ const VerifyEmail = () => {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             disabled={isSubmitting || isResending}
-                            placeholder="ornek@posta.pau.edu.tr"
                             className="w-full px-5 py-3.5 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all text-gray-800 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
                             required
                         />

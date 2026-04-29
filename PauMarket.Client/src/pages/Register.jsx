@@ -97,7 +97,7 @@ const Register = () => {
                     Kayıt Ol
                 </h2>
                 <p className="text-center text-sm text-gray-500 mb-6 font-medium">
-                    Paü Market'e ücretsiz katılın ve ilan verin.
+                    PAÜ Market’e ücretsiz katıl ve ilan vermeye başla.
                 </p>
 
                 {error && (
@@ -123,7 +123,6 @@ const Register = () => {
                                 value={firstName}
                                 onChange={(e) => setFirstName(e.target.value)}
                                 disabled={isLoading}
-                                placeholder="Örn: Hasan"
                                 className="w-full px-5 py-3.5 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all text-gray-800 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
                                 required
                             />
@@ -138,7 +137,6 @@ const Register = () => {
                                 value={lastName}
                                 onChange={(e) => setLastName(e.target.value)}
                                 disabled={isLoading}
-                                placeholder="Örn: Yılmaz"
                                 className="w-full px-5 py-3.5 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all text-gray-800 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
                                 required
                             />
@@ -155,7 +153,6 @@ const Register = () => {
                             value={studentNumber}
                             onChange={(e) => setStudentNumber(e.target.value)}
                             disabled={isLoading}
-                            placeholder="Örn: 20230001"
                             maxLength={8}
                             className="w-full px-5 py-3.5 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all text-gray-800 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed font-mono tracking-wider"
                             required
@@ -172,7 +169,6 @@ const Register = () => {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             disabled={isLoading}
-                            placeholder="ornek@posta.pau.edu.tr"
                             className="w-full px-5 py-3.5 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all text-gray-800 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
                             required
                         />
@@ -191,7 +187,6 @@ const Register = () => {
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             disabled={isLoading}
-                            placeholder="••••••••"
                             className="w-full px-5 py-3.5 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all text-gray-800 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
                             required
                         />
@@ -205,10 +200,10 @@ const Register = () => {
                         {isLoading ? (
                             <>
                                 <Loader2 className="w-5 h-5 animate-spin" />
-                                Hesap Oluşturuluyor...
+                                Hesap oluşturuluyor...
                             </>
                         ) : (
-                            'Hesap Oluştur'
+                            'Hesap oluştur'
                         )}
                     </button>
                 </form>

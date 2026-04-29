@@ -86,7 +86,7 @@ const ProductCard = ({ item, index = 0, compact = false, isFavorite = false, onT
                     ) : (
                         <div className="w-full h-full flex flex-col items-center justify-center text-gray-300">
                             <ImageOff className="w-10 h-10 mb-1" />
-                            <span className="text-[10px] font-bold tracking-widest uppercase text-gray-400">Görsel Yok</span>
+                            <span className="text-[10px] font-bold tracking-widest uppercase text-gray-400">Görsel yok</span>
                         </div>
                     )}
 

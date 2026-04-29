@@ -204,7 +204,7 @@ const Onboarding = () => {
                     >
                         <Sparkles className="w-7 h-7 text-white" />
                     </motion.div>
-                    <h1 className="text-2xl font-extrabold tracking-tight">PauMarket'e Hoş Geldin!</h1>
+                    <h1 className="text-2xl font-extrabold tracking-tight">PAÜ Market’e hoş geldin!</h1>
                     <p className="mt-2 text-blue-100 text-sm font-medium leading-relaxed">
                         Sana en uygun ilanları gösterebilmemiz için seni biraz tanıyalım.
                     </p>

@@ -90,7 +90,7 @@ const Purchases = () => {
                                     {item.imageUrl ? (
                                         <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover" />
                                     ) : (
-                                        <div className="w-full h-full flex items-center justify-center text-gray-400 font-bold">Görsel Yok</div>
+                                        <div className="w-full h-full flex items-center justify-center text-gray-400 font-bold">Görsel yok</div>
                                     )}
                                 </div>
 

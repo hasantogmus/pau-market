@@ -519,7 +519,7 @@ const MyListings = () => {
                             <Package className="w-8 h-8" />
                         </div>
                         <h2 className="text-xl font-bold text-gray-900 mb-2">Henüz ilanın yok</h2>
-                        <p className="text-gray-500 mb-6">İlk ilanını ekleyerek PauMarket vitrininde görünmeye başlayabilirsin.</p>
+                        <p className="text-gray-500 mb-6">İlk ilanını ekleyerek PAÜ Market vitrininde görünmeye başlayabilirsin.</p>
                         <Link to="/listings/new" className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-2xl transition-colors">
                             <PlusCircle className="w-4 h-4" />
                             İlk İlanımı Oluştur
@@ -547,7 +547,7 @@ const MyListings = () => {
                                             {listing.imageUrl ? (
                                                 <img src={listing.imageUrl} alt={listing.title} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.01]" />
                                             ) : (
-                                                <div className="w-full h-full flex items-center justify-center text-gray-400 font-bold">Görsel Yok</div>
+                                                <div className="w-full h-full flex items-center justify-center text-gray-400 font-bold">Görsel yok</div>
                                             )}
                                         </div>
 

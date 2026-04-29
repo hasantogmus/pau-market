@@ -351,7 +351,7 @@ const ListingDetail = () => {
                             ) : (
                                 <div className="w-full h-full flex flex-col items-center justify-center text-gray-300 bg-gradient-to-br from-gray-50 to-gray-100">
                                     <ImageOff className="w-20 h-20 mb-3 opacity-40" />
-                                    <span className="text-sm font-semibold tracking-widest uppercase opacity-50">Görsel Yok</span>
+                                    <span className="text-sm font-semibold tracking-widest uppercase opacity-50">Görsel yok</span>
                                 </div>
                             )}
                             {/* Tarih rozeti */}
@@ -751,7 +751,6 @@ const ListingDetail = () => {
                                     rows={4}
                                     value={dealRequestNote}
                                     onChange={(event) => setDealRequestNote(event.target.value)}
-                                    placeholder="Örn: Kampüste yarın öğlen teslim alabilirim."
                                     className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 resize-none"
                                 />
                             </div>

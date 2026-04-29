@@ -436,7 +436,7 @@ const Settings = () => {
                                     </div>
                                     <div>
                                         <h2 className="text-xl font-black text-slate-950">Öneri Tercihleri</h2>
-                                        <p className="text-sm text-slate-500">Cold-start aşamasında “Sana Özel Öneriler” bu alanlardan destek alır.</p>
+                                        <p className="text-sm text-slate-500">İlk kullanımda “Sana Özel Öneriler” bu alanlardan destek alır.</p>
                                     </div>
                                 </div>
 

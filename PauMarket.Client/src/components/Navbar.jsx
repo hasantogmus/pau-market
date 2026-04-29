@@ -156,10 +156,10 @@ const Navbar = () => {
                     <Link
                         to="/"
                         className="flex-shrink-0 flex items-center group"
-                        aria-label="PAU Market ana sayfa"
+                        aria-label="PAÜ Market ana sayfa"
                     >
                         <span className="text-2xl font-extrabold tracking-tight select-none">
-                            <span className="text-blue-600 group-hover:text-blue-700 transition-colors">PAU</span>
+                            <span className="text-blue-600 group-hover:text-blue-700 transition-colors">PAÜ</span>
                             <span
                                 className="text-gray-900 group-hover:text-gray-800 transition-colors"
                                 style={{ fontFamily: "'Palatino Linotype', 'Palatino', 'Book Antiqua', Georgia, serif", fontStyle: 'italic', fontSize: '1.35rem' }}
@@ -245,7 +245,7 @@ const Navbar = () => {
                                 className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-full transition-colors"
                             >
                                 <ShieldCheck className="w-4 h-4" />
-                                Admin Paneli
+                                Yönetim Paneli
                             </Link>
                         )}
 
@@ -310,7 +310,7 @@ const Navbar = () => {
                                                 <DropdownItem to="/my-listings" icon={<Package className="w-4 h-4" />} label="İlanlarım" onClick={() => setProfileOpen(false)} />
                                                 <DropdownItem to="/favorites" icon={<Heart className="w-4 h-4" />} label="Favorilerim" onClick={() => setProfileOpen(false)} />
                                                 {isAdmin && (
-                                                    <DropdownItem to="/admin" icon={<ShieldCheck className="w-4 h-4" />} label="Admin Paneli" onClick={() => setProfileOpen(false)} />
+                                                    <DropdownItem to="/admin" icon={<ShieldCheck className="w-4 h-4" />} label="Yönetim Paneli" onClick={() => setProfileOpen(false)} />
                                                 )}
                                                 <DropdownItem to="/settings" icon={<Settings className="w-4 h-4" />} label="Ayarlar" onClick={() => setProfileOpen(false)} />
                                             </div>
@@ -462,7 +462,7 @@ const Navbar = () => {
                                         <MobileNavLink to="/my-listings" icon={<Package className="w-5 h-5" />} label="İlanlarım" onClick={() => setMobileOpen(false)} />
                                         <MobileNavLink to="/favorites" icon={<Heart className="w-5 h-5" />} label="Favorilerim" onClick={() => setMobileOpen(false)} />
                                         {isAdmin && (
-                                            <MobileNavLink to="/admin" icon={<ShieldCheck className="w-5 h-5" />} label="Admin Paneli" onClick={() => setMobileOpen(false)} />
+                                            <MobileNavLink to="/admin" icon={<ShieldCheck className="w-5 h-5" />} label="Yönetim Paneli" onClick={() => setMobileOpen(false)} />
                                         )}
                                         <MobileNavLink to="/settings" icon={<Settings className="w-5 h-5" />} label="Ayarlar" onClick={() => setMobileOpen(false)} />
                                         <button

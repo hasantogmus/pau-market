@@ -60,8 +60,8 @@ const Login = () => {
 
     return (
         <AuthSplitLayout
-            title="Tekrar Hoş Geldiniz!"
-            subtitle="Üniversitemizin en büyük öğrenci pazarına yeniden katılın ve binlerce yeni ilanı keşfedin."
+            title="Tekrar hoş geldin!"
+            subtitle="Üniversitemizin öğrenci pazarına yeniden katıl ve kampüsteki yeni ilanları keşfet."
         >
             <motion.div
                 initial={{ opacity: 0, y: 30 }}
@@ -113,7 +113,6 @@ const Login = () => {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             disabled={isLoading}
-                            placeholder="ornek@posta.pau.edu.tr"
                             className="w-full px-5 py-3.5 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all text-gray-800 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
                             required
                         />
@@ -129,7 +128,6 @@ const Login = () => {
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             disabled={isLoading}
-                            placeholder="••••••••"
                             className="w-full px-5 py-3.5 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all text-gray-800 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
                             required
                         />
@@ -137,7 +135,7 @@ const Login = () => {
 
                     <div className="flex items-center justify-end">
                         <span className="text-sm text-gray-400 cursor-not-allowed select-none" title="Yakında eklenecek">
-                            Şifremi Unuttum?
+                            Şifremi unuttum
                         </span>
                     </div>
 
@@ -149,10 +147,10 @@ const Login = () => {
                         {isLoading ? (
                             <>
                                 <Loader2 className="w-5 h-5 animate-spin" />
-                                Giriş Yapılıyor...
+                                Giriş yapılıyor...
                             </>
                         ) : (
-                            'Giriş Yap'
+                            'Giriş yap'
                         )}
                     </button>
                 </form>

@@ -94,7 +94,7 @@ const AdminDashboard = () => {
                 setUsers(usersData);
             } catch {
                 if (isMounted) {
-                    setError('Admin paneli verileri yüklenemedi. Yetkini ve backend bağlantısını kontrol et.');
+                    setError('Yönetim paneli verileri yüklenemedi. Yetkini ve backend bağlantısını kontrol et.');
                 }
             } finally {
                 if (isMounted) {
@@ -181,7 +181,7 @@ const AdminDashboard = () => {
             <main className="min-h-screen bg-slate-50 flex items-center justify-center">
                 <div className="flex items-center gap-3 rounded-3xl bg-white px-6 py-5 shadow-sm border border-slate-200">
                     <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-                    <span className="text-sm font-bold text-slate-600">Admin paneli hazırlanıyor...</span>
+                    <span className="text-sm font-bold text-slate-600">Yönetim paneli hazırlanıyor...</span>
                 </div>
             </main>
         );
@@ -202,13 +202,13 @@ const AdminDashboard = () => {
                                 Platform sağlığı, kullanıcı güvenliği ve ilan moderasyonu tek ekranda.
                             </h1>
                             <p className="mt-4 max-w-2xl text-sm md:text-base text-slate-300">
-                                Admin paneli; kullanıcı doğrulama durumunu, ilan kuyruğunu, satış/anlaşma akışını ve öneri sistemi veri çıktılarını izlemek için hazırlandı.
+                                Yönetim paneli; kullanıcı doğrulama durumunu, ilan kuyruğunu, satış/anlaşma akışını ve öneri sistemi veri çıktılarını izlemek için hazırlandı.
                             </p>
                         </div>
 
                         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:min-w-[520px]">
                             <HeroMetric label="Doğrulama" value={`%${stats?.users?.verificationRate ?? 0}`} />
-                            <HeroMetric label="Admin" value={numberText(stats?.users?.admins)} />
+                            <HeroMetric label="Yönetici" value={numberText(stats?.users?.admins)} />
                             <HeroMetric label="Mesaj" value={numberText(stats?.engagement?.messages)} />
                             <HeroMetric label="Yorum" value={numberText(stats?.engagement?.reviews)} />
                         </div>
@@ -365,7 +365,7 @@ const AdminDashboard = () => {
                                                                 {user.isEmailVerified ? 'Doğrulanmış' : 'Bekliyor'}
                                                             </span>
                                                             {String(user.role).toLowerCase() === 'admin' && (
-                                                                <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-black text-blue-700">Admin</span>
+                                                                <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-black text-blue-700">Yönetici</span>
                                                             )}
                                                         </div>
                                                     </td>
@@ -416,7 +416,7 @@ const AdminDashboard = () => {
                 </div>
 
                 <Panel
-                    title="Admin Araçları"
+                    title="Yönetim Araçları"
                     description="Tez sunumu, öneri sistemi eğitimi ve denetim için gerekli operasyonel çıktılar."
                 >
                     <div className="grid gap-4 md:grid-cols-3">

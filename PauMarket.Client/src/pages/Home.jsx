@@ -168,7 +168,7 @@ const FilterPanel = ({ selected, onSelect, conditions, onCondChange, priceMin, s
             <div className="flex gap-2 items-center">
                 <input
                     type="number"
-                    placeholder="Min"
+                    placeholder="En az"
                     value={priceMin}
                     onChange={(e) => setPriceMin(e.target.value)}
                     className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition-all"
@@ -176,7 +176,7 @@ const FilterPanel = ({ selected, onSelect, conditions, onCondChange, priceMin, s
                 <span className="text-gray-400 text-sm font-bold">–</span>
                 <input
                     type="number"
-                    placeholder="Max"
+                    placeholder="En çok"
                     value={priceMax}
                     onChange={(e) => setPriceMax(e.target.value)}
                     className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition-all"
@@ -353,7 +353,7 @@ const Hero = ({ listings, isLoading, searchTerm, compact = false }) => {
                             </p>
                             <div className="mt-5 grid gap-2 text-sm font-bold text-slate-700">
                                 <span className="rounded-2xl bg-blue-50 px-4 py-3">Okul e-postasıyla doğrulama</span>
-                                <span className="rounded-2xl bg-indigo-50 px-4 py-3">Admin moderasyonlu ilanlar</span>
+                                <span className="rounded-2xl bg-indigo-50 px-4 py-3">Yönetici onaylı ilanlar</span>
                                 <span className="rounded-2xl bg-slate-50 px-4 py-3">Satıcı puanı ve değerlendirme akışı</span>
                             </div>
                         </div>
@@ -616,14 +616,14 @@ const Home = () => {
                 </div>
             </section>
 
-            {/* ── AI Picks Band ── */}
+            {/* ── Personalized recommendations ── */}
             <section className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-indigo-100 py-10">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between mb-6">
                         <div className="flex items-center gap-2">
                             <Sparkles className="w-5 h-5 text-indigo-500" />
                             <h2 className="text-lg font-bold text-gray-900 tracking-tight">Sana Özel Öneriler</h2>
-                            <span className="ml-1 px-2.5 py-1 bg-indigo-100 text-indigo-700 text-[10px] font-bold rounded-md tracking-widest uppercase">AI Picks</span>
+                            <span className="ml-1 px-2.5 py-1 bg-indigo-100 text-indigo-700 text-[10px] font-bold rounded-md tracking-widest uppercase">Akıllı Öneri</span>
                         </div>
                         {aiRecommendations.length > 5 && (
                             <div className="flex gap-2">

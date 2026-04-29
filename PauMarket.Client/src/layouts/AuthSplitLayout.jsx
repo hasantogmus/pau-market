@@ -22,7 +22,7 @@ const AuthSplitLayout = ({ children, title, subtitle }) => {
                         <div className="bg-white/10 p-2.5 rounded-xl backdrop-blur-md border border-white/20">
                             <ShoppingBag className="w-7 h-7 text-blue-300" />
                         </div>
-                        Paü Market
+                        PAÜ Market
                     </Link>
                 </div>
 

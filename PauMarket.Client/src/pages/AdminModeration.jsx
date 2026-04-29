@@ -64,7 +64,7 @@ const AdminModeration = () => {
                 }
             } catch {
                 if (isMounted) {
-                    setError('Moderasyon kuyruğu yüklenemedi. Admin yetkini ve backend bağlantısını kontrol et.');
+                    setError('Moderasyon kuyruğu yüklenemedi. Yönetici yetkini ve backend bağlantısını kontrol et.');
                     setListings([]);
                 }
             } finally {
@@ -160,7 +160,7 @@ const AdminModeration = () => {
                     <div>
                         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-sm font-semibold mb-3">
                             <ShieldCheck className="w-4 h-4" />
-                            Admin Moderasyon
+                            Yönetici Moderasyonu
                         </div>
                         <h1 className="text-3xl md:text-4xl font-black text-slate-950 tracking-tight">
                             İlan Onay Kuyruğu
