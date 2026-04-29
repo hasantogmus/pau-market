@@ -42,6 +42,183 @@ const CATEGORIES = [
 
 const CONDITIONS = ['Sıfır', 'Az Kullanılmış', 'Çok Kullanılmış'];
 
+const SEARCH_SYNONYMS = {
+    sarj: ['charger', 'adaptör', 'adaptor', 'powerbank', 'batarya', 'power'],
+    telefon: ['phone', 'iphone', 'android', 'cep'],
+    bilgisayar: ['laptop', 'notebook', 'macbook', 'pc'],
+    kulaklik: ['kulaklık', 'headphone', 'headset', 'airpods', 'earbuds'],
+    kitap: ['ders', 'kaynak', 'not', 'özet', 'ozet'],
+    bisiklet: ['bike', 'scooter'],
+    oyun: ['game', 'playstation', 'ps5', 'xbox', 'konsol'],
+    kiyafet: ['giyim', 'mont', 'ceket', 'ayakkabı', 'ayakkabi'],
+};
+
+const SEARCH_CANONICAL_TERMS = {
+    sarz: 'sarj',
+    sarji: 'sarj',
+    sarjcihazi: 'sarj',
+    sarzcihazi: 'sarj',
+    sarjj: 'sarj',
+    kulaklk: 'kulaklik',
+    kulaklikk: 'kulaklik',
+    bilgisar: 'bilgisayar',
+    bilgisyr: 'bilgisayar',
+};
+
+const BACKEND_SEARCH_VARIANTS = {
+    sarj: ['şarj', 'sarj', 'şarj cihazı', 'taşınabilir şarj'],
+    kulaklik: ['kulaklık', 'kulaklik'],
+    kiyafet: ['kıyafet', 'kiyafet', 'giyim'],
+    kitap: ['kitap', 'ders kitabı'],
+    ozet: ['özet', 'ozet', 'not'],
+};
+
+const normalizeSearchText = (value = '') =>
+    String(value)
+        .toLocaleLowerCase('tr-TR')
+        .replace(/[ç]/g, 'c')
+        .replace(/[ğ]/g, 'g')
+        .replace(/[ı]/g, 'i')
+        .replace(/[ö]/g, 'o')
+        .replace(/[ş]/g, 's')
+        .replace(/[ü]/g, 'u')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, ' ')
+        .trim();
+
+const canonicalizeSearchToken = (token) => SEARCH_CANONICAL_TERMS[token] || token;
+
+const tokenizeSearch = (value) =>
+    normalizeSearchText(value)
+        .split(/\s+/)
+        .filter(Boolean)
+        .map(canonicalizeSearchToken);
+
+const getCanonicalSearchText = (value) => tokenizeSearch(value).join(' ');
+
+const getBackendSearchTerms = (value) => {
+    const original = value.trim();
+    const canonical = getCanonicalSearchText(value);
+    const canonicalTokens = tokenizeSearch(value);
+    const variants = canonicalTokens.flatMap((token) => BACKEND_SEARCH_VARIANTS[token] || []);
+
+    return [...new Set([original, canonical, ...variants].filter(Boolean))];
+};
+
+const levenshteinDistance = (a, b) => {
+    if (a === b) return 0;
+    if (!a.length) return b.length;
+    if (!b.length) return a.length;
+
+    const previous = Array.from({ length: b.length + 1 }, (_, index) => index);
+    const current = Array(b.length + 1).fill(0);
+
+    for (let i = 1; i <= a.length; i += 1) {
+        current[0] = i;
+
+        for (let j = 1; j <= b.length; j += 1) {
+            const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+            current[j] = Math.min(
+                current[j - 1] + 1,
+                previous[j] + 1,
+                previous[j - 1] + cost
+            );
+        }
+
+        for (let j = 0; j <= b.length; j += 1) {
+            previous[j] = current[j];
+        }
+    }
+
+    return previous[b.length];
+};
+
+const getAllowedTypoDistance = (token) => {
+    if (token.length <= 3) return 0;
+    if (token.length <= 7) return 1;
+    return 2;
+};
+
+const tokenMatchesWord = (token, word, { allowTypo = true } = {}) => {
+    if (token === word) return true;
+    if (token.length >= 3 && word.includes(token)) return true;
+    if (token.length >= 5 && word.length >= 5 && token.includes(word)) return true;
+
+    if (!allowTypo) return false;
+
+    const allowedDistance = getAllowedTypoDistance(token);
+    if (allowedDistance === 0) return false;
+    if (Math.abs(token.length - word.length) > allowedDistance) return false;
+    if (token[0] !== word[0]) return false;
+
+    return levenshteinDistance(token, word) <= allowedDistance;
+};
+
+const expandSearchToken = (token) => {
+    const canonicalToken = canonicalizeSearchToken(token);
+    const synonyms = SEARCH_SYNONYMS[canonicalToken] || [];
+    return [...new Set([canonicalToken, ...synonyms.flatMap(tokenizeSearch)])];
+};
+
+const titleCase = (value = '') => normalizeSearchText(value);
+
+const getSearchScore = (item, query) => {
+    const queryTokens = tokenizeSearch(query);
+    if (queryTokens.length === 0) return 1;
+
+    const titleText = titleCase(item.title);
+    const descriptionText = titleCase(item.description);
+    const categoryText = titleCase(item.categoryName ?? item.category);
+    const searchableText = [
+        item.title,
+        item.description,
+        item.categoryName,
+        item.category,
+    ].filter(Boolean).join(' ');
+
+    const queryText = getCanonicalSearchText(query);
+    const haystackText = normalizeSearchText(searchableText);
+    const haystackTokens = haystackText.split(/\s+/).filter(Boolean);
+    let score = 0;
+
+    if (titleText.includes(queryText)) score += 120;
+    else if (descriptionText.includes(queryText)) score += 90;
+    else if (categoryText.includes(queryText)) score += 45;
+
+    const allTokensMatched = queryTokens.every((queryToken) => {
+        const alternatives = expandSearchToken(queryToken);
+
+        return alternatives.some((alternative, alternativeIndex) => {
+            const isOriginalToken = alternativeIndex === 0;
+
+            if (titleText.split(/\s+/).some((word) => tokenMatchesWord(alternative, word, { allowTypo: isOriginalToken }))) {
+                score += isOriginalToken ? 80 : 55;
+                return true;
+            }
+
+            if (descriptionText.split(/\s+/).some((word) => tokenMatchesWord(alternative, word, { allowTypo: isOriginalToken }))) {
+                score += isOriginalToken ? 55 : 35;
+                return true;
+            }
+
+            if (categoryText.split(/\s+/).some((word) => tokenMatchesWord(alternative, word, { allowTypo: false }))) {
+                score += 25;
+                return true;
+            }
+
+            if (haystackTokens.some((word) => tokenMatchesWord(alternative, word, { allowTypo: false }))) {
+                score += 10;
+                return true;
+            }
+
+            return false;
+        });
+    });
+
+    return allTokensMatched ? score : 0;
+};
+
 /* ═══════════════════ SKELETON ══════════════════════════════════ */
 const SkeletonCard = () => (
     <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100">
@@ -166,6 +343,13 @@ const Hero = ({ listings, isLoading, searchTerm, compact = false }) => {
         navigate(query ? `/listings?q=${encodeURIComponent(query)}` : '/listings');
     };
 
+    const handleHeroClear = () => {
+        setHeroSearch('');
+        if (searchTerm) {
+            navigate('/listings', { replace: true });
+        }
+    };
+
     if (compact) {
         return (
             <section className="relative overflow-hidden rounded-[2rem] border border-blue-100 bg-gradient-to-br from-white via-blue-50 to-indigo-50 p-6 sm:p-8 shadow-sm">
@@ -192,6 +376,16 @@ const Hero = ({ listings, isLoading, searchTerm, compact = false }) => {
                             placeholder="Ders kitabı, kulaklık, bisiklet..."
                             className="w-full rounded-2xl border border-blue-100 bg-white px-12 py-4 text-sm font-semibold text-slate-700 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
                         />
+                        {heroSearch && (
+                            <button
+                                type="button"
+                                onClick={handleHeroClear}
+                                className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                                aria-label="Aramayı temizle"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        )}
                     </form>
                 </div>
             </section>
@@ -249,8 +443,18 @@ const Hero = ({ listings, isLoading, searchTerm, compact = false }) => {
                                 value={heroSearch}
                                 onChange={(event) => setHeroSearch(event.target.value)}
                                 placeholder="İlan ara..."
-                                className="w-full sm:w-64 pl-12 pr-4 py-4 rounded-xl border border-gray-200 bg-white focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all font-medium text-gray-700 shadow-sm"
+                                className="w-full sm:w-64 pl-12 pr-12 py-4 rounded-xl border border-gray-200 bg-white focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all font-medium text-gray-700 shadow-sm"
                             />
+                            {heroSearch && (
+                                <button
+                                    type="button"
+                                    onClick={handleHeroClear}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+                                    aria-label="Aramayı temizle"
+                                >
+                                    <X className="h-4 w-4" />
+                                </button>
+                            )}
                         </form>
                     </div>
                 </motion.div>
@@ -343,7 +547,7 @@ const Home = () => {
     const [error, setError] = useState(null);
     const navigate = useNavigate();
     const location = useLocation();
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     const searchTerm = (searchParams.get('q') || '').trim();
     const isListingsRoute = location.pathname === '/listings';
     const isLoggedIn = Boolean(localStorage.getItem('token'));
@@ -364,11 +568,34 @@ const Home = () => {
         let isMounted = true;
 
         const loadListings = async () => {
+            setIsLoading(true);
+            setError(null);
+
             try {
-                const data = await listingService.getAllListings(searchTerm ? { searchTerm } : {});
+                const baseData = await listingService.getAllListings({ pageSize: 200 });
+                let mergedListings = Array.isArray(baseData) ? baseData : [];
+
+                if (searchTerm) {
+                    const searchResponses = await Promise.all(
+                        getBackendSearchTerms(searchTerm).map((term) =>
+                            listingService.getAllListings({
+                                searchTerm: term,
+                                pageSize: 200,
+                            }).catch(() => [])
+                        )
+                    );
+
+                    const byId = new Map(
+                        [...mergedListings, ...searchResponses.flat()]
+                            .map((listing) => [listing.id, listing])
+                    );
+
+                    mergedListings = Array.from(byId.values());
+                }
+
                 if (!isMounted) return;
 
-                setListings(Array.isArray(data) ? data : []);
+                setListings(mergedListings);
             } catch (err) {
                 if (!isMounted) return;
 
@@ -453,16 +680,21 @@ const Home = () => {
     /* ── Derived data ── */
     const allListings = listings;
 
-    const filtered = allListings.filter((item) => {
-        const normalizedSearch = searchTerm.toLocaleLowerCase('tr-TR');
-        const haystack = `${item.title ?? ''} ${item.description ?? ''} ${item.categoryName ?? item.category ?? ''}`.toLocaleLowerCase('tr-TR');
-        const searchMatch = !normalizedSearch || haystack.includes(normalizedSearch);
+    const filtered = allListings
+        .map((item) => ({
+            item,
+            searchScore: getSearchScore(item, searchTerm),
+        }))
+        .filter(({ item, searchScore }) => {
+        const searchMatch = !searchTerm || searchScore > 0;
         const catMatch = activeCategory === 'Tümü' || item.categoryName === activeCategory;
         const condMatch = activeConditions.length === 0 || activeConditions.includes(item.condition);
         const minMatch = appliedMin === '' || (item.price ?? 0) >= Number(appliedMin);
         const maxMatch = appliedMax === '' || (item.price ?? 0) <= Number(appliedMax);
         return searchMatch && catMatch && condMatch && minMatch && maxMatch;
-    });
+    })
+        .sort((a, b) => (searchTerm ? b.searchScore - a.searchScore : 0))
+        .map(({ item }) => item);
 
     const toggleCondition = (cond) =>
         setActiveConditions((prev) =>
@@ -472,6 +704,12 @@ const Home = () => {
     const handleApplyPrice = () => {
         setAppliedMin(priceMin);
         setAppliedMax(priceMax);
+    };
+
+    const handleClearSearch = () => {
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.delete('q');
+        setSearchParams(nextParams, { replace: true });
     };
 
     const filterProps = {
@@ -588,7 +826,20 @@ const Home = () => {
 
                 {/* Mobile filter toggle */}
                 <div className="md:hidden flex items-center justify-between mb-5">
-                    <h2 className="text-xl font-bold text-gray-900">{searchTerm ? 'Arama Sonuçları' : 'En Yeni İlanlar'}</h2>
+                    <div className="min-w-0">
+                        <h2 className="text-xl font-bold text-gray-900">{searchTerm ? 'Arama Sonuçları' : 'En Yeni İlanlar'}</h2>
+                        {searchTerm && (
+                            <button
+                                type="button"
+                                onClick={handleClearSearch}
+                                className="mt-2 inline-flex max-w-full items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700"
+                                aria-label="Aramayı temizle"
+                            >
+                                <span className="truncate">“{searchTerm}”</span>
+                                <X className="h-3.5 w-3.5 shrink-0" />
+                            </button>
+                        )}
+                    </div>
                     <button
                         id="mobile-filter-btn"
                         onClick={() => setDrawerOpen(true)}
@@ -623,11 +874,27 @@ const Home = () => {
                         {/* Header row */}
                         <div className="hidden md:flex items-center justify-between mb-6">
                             <div>
-                                <h2 className="text-2xl font-bold text-gray-900">
-                                    {searchTerm ? `"${searchTerm}" için sonuçlar` : 'En Yeni İlanlar'}
-                                </h2>
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <h2 className="text-2xl font-bold text-gray-900">
+                                        {searchTerm ? 'Arama Sonuçları' : 'En Yeni İlanlar'}
+                                    </h2>
+                                    {searchTerm && (
+                                        <button
+                                            type="button"
+                                            onClick={handleClearSearch}
+                                            className="inline-flex max-w-md items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-sm font-bold text-blue-700 transition-colors hover:border-blue-200 hover:bg-blue-100"
+                                            aria-label="Aramayı temizle"
+                                        >
+                                            <span className="truncate">“{searchTerm}”</span>
+                                            <X className="h-4 w-4 shrink-0" />
+                                        </button>
+                                    )}
+                                </div>
                                 {!isLoading && (
-                                    <p className="text-sm text-gray-500 mt-0.5">{filtered.length} ilan bulundu</p>
+                                    <p className="text-sm text-gray-500 mt-1">
+                                        {filtered.length} ilan bulundu
+                                        {searchTerm && ' · Türkçe karakter ve küçük yazım hataları dikkate alındı'}
+                                    </p>
                                 )}
                             </div>
                             <Link to="/listings" className="flex items-center gap-1 text-blue-600 hover:text-blue-800 font-semibold text-sm group transition-colors">
@@ -650,10 +917,18 @@ const Home = () => {
                                 <h3 className="text-lg font-bold text-gray-800 mb-1">Sonuç bulunamadı</h3>
                                 <p className="text-gray-500 text-sm">Farklı filtreler deneyebilirsin.</p>
                                 <button
-                                    onClick={() => { setActiveCategory('Tümü'); setActiveConditions([]); setAppliedMin(''); setAppliedMax(''); setPriceMin(''); setPriceMax(''); }}
+                                    onClick={() => {
+                                        handleClearSearch();
+                                        setActiveCategory('Tümü');
+                                        setActiveConditions([]);
+                                        setAppliedMin('');
+                                        setAppliedMax('');
+                                        setPriceMin('');
+                                        setPriceMax('');
+                                    }}
                                     className="mt-5 px-5 py-2.5 bg-blue-600 text-white font-semibold text-sm rounded-xl hover:bg-blue-700 transition-colors"
                                 >
-                                    Filtreleri Temizle
+                                    Arama ve Filtreleri Temizle
                                 </button>
                             </div>
                         ) : (
