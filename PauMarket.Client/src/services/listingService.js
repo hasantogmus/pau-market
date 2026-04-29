@@ -18,6 +18,11 @@ const normalizeListingCollection = (data) => {
     return [];
 };
 
+const normalizeListingPage = (data) => ({
+    ...data,
+    items: normalizeListingCollection(data),
+});
+
 const listingService = {
     getAllListings: async (params = {}) => {
         const response = await api.get('/listings', {
@@ -27,6 +32,17 @@ const listingService = {
             },
         });
         return normalizeListingCollection(response.data);
+    },
+
+    getListingsPage: async (params = {}) => {
+        const response = await api.get('/listings', {
+            params: {
+                pageSize: 50,
+                ...params,
+            },
+        });
+
+        return normalizeListingPage(response.data);
     },
 
     /**

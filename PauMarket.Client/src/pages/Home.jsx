@@ -41,6 +41,8 @@ const CATEGORIES = [
 ];
 
 const CONDITIONS = ['Sıfır', 'Az Kullanılmış', 'Çok Kullanılmış'];
+const SEARCH_PAGE_SIZE = 200;
+const MAX_SEARCH_CATALOG_PAGES = 10;
 
 const SEARCH_SYNONYMS = {
     sarj: ['charger', 'adaptör', 'adaptor', 'powerbank', 'batarya', 'power'],
@@ -51,26 +53,6 @@ const SEARCH_SYNONYMS = {
     bisiklet: ['bike', 'scooter'],
     oyun: ['game', 'playstation', 'ps5', 'xbox', 'konsol'],
     kiyafet: ['giyim', 'mont', 'ceket', 'ayakkabı', 'ayakkabi'],
-};
-
-const SEARCH_CANONICAL_TERMS = {
-    sarz: 'sarj',
-    sarji: 'sarj',
-    sarjcihazi: 'sarj',
-    sarzcihazi: 'sarj',
-    sarjj: 'sarj',
-    kulaklk: 'kulaklik',
-    kulaklikk: 'kulaklik',
-    bilgisar: 'bilgisayar',
-    bilgisyr: 'bilgisayar',
-};
-
-const BACKEND_SEARCH_VARIANTS = {
-    sarj: ['şarj', 'sarj', 'şarj cihazı', 'taşınabilir şarj'],
-    kulaklik: ['kulaklık', 'kulaklik'],
-    kiyafet: ['kıyafet', 'kiyafet', 'giyim'],
-    kitap: ['kitap', 'ders kitabı'],
-    ozet: ['özet', 'ozet', 'not'],
 };
 
 const normalizeSearchText = (value = '') =>
@@ -87,23 +69,22 @@ const normalizeSearchText = (value = '') =>
         .replace(/[^a-z0-9]+/g, ' ')
         .trim();
 
-const canonicalizeSearchToken = (token) => SEARCH_CANONICAL_TERMS[token] || token;
-
 const tokenizeSearch = (value) =>
     normalizeSearchText(value)
         .split(/\s+/)
-        .filter(Boolean)
-        .map(canonicalizeSearchToken);
+        .filter(Boolean);
 
 const getCanonicalSearchText = (value) => tokenizeSearch(value).join(' ');
 
 const getBackendSearchTerms = (value) => {
     const original = value.trim();
     const canonical = getCanonicalSearchText(value);
-    const canonicalTokens = tokenizeSearch(value);
-    const variants = canonicalTokens.flatMap((token) => BACKEND_SEARCH_VARIANTS[token] || []);
+    const synonymTerms = tokenizeSearch(value)
+        .flatMap((token) => SEARCH_SYNONYMS[token] || [])
+        .map((term) => term.trim())
+        .filter(Boolean);
 
-    return [...new Set([original, canonical, ...variants].filter(Boolean))];
+    return [...new Set([original, canonical, ...synonymTerms].filter(Boolean))];
 };
 
 const levenshteinDistance = (a, b) => {
@@ -136,7 +117,7 @@ const levenshteinDistance = (a, b) => {
 
 const getAllowedTypoDistance = (token) => {
     if (token.length <= 3) return 0;
-    if (token.length <= 7) return 1;
+    if (token.length <= 6) return 1;
     return 2;
 };
 
@@ -155,10 +136,19 @@ const tokenMatchesWord = (token, word, { allowTypo = true } = {}) => {
     return levenshteinDistance(token, word) <= allowedDistance;
 };
 
+const getSynonymKeyForToken = (token) => {
+    if (SEARCH_SYNONYMS[token]) return token;
+
+    return Object.keys(SEARCH_SYNONYMS).find((key) =>
+        tokenMatchesWord(token, key, { allowTypo: true })
+    );
+};
+
 const expandSearchToken = (token) => {
-    const canonicalToken = canonicalizeSearchToken(token);
-    const synonyms = SEARCH_SYNONYMS[canonicalToken] || [];
-    return [...new Set([canonicalToken, ...synonyms.flatMap(tokenizeSearch)])];
+    const synonymKey = getSynonymKeyForToken(token);
+    const synonyms = synonymKey ? SEARCH_SYNONYMS[synonymKey] : [];
+
+    return [...new Set([token, synonymKey, ...synonyms.flatMap(tokenizeSearch)].filter(Boolean))];
 };
 
 const titleCase = (value = '') => normalizeSearchText(value);
@@ -217,6 +207,59 @@ const getSearchScore = (item, query) => {
     });
 
     return allTokensMatched ? score : 0;
+};
+
+const mergeListingsById = (...listingGroups) =>
+    Array.from(
+        new Map(
+            listingGroups
+                .flat()
+                .filter(Boolean)
+                .map((listing) => [listing.id, listing])
+        ).values()
+    );
+
+const loadListingPages = async (params = {}, maxPages = MAX_SEARCH_CATALOG_PAGES) => {
+    const firstPage = await listingService.getListingsPage({
+        ...params,
+        pageNumber: 1,
+        pageSize: SEARCH_PAGE_SIZE,
+    });
+
+    const totalPages = Math.min(Number(firstPage.totalPages || 1), maxPages);
+    if (totalPages <= 1) {
+        return firstPage.items || [];
+    }
+
+    const restPages = await Promise.all(
+        Array.from({ length: totalPages - 1 }, (_, index) =>
+            listingService.getListingsPage({
+                ...params,
+                pageNumber: index + 2,
+                pageSize: SEARCH_PAGE_SIZE,
+            }).then((page) => page.items || [])
+        )
+    );
+
+    return mergeListingsById(firstPage.items || [], ...restPages);
+};
+
+const loadListingCandidates = async (searchTerm) => {
+    if (!searchTerm) {
+        return listingService.getAllListings({ pageSize: 50 });
+    }
+
+    const catalogPromise = loadListingPages({}, MAX_SEARCH_CATALOG_PAGES);
+    const backendSearchPromises = getBackendSearchTerms(searchTerm).map((term) =>
+        loadListingPages({ searchTerm: term }, 3).catch(() => [])
+    );
+
+    const [catalogListings, ...backendMatches] = await Promise.all([
+        catalogPromise,
+        ...backendSearchPromises,
+    ]);
+
+    return mergeListingsById(catalogListings, ...backendMatches);
 };
 
 /* ═══════════════════ SKELETON ══════════════════════════════════ */
@@ -572,30 +615,11 @@ const Home = () => {
             setError(null);
 
             try {
-                const baseData = await listingService.getAllListings({ pageSize: 200 });
-                let mergedListings = Array.isArray(baseData) ? baseData : [];
-
-                if (searchTerm) {
-                    const searchResponses = await Promise.all(
-                        getBackendSearchTerms(searchTerm).map((term) =>
-                            listingService.getAllListings({
-                                searchTerm: term,
-                                pageSize: 200,
-                            }).catch(() => [])
-                        )
-                    );
-
-                    const byId = new Map(
-                        [...mergedListings, ...searchResponses.flat()]
-                            .map((listing) => [listing.id, listing])
-                    );
-
-                    mergedListings = Array.from(byId.values());
-                }
+                const candidateListings = await loadListingCandidates(searchTerm);
 
                 if (!isMounted) return;
 
-                setListings(mergedListings);
+                setListings(candidateListings);
             } catch (err) {
                 if (!isMounted) return;
 
