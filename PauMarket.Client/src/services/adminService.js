@@ -18,6 +18,23 @@ const normalizeListingCollection = (data) => {
 };
 
 const adminService = {
+    getDashboardStats: async () => {
+        const response = await api.get('/admin/dashboard-stats');
+        return response.data;
+    },
+
+    getUsers: async (search = '') => {
+        const response = await api.get('/admin/users', {
+            params: search ? { search } : {},
+        });
+        return Array.isArray(response.data) ? response.data : [];
+    },
+
+    getRecentDeals: async () => {
+        const response = await api.get('/admin/deals/recent');
+        return Array.isArray(response.data) ? response.data : [];
+    },
+
     getModerationListings: async (status = 'pending') => {
         const response = await api.get('/admin/moderation/listings', {
             params: { status },
@@ -35,6 +52,22 @@ const adminService = {
             reason,
         });
         return normalizeListing(response.data);
+    },
+
+    downloadRecommenderCsv: async (kind) => {
+        const response = await api.get(`/recommender-export/${kind}`, {
+            responseType: 'blob',
+        });
+
+        const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = kind === 'listings' ? 'paumarket_listings.csv' : 'paumarket_interactions.csv';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
     },
 };
 

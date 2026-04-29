@@ -24,6 +24,12 @@ const REJECTION_TEMPLATES = [
     'Ürün PAÜ Market kullanım amacına uygun değil.',
 ];
 
+const MODERATION_STATUS_LABELS = {
+    Pending: 'Beklemede',
+    Approved: 'Onaylandı',
+    Rejected: 'Reddedildi',
+};
+
 const formatPrice = (price) =>
     new Intl.NumberFormat('tr-TR', {
         style: 'currency',
@@ -261,7 +267,7 @@ const AdminModeration = () => {
                                                         {listing.condition}
                                                     </span>
                                                     <span className="px-3 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-bold">
-                                                        {listing.moderationStatusName}
+                                                        {MODERATION_STATUS_LABELS[listing.moderationStatusName] || listing.moderationStatusName}
                                                     </span>
                                                 </div>
                                                 <h2 className="text-2xl font-black text-slate-950">{listing.title}</h2>
@@ -309,7 +315,7 @@ const AdminModeration = () => {
                                                         }
                                                         rows={2}
                                                         maxLength={500}
-                                                        placeholder="Örn: Görsel veya açıklama platform kurallarına uygun değil."
+                                                        placeholder="Reddetme nedenini kullanıcıya açıklayacak şekilde yaz."
                                                         className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
                                                     />
                                                     <span className="mt-1 block text-right text-xs font-semibold text-slate-400">

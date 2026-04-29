@@ -11,7 +11,7 @@ namespace PauMarket.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/recommender-export")]
-[AllowAnonymous]
+[Authorize(Roles = "Admin")]
 public class RecommenderExportController(IRecommenderExportService exportService) : ControllerBase
 {
     [HttpGet("interactions")]

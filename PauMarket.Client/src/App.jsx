@@ -14,6 +14,7 @@ import MyListings from './pages/MyListings';
 import Purchases from './pages/Purchases';
 import Favorites from './pages/Favorites';
 import Settings from './pages/Settings';
+import AdminDashboard from './pages/AdminDashboard';
 import AdminModeration from './pages/AdminModeration';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -150,6 +151,16 @@ function App() {
                 <ProtectedRoute>
                   <MainLayout>
                     <Settings />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute requiredRole="Admin">
+                  <MainLayout>
+                    <AdminDashboard />
                   </MainLayout>
                 </ProtectedRoute>
               }

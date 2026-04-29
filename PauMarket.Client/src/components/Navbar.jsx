@@ -241,11 +241,11 @@ const Navbar = () => {
 
                         {isAuthenticated && isAdmin && (
                             <Link
-                                to="/admin/moderation"
+                                to="/admin"
                                 className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-full transition-colors"
                             >
                                 <ShieldCheck className="w-4 h-4" />
-                                Admin
+                                Admin Paneli
                             </Link>
                         )}
 
@@ -303,7 +303,7 @@ const Navbar = () => {
                                                 <DropdownItem to="/my-listings" icon={<Package className="w-4 h-4" />} label="İlanlarım" onClick={() => setProfileOpen(false)} />
                                                 <DropdownItem to="/favorites" icon={<Heart className="w-4 h-4" />} label="Favorilerim" onClick={() => setProfileOpen(false)} />
                                                 {isAdmin && (
-                                                    <DropdownItem to="/admin/moderation" icon={<ShieldCheck className="w-4 h-4" />} label="Admin Onayları" onClick={() => setProfileOpen(false)} />
+                                                    <DropdownItem to="/admin" icon={<ShieldCheck className="w-4 h-4" />} label="Admin Paneli" onClick={() => setProfileOpen(false)} />
                                                 )}
                                                 <DropdownItem to="/settings" icon={<Settings className="w-4 h-4" />} label="Ayarlar" onClick={() => setProfileOpen(false)} />
                                             </div>
@@ -447,7 +447,7 @@ const Navbar = () => {
                                         <MobileNavLink to="/my-listings" icon={<Package className="w-5 h-5" />} label="İlanlarım" onClick={() => setMobileOpen(false)} />
                                         <MobileNavLink to="/favorites" icon={<Heart className="w-5 h-5" />} label="Favorilerim" onClick={() => setMobileOpen(false)} />
                                         {isAdmin && (
-                                            <MobileNavLink to="/admin/moderation" icon={<ShieldCheck className="w-5 h-5" />} label="Admin Onayları" onClick={() => setMobileOpen(false)} />
+                                            <MobileNavLink to="/admin" icon={<ShieldCheck className="w-5 h-5" />} label="Admin Paneli" onClick={() => setMobileOpen(false)} />
                                         )}
                                         <MobileNavLink to="/settings" icon={<Settings className="w-5 h-5" />} label="Ayarlar" onClick={() => setMobileOpen(false)} />
                                         <button
