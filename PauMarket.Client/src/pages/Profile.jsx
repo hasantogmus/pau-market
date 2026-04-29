@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { User, Mail, GraduationCap, Building2, ShieldCheck, CalendarDays, BarChart3, Heart, Eye, Star, Package, Settings, MessageCircle } from 'lucide-react';
+import { User, Mail, GraduationCap, Building2, ShieldCheck, CalendarDays, BarChart3, Heart, Eye, Star, Package, Settings, MessageCircle, Phone } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import userService from '../services/userService';
 import dashboardService from '../services/dashboardService';
@@ -138,6 +138,9 @@ const Profile = () => {
         email: isOwnProfile ? (profile?.email || user?.email || 'Belirtilmemiş') : null,
         department: profile?.department,
         grade: profile?.grade,
+        bio: profile?.bio,
+        phoneNumber: profile?.phoneNumber,
+        profilePhotoUrl: profile?.profilePhotoUrl,
         preferredCategories: profile?.preferredCategories,
         preferredCondition: profile?.preferredCondition,
         isEmailVerified: profile?.isEmailVerified ?? false,
@@ -154,9 +157,17 @@ const Profile = () => {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
             <section className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 sm:p-8">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-5">
-                    <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center shrink-0">
-                        <User className="w-10 h-10" />
-                    </div>
+                    {effectiveProfile.profilePhotoUrl ? (
+                        <img
+                            src={effectiveProfile.profilePhotoUrl}
+                            alt={`${effectiveProfile.fullName} profil fotoğrafı`}
+                            className="w-20 h-20 rounded-3xl object-cover shadow-md shrink-0"
+                        />
+                    ) : (
+                        <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center shrink-0">
+                            <User className="w-10 h-10" />
+                        </div>
+                    )}
                     <div className="flex-1">
                         <div className="flex flex-wrap items-center gap-3 mb-2">
                             <h1 className="text-3xl font-extrabold tracking-tight text-gray-900">{effectiveProfile.fullName}</h1>
@@ -229,6 +240,7 @@ const Profile = () => {
                 <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
                     <h2 className="text-lg font-bold text-gray-900 mb-4">Hesap Bilgileri</h2>
                     {isOwnProfile && <InfoRow icon={Mail} label="E-posta" value={effectiveProfile.email} />}
+                    {isOwnProfile && <InfoRow icon={Phone} label="Telefon" value={effectiveProfile.phoneNumber} />}
                     <InfoRow icon={Building2} label="Bölüm" value={effectiveProfile.department} />
                     <InfoRow icon={GraduationCap} label="Sınıf" value={effectiveProfile.grade ? `${effectiveProfile.grade}. sınıf` : null} />
                     <InfoRow icon={CalendarDays} label="Katılım Tarihi" value={joinedAt} />
@@ -236,6 +248,7 @@ const Profile = () => {
 
                 <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
                     <h2 className="text-lg font-bold text-gray-900 mb-4">{isOwnProfile ? 'Tercih Özeti' : 'Profil Özeti'}</h2>
+                    <InfoRow icon={User} label="Hakkımda" value={effectiveProfile.bio} />
                     {isOwnProfile ? (
                         <>
                             <InfoRow icon={BarChart3} label="Kategori Tercihleri" value={effectiveProfile.preferredCategories} />

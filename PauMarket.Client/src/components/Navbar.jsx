@@ -259,10 +259,17 @@ const Navbar = () => {
                                     aria-haspopup="true"
                                     aria-expanded={profileOpen}
                                 >
-                                    {/* Avatar */}
-                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold shadow-sm">
-                                        {initials}
-                                    </div>
+                                    {user?.profilePhotoUrl ? (
+                                        <img
+                                            src={user.profilePhotoUrl}
+                                            alt={`${user?.name || 'Kullanıcı'} profil fotoğrafı`}
+                                            className="w-8 h-8 rounded-full object-cover shadow-sm"
+                                        />
+                                    ) : (
+                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold shadow-sm">
+                                            {initials}
+                                        </div>
+                                    )}
                                     <span className="text-sm font-semibold text-gray-700 group-hover:text-gray-900 max-w-[90px] truncate">
                                         {user?.name?.split(' ')[0] || 'Profilim'}
                                     </span>
@@ -434,9 +441,17 @@ const Navbar = () => {
                                     <div className="space-y-1">
                                         {/* User info pill */}
                                         <div className="flex items-center gap-3 px-3 py-2 bg-blue-50 rounded-xl mb-2">
-                                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-                                                {initials}
-                                            </div>
+                                            {user?.profilePhotoUrl ? (
+                                                <img
+                                                    src={user.profilePhotoUrl}
+                                                    alt={`${user?.name || 'Kullanıcı'} profil fotoğrafı`}
+                                                    className="w-9 h-9 rounded-full object-cover flex-shrink-0"
+                                                />
+                                            ) : (
+                                                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                                                    {initials}
+                                                </div>
+                                            )}
                                             <div className="min-w-0">
                                                 <p className="text-sm font-bold text-gray-800 truncate">{user?.name}</p>
                                                 <p className="text-xs text-gray-500 truncate">{user?.email}</p>

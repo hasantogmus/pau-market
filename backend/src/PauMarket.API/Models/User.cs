@@ -37,6 +37,18 @@ public class User
     [Range(1, 4, ErrorMessage = "Sınıf 1 ile 4 arasında olmalıdır.")]
     public int? Grade { get; set; }
 
+    /// <summary>Kullanıcının profilinde görünen kısa tanıtım metni.</summary>
+    [MaxLength(500)]
+    public string? Bio { get; set; }
+
+    /// <summary>Kullanıcının kendi hesabında yönettiği telefon numarası. Herkese açık profilde gösterilmez.</summary>
+    [MaxLength(20)]
+    public string? PhoneNumber { get; set; }
+
+    /// <summary>Cloudinary üzerinde tutulan profil fotoğrafı URL'i.</summary>
+    [MaxLength(500)]
+    public string? ProfilePhotoUrl { get; set; }
+
     /// <summary>Kullanıcının tercih ettiği soğuk başlangıç kategorileri (Örn: "Elektronik,Kitap")</summary>
     [MaxLength(200)]
     public string? PreferredCategories { get; set; }

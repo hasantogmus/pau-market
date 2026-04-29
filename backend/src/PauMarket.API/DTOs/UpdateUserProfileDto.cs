@@ -17,4 +17,11 @@ public class UpdateUserProfileDto
 
     [Range(1, 4, ErrorMessage = "Sınıf 1 ile 4 arasında olmalıdır.")]
     public int? Grade { get; set; }
+
+    [MaxLength(20)]
+    [RegularExpression(@"^[0-9+\-\s()]{7,20}$", ErrorMessage = "Telefon numarası geçerli görünmüyor.")]
+    public string? PhoneNumber { get; set; }
+
+    [MaxLength(500)]
+    public string? Bio { get; set; }
 }

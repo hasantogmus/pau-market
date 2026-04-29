@@ -350,6 +350,10 @@ namespace PauMarket.API.Migrations
                     b.Property<int?>("Grade")
                         .HasColumnType("int");
 
+                    b.Property<string>("Bio")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<bool>("IsEmailVerified")
                         .HasColumnType("bit");
 
@@ -362,6 +366,10 @@ namespace PauMarket.API.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("PhoneNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
                     b.Property<string>("PreferredCategories")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
@@ -369,6 +377,10 @@ namespace PauMarket.API.Migrations
                     b.Property<string>("PreferredCondition")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ProfilePhotoUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<string>("Role")
                         .IsRequired()
