@@ -5,6 +5,20 @@ const TARGET_ATTEMPTS = Number(process.env.SEARCH_FUZZ_ATTEMPTS || 100000);
 const PAGE_SIZE = Number(process.env.SEARCH_FUZZ_PAGE_SIZE || 200);
 const MAX_PAGES = Number(process.env.SEARCH_FUZZ_MAX_PAGES || 10);
 const TOP_N = Number(process.env.SEARCH_FUZZ_TOP_N || 20);
+const INTENT_TOP_N = Number(process.env.SEARCH_INTENT_TOP_N || 10);
+
+const INTENT_CASES = [
+    { query: 'sarj aleti', expectedTerms: ['sarj', 'şarj'] },
+    { query: 'şarz cihazı', expectedTerms: ['sarj', 'şarj'] },
+    { query: 'spor ayakkabı', expectedTerms: ['ayakkabi', 'nike'] },
+    { query: 'laptop', expectedTerms: ['laptop', 'macbook'] },
+    { query: 'macbook', expectedTerms: ['macbook'] },
+    { query: 'telefon kılıfı', expectedTerms: ['kilif', 'kılıf', 'iphone'] },
+    { query: 'çıkmış final', expectedTerms: ['final', 'ozet', 'not'] },
+    { query: 'ps', expectedTerms: ['playstation', 'oyun'] },
+    { query: 'yurt sandalye', expectedTerms: ['sandalye'] },
+    { query: 'mause', expectedTerms: ['mouse'] },
+];
 
 const STOP_WORDS = new Set([
     'acil',
@@ -236,6 +250,39 @@ const run = async () => {
 
     const matchedPercent = ((matched / TARGET_ATTEMPTS) * 100).toFixed(2);
     const topNPercent = ((topNMatched / TARGET_ATTEMPTS) * 100).toFixed(2);
+    const intentChecks = INTENT_CASES.map((intentCase) => {
+        const catalogHasExpectedTerm = listings.some((listing) => {
+            const normalizedTitle = normalizeSearchText(listing.title);
+            return intentCase.expectedTerms
+                .map(normalizeSearchText)
+                .some((term) => normalizedTitle.includes(term));
+        });
+
+        if (!catalogHasExpectedTerm) {
+            return {
+                query: intentCase.query,
+                skipped: true,
+                reason: 'No current listing title contains the expected product term.',
+                topResults: [],
+            };
+        }
+
+        const ranked = rankListings(intentCase.query).slice(0, INTENT_TOP_N);
+        const expectedTerms = intentCase.expectedTerms.map(normalizeSearchText);
+        const passed = ranked.some(({ listing }) => {
+            const normalizedTitle = normalizeSearchText(listing.title);
+            return expectedTerms.some((term) => normalizedTitle.includes(term));
+        });
+
+        return {
+            query: intentCase.query,
+            passed,
+            topResults: ranked.slice(0, 3).map(({ listing, score }) => ({
+                title: listing.title,
+                score,
+            })),
+        };
+    });
 
     console.log(JSON.stringify({
         apiBaseUrl: API_BASE_URL,
@@ -248,6 +295,8 @@ const run = async () => {
         topN: TOP_N,
         topNMatched,
         topNPercent,
+        intentTopN: INTENT_TOP_N,
+        intentChecks,
         sampleMisses: samples,
     }, null, 2));
 };

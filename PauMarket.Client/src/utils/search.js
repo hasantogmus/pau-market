@@ -1,16 +1,55 @@
 const SEARCH_TERM_GROUPS = [
-    ['sarj', 'şarj', 'charger', 'adaptör', 'adaptor', 'powerbank', 'batarya', 'power', 'usb', 'typec', 'type c'],
-    ['telefon', 'phone', 'iphone', 'android', 'cep'],
-    ['bilgisayar', 'laptop', 'notebook', 'macbook', 'pc'],
+    ['sarj', 'şarj', 'sarz', 'şarz', 'charger', 'adaptör', 'adaptor', 'powerbank', 'batarya', 'power', 'usb', 'typec', 'type c'],
+    ['telefon', 'phone', 'iphone', 'android', 'cep', 'kılıf', 'kilif', 'ekran koruyucu', 'lightning'],
+    ['bilgisayar', 'laptop', 'notebook', 'macbook', 'pc', 'monitör', 'monitor', 'ekran', 'klavye', 'keyboard', 'masaüstü', 'masaustu', 'desktop', 'gaming'],
     ['tablet', 'ipad'],
     ['kulaklik', 'kulaklık', 'headphone', 'headset', 'airpods', 'earbuds'],
-    ['kitap', 'ders', 'kaynak', 'not', 'özet', 'ozet'],
+    ['kitap', 'ders', 'kaynak', 'not', 'özet', 'ozet', 'çıkmış', 'cikmis', 'vize', 'final', 'slayt', 'pdf', 'fotokopi', 'defter', 'lab', 'föy', 'foy', 'ödev', 'odev', 'atlas', 'soru bankası', 'soru bankasi'],
     ['bisiklet', 'bike', 'scooter'],
-    ['oyun', 'game', 'playstation', 'ps5', 'xbox', 'konsol'],
-    ['kiyafet', 'giyim', 'mont', 'ceket', 'ayakkabı', 'ayakkabi'],
+    ['oyun', 'game', 'playstation', 'play station', 'ps', 'ps4', 'ps5', 'xbox', 'kol', 'joystick', 'dualshock', 'dualsense', 'nintendo', 'switch', 'konsol'],
+    ['kiyafet', 'giyim', 'mont', 'ceket', 'ayakkabı', 'ayakkabi', 'bot', 'sneaker', 'eşofman', 'esofman', 'pantolon', 'kazak', 'forma', 'çanta', 'canta', 'gözlük', 'gozluk', 'saat', 'bere'],
+    ['ev', 'eşya', 'esya', 'yurt', 'oda', 'masa', 'sandalye', 'lamba', 'buzdolabı', 'buzdolabi', 'mini dolap', 'kettle', 'ütü', 'utu', 'yatak', 'halı', 'hali'],
     ['kablo', 'hdmi', 'usb', 'typec', 'type c'],
     ['mouse', 'fare', 'mause'],
 ];
+
+const OPTIONAL_QUERY_TOKENS = new Set([
+    'alet',
+    'aleti',
+    'baslik',
+    'basligi',
+    'cihaz',
+    'cihazi',
+    'cep',
+    'cikmis',
+    'ev',
+    'icin',
+    'iphone',
+    'oda',
+    'orijinal',
+    'phone',
+    'spor',
+    'telefon',
+    'uyumlu',
+    've',
+    'yurt',
+]);
+
+const EXACT_ONLY_QUERY_TOKENS = new Set([
+    'bej',
+    'beyaz',
+    'gri',
+    'kahverengi',
+    'kirmizi',
+    'lacivert',
+    'mavi',
+    'mor',
+    'pembe',
+    'sari',
+    'siyah',
+    'turuncu',
+    'yesil',
+]);
 
 export const normalizeSearchText = (value = '') =>
     String(value)
@@ -35,7 +74,12 @@ const buildSynonymMap = () => {
     const map = {};
 
     SEARCH_TERM_GROUPS.forEach((group) => {
-        const normalizedGroup = [...new Set(group.flatMap((term) => tokenizeSearch(term)))];
+        const normalizedGroup = [...new Set(group.flatMap((term) => {
+            const phrase = normalizeSearchText(term);
+            const tokens = tokenizeSearch(term).filter((token) => token.length > 1);
+
+            return [phrase, ...tokens].filter((item) => item.length > 1);
+        }))];
 
         normalizedGroup.forEach((term) => {
             map[term] = [...new Set([...(map[term] || []), ...normalizedGroup.filter((item) => item !== term)])];
@@ -48,6 +92,15 @@ const buildSynonymMap = () => {
 export const SEARCH_SYNONYMS = buildSynonymMap();
 
 export const getCanonicalSearchText = (value) => tokenizeSearch(value).join(' ');
+
+const getEffectiveQueryTokens = (value) => {
+    const tokens = tokenizeSearch(value);
+
+    if (tokens.length <= 1) return tokens;
+
+    const requiredTokens = tokens.filter((token) => !OPTIONAL_QUERY_TOKENS.has(token));
+    return requiredTokens.length > 0 ? requiredTokens : tokens;
+};
 
 export const levenshteinDistance = (a, b) => {
     if (a === b) return 0;
@@ -121,7 +174,7 @@ export const getSynonymKeyForToken = (token) => {
     if (SEARCH_SYNONYMS[token]) return token;
 
     return Object.keys(SEARCH_SYNONYMS).find((key) =>
-        tokenMatchesWord(token, key, { allowTypo: true })
+        key.length > 4 && tokenMatchesWord(token, key, { allowTypo: true })
     );
 };
 
@@ -135,7 +188,8 @@ export const expandSearchToken = (token) => {
 export const getBackendSearchTerms = (value = '') => {
     const original = value.trim();
     const canonical = getCanonicalSearchText(value);
-    const synonymTerms = tokenizeSearch(value)
+    const effectiveCanonical = getEffectiveQueryTokens(value).join(' ');
+    const synonymTerms = getEffectiveQueryTokens(value)
         .flatMap((token) => {
             const synonymKey = getSynonymKeyForToken(token);
             return synonymKey ? SEARCH_SYNONYMS[synonymKey] : [];
@@ -143,13 +197,13 @@ export const getBackendSearchTerms = (value = '') => {
         .map((term) => term.trim())
         .filter(Boolean);
 
-    return [...new Set([original, canonical, ...synonymTerms].filter(Boolean))];
+    return [...new Set([original, canonical, effectiveCanonical, ...synonymTerms].filter(Boolean))];
 };
 
 const normalizedField = (value = '') => normalizeSearchText(value);
 
 export const getSearchScore = (item, query) => {
-    const queryTokens = tokenizeSearch(query);
+    const queryTokens = getEffectiveQueryTokens(query);
     if (queryTokens.length === 0) return 1;
 
     const titleText = normalizedField(item.title);
@@ -179,18 +233,19 @@ export const getSearchScore = (item, query) => {
 
         return alternatives.some((alternative, alternativeIndex) => {
             const isOriginalToken = alternativeIndex === 0;
+            const allowOriginalTypo = isOriginalToken && !EXACT_ONLY_QUERY_TOKENS.has(queryToken);
 
-            if (titleTokens.some((word) => tokenMatchesWord(alternative, word, { allowTypo: isOriginalToken }))) {
+            if (titleTokens.some((word) => tokenMatchesWord(alternative, word, { allowTypo: allowOriginalTypo }))) {
                 score += isOriginalToken ? 80 : 55;
                 return true;
             }
 
-            if (descriptionTokens.some((word) => tokenMatchesWord(alternative, word, { allowTypo: isOriginalToken }))) {
+            if (descriptionTokens.some((word) => tokenMatchesWord(alternative, word, { allowTypo: allowOriginalTypo }))) {
                 score += isOriginalToken ? 55 : 35;
                 return true;
             }
 
-            if (categoryTokens.some((word) => tokenMatchesWord(alternative, word, { allowTypo: isOriginalToken }))) {
+            if (categoryTokens.some((word) => tokenMatchesWord(alternative, word, { allowTypo: allowOriginalTypo }))) {
                 score += 25;
                 return true;
             }
