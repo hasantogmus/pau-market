@@ -140,7 +140,7 @@ const Login = () => {
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 disabled={isLoading}
-                                placeholder="ad.soyad@posta.pau.edu.tr"
+                                placeholder="Okul e-posta adresini gir"
                                 className={inputClass}
                                 required
                             />
