@@ -5,6 +5,7 @@ import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import VerifyEmail from './pages/VerifyEmail';
+import ForgotPassword from './pages/ForgotPassword';
 import NewListing from './pages/NewListing';
 import Onboarding from './pages/Onboarding';
 import ListingDetail from './pages/ListingDetail';
@@ -63,6 +64,14 @@ function App() {
               element={
                 <MainLayout>
                   <VerifyEmail />
+                </MainLayout>
+              }
+            />
+            <Route
+              path="/forgot-password"
+              element={
+                <MainLayout>
+                  <ForgotPassword />
                 </MainLayout>
               }
             />

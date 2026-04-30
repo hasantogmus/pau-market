@@ -57,6 +57,7 @@ public class PauMarketDbContext(DbContextOptions<PauMarketDbContext> options) : 
             entity.Property(u => u.Bio).HasMaxLength(500);
             entity.Property(u => u.PhoneNumber).HasMaxLength(20);
             entity.Property(u => u.ProfilePhotoUrl).HasMaxLength(500);
+            entity.Property(u => u.PasswordResetToken).HasMaxLength(100);
             entity.Property(u => u.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
         });
 

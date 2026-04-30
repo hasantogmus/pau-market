@@ -127,9 +127,63 @@ public class AuthController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Şifresini unutan kullanıcı için süreli sıfırlama kodu gönderir.
+    /// </summary>
+    [HttpPost("forgot-password")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequestDto dto)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        try
+        {
+            var message = await _authService.RequestPasswordResetAsync(dto);
+            return Ok(new
+            {
+                message,
+                expiresInSeconds = GetPasswordResetCodeLifetimeSeconds()
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Şifre sıfırlama kodunu doğrular ve yeni şifreyi kaydeder.
+    /// </summary>
+    [HttpPost("reset-password")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        try
+        {
+            var message = await _authService.ResetPasswordAsync(dto);
+            return Ok(new { message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
     private int GetVerificationCodeLifetimeSeconds()
     {
         var seconds = _configuration.GetValue<int?>("EmailVerification:CodeLifetimeSeconds") ?? 120;
         return seconds > 0 ? seconds : 120;
+    }
+
+    private int GetPasswordResetCodeLifetimeSeconds()
+    {
+        var seconds = _configuration.GetValue<int?>("PasswordReset:CodeLifetimeSeconds") ?? 600;
+        return seconds > 0 ? seconds : 600;
     }
 }

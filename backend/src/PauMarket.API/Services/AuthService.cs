@@ -20,6 +20,8 @@ public class AuthService : IAuthService
     private readonly PauMarketDbContext   _db;
     private readonly IConfiguration      _config;
     private readonly ILogger<AuthService> _logger;
+    private const string PasswordResetGenericMessage =
+        "Eğer bu e-posta ile doğrulanmış bir PAÜ Market hesabı varsa, şifre sıfırlama kodu okul e-posta adresine gönderildi.";
 
     private sealed record SmtpSenderSettings(
         string Label,
@@ -180,6 +182,68 @@ public class AuthService : IAuthService
         return "Yeni doğrulama kodu gönderildi. Lütfen okul e-posta kutunu kontrol et.";
     }
 
+    /// <inheritdoc/>
+    public async Task<string> RequestPasswordResetAsync(ForgotPasswordRequestDto dto)
+    {
+        var normalizedEmail = dto.Email.Trim().ToLowerInvariant();
+        var emailSuffix = GetAllowedEmailSuffix();
+
+        if (!normalizedEmail.EndsWith(emailSuffix, StringComparison.Ordinal))
+            throw new InvalidOperationException(
+                $"Şifre sıfırlama için {emailSuffix} uzantılı okul e-posta adresini kullanmalısın.");
+
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail);
+        if (user is null || !user.IsEmailVerified)
+            return PasswordResetGenericMessage;
+
+        if (HasUsableVerificationCode(user.PasswordResetToken))
+            return $"{PasswordResetGenericMessage} Yakın zamanda gelen kod hâlâ geçerliyse aynı kodu kullanabilirsin.";
+
+        if (!IsEmailDeliveryConfigured())
+            throw new InvalidOperationException("Şifre sıfırlama e-postası şu anda gönderilemiyor. Lütfen daha sonra tekrar deneyin.");
+
+        var resetToken = GenerateVerificationToken();
+        var resetExpiresAt = GetPasswordResetCodeExpiry();
+
+        await SendPasswordResetEmailAsync(user.Email, resetToken, GetUserDisplayName(user));
+        user.PasswordResetToken = BuildStoredVerificationToken(resetToken, resetExpiresAt);
+        await _db.SaveChangesAsync();
+
+        return PasswordResetGenericMessage;
+    }
+
+    /// <inheritdoc/>
+    public async Task<string> ResetPasswordAsync(ResetPasswordDto dto)
+    {
+        var normalizedEmail = dto.Email.Trim().ToLowerInvariant();
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail);
+
+        if (user is null)
+            throw new InvalidOperationException("Şifre sıfırlama kodu hatalı veya süresi dolmuş.");
+
+        if (!user.IsEmailVerified)
+            throw new InvalidOperationException("Şifre sıfırlamak için önce okul e-postanı doğrulaman gerekir.");
+
+        if (!TryParseStoredVerificationToken(user.PasswordResetToken, out var storedToken, out var expiresAt))
+            throw new InvalidOperationException("Şifre sıfırlama kodu hatalı veya süresi dolmuş.");
+
+        if (expiresAt < DateTime.UtcNow)
+        {
+            user.PasswordResetToken = null;
+            await _db.SaveChangesAsync();
+            throw new InvalidOperationException("Şifre sıfırlama kodunun süresi doldu. Lütfen yeni kod iste.");
+        }
+
+        if (!string.Equals(storedToken, dto.Token.Trim(), StringComparison.Ordinal))
+            throw new InvalidOperationException("Şifre sıfırlama kodu hatalı veya süresi dolmuş.");
+
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword, workFactor: 12);
+        user.PasswordResetToken = null;
+        await _db.SaveChangesAsync();
+
+        return "Şifren başarıyla güncellendi. Yeni şifrenle giriş yapabilirsin.";
+    }
+
 
     // ─── E-posta Simülasyonu ──────────────────────────────────────────────────
 
@@ -198,6 +262,15 @@ public class AuthService : IAuthService
 
     private DateTime GetVerificationCodeExpiry() =>
         DateTime.UtcNow.AddSeconds(GetVerificationCodeLifetimeSeconds());
+
+    private int GetPasswordResetCodeLifetimeSeconds()
+    {
+        var seconds = _config.GetValue<int?>("PasswordReset:CodeLifetimeSeconds") ?? 600;
+        return seconds > 0 ? seconds : 600;
+    }
+
+    private DateTime GetPasswordResetCodeExpiry() =>
+        DateTime.UtcNow.AddSeconds(GetPasswordResetCodeLifetimeSeconds());
 
     private static bool HasUsableVerificationCode(string? storedValue) =>
         TryParseStoredVerificationToken(storedValue, out _, out var expiresAt) &&
@@ -284,6 +357,44 @@ public class AuthService : IAuthService
                 successfulSends,
                 toEmail);
         }
+    }
+
+    private async Task SendPasswordResetEmailAsync(string toEmail, string code, string recipientName)
+    {
+        var senders = GetConfiguredSmtpSenders();
+        if (senders.Count == 0)
+        {
+            throw new InvalidOperationException("Şifre sıfırlama e-postası şu anda gönderilemiyor. Lütfen daha sonra tekrar deneyin.");
+        }
+
+        Exception? lastError = null;
+        foreach (var sender in OrderSmtpSendersForAttempt(senders, isResend: false))
+        {
+            try
+            {
+                using var client = BuildSmtpClient(sender);
+                using var message = BuildPasswordResetEmail(sender, toEmail, code, recipientName);
+                await client.SendMailAsync(message);
+
+                _logger.LogInformation(
+                    "Şifre sıfırlama e-postası {SenderLabel} göndericisiyle başarıyla gönderildi: {Email}",
+                    sender.Label,
+                    toEmail);
+                return;
+            }
+            catch (Exception ex)
+            {
+                lastError = ex;
+                _logger.LogWarning(
+                    ex,
+                    "Şifre sıfırlama e-postası {SenderLabel} göndericisiyle gönderilemedi: {Email}",
+                    sender.Label,
+                    toEmail);
+            }
+        }
+
+        _logger.LogError(lastError, "Şifre sıfırlama e-postası hiçbir SMTP göndericisiyle gönderilemedi: {Email}", toEmail);
+        throw new InvalidOperationException("Şifre sıfırlama e-postası gönderilemedi. Lütfen daha sonra tekrar deneyin.");
     }
 
     private List<SmtpSenderSettings> GetConfiguredSmtpSenders()
@@ -397,6 +508,50 @@ public class AuthService : IAuthService
         return message;
     }
 
+    private static MailMessage BuildPasswordResetEmail(
+        SmtpSenderSettings sender,
+        string toEmail,
+        string code,
+        string recipientName)
+    {
+        var fromAddress = string.IsNullOrWhiteSpace(sender.FromName)
+            ? new MailAddress(sender.FromEmail!)
+            : new MailAddress(sender.FromEmail!, sender.FromName, Encoding.UTF8);
+
+        var safeRecipientName = NormalizeRecipientName(recipientName);
+        var plainTextBody = BuildPasswordResetPlainText(code, safeRecipientName);
+        var htmlBody = BuildPasswordResetHtml(code, safeRecipientName);
+
+        var message = new MailMessage
+        {
+            From = fromAddress,
+            Sender = fromAddress,
+            Subject = BuildPasswordResetSubject(safeRecipientName),
+            Body = plainTextBody,
+            IsBodyHtml = false,
+            Priority = MailPriority.Normal,
+            SubjectEncoding = Encoding.UTF8,
+            BodyEncoding = Encoding.UTF8,
+            HeadersEncoding = Encoding.UTF8
+        };
+
+        message.AlternateViews.Add(AlternateView.CreateAlternateViewFromString(
+            plainTextBody,
+            Encoding.UTF8,
+            "text/plain"));
+        message.AlternateViews.Add(AlternateView.CreateAlternateViewFromString(
+            htmlBody,
+            Encoding.UTF8,
+            "text/html"));
+        message.ReplyToList.Add(fromAddress);
+        message.To.Add(toEmail);
+        message.Headers.Add("X-Auto-Response-Suppress", "All");
+        message.Headers.Add("Auto-Submitted", "auto-generated");
+        message.Headers.Add("X-PauMarket-Email-Type", "password-reset");
+
+        return message;
+    }
+
     private static string NormalizeRecipientName(string recipientName) =>
         string.Join(' ', recipientName.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             .Replace('\r', ' ')
@@ -405,6 +560,14 @@ public class AuthService : IAuthService
     private static string BuildVerificationSubject(string recipientName, bool isResend)
     {
         var prefix = isResend ? "PAÜ Market yeni doğrulama kodu" : "PAÜ Market doğrulama kodu";
+        return string.IsNullOrWhiteSpace(recipientName)
+            ? prefix
+            : $"{prefix} - {recipientName}";
+    }
+
+    private static string BuildPasswordResetSubject(string recipientName)
+    {
+        const string prefix = "PAÜ Market şifre sıfırlama kodu";
         return string.IsNullOrWhiteSpace(recipientName)
             ? prefix
             : $"{prefix} - {recipientName}";
@@ -425,6 +588,80 @@ public class AuthService : IAuthService
         Bu kod 2 dakika geçerlidir. Kodu sen istemediysen bu e-postayı yok sayabilirsin.
 
         PAÜ Market
+        """;
+    }
+
+    private static string BuildPasswordResetPlainText(string code, string recipientName)
+    {
+        var greeting = string.IsNullOrWhiteSpace(recipientName) ? "Merhaba," : $"Merhaba {recipientName},";
+
+        return $"""
+        {greeting}
+
+        PAÜ Market hesabın için şifre sıfırlama kodun: {code}
+
+        Bu kod 10 dakika geçerlidir ve tek kullanımlıktır. Bu işlemi sen başlatmadıysan bu e-postayı yok sayabilirsin.
+
+        PAÜ Market
+        """;
+    }
+
+    private static string BuildPasswordResetHtml(string code, string recipientName)
+    {
+        var greeting = string.IsNullOrWhiteSpace(recipientName) ? "Merhaba," : $"Merhaba {WebUtility.HtmlEncode(recipientName)},";
+
+        return
+        $$"""
+        <!doctype html>
+        <html lang="tr">
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <meta name="x-apple-disable-message-reformatting">
+          <title>PAÜ Market şifre sıfırlama kodu</title>
+        </head>
+        <body style="margin:0;padding:0;background:#eef4ff;color:#111827;font-family:Arial,Helvetica,sans-serif;">
+          <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
+            PAÜ Market hesabın için şifre sıfırlama kodun hazır.
+          </div>
+
+          <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#eef4ff;margin:0;padding:32px 12px;">
+            <tr>
+              <td align="center">
+                <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:560px;background:#ffffff;border-radius:24px;border:1px solid #dbe7ff;box-shadow:0 18px 50px rgba(37,99,235,.14);overflow:hidden;">
+                  <tr>
+                    <td style="background:#0f172a;padding:24px 28px;color:#ffffff;">
+                      <div style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;opacity:.9;">PAÜ Market</div>
+                      <h1 style="margin:10px 0 0;font-size:26px;line-height:1.25;font-weight:800;">Şifre sıfırlama kodun</h1>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:30px 28px 8px;">
+                      <p style="margin:0 0 18px;font-size:16px;line-height:1.6;color:#374151;">
+                        {{greeting}} PAÜ Market hesabın için yeni şifre oluşturmak üzere aşağıdaki 6 haneli kodu kullanabilirsin.
+                      </p>
+                      <div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:18px;padding:22px;text-align:center;">
+                        <div style="font-size:12px;line-height:1.4;color:#64748b;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">Şifre sıfırlama kodu</div>
+                        <div style="font-size:38px;line-height:1.2;font-weight:800;letter-spacing:.16em;color:#155eef;margin-top:8px;">{{code}}</div>
+                      </div>
+                      <p style="margin:18px 0 0;font-size:14px;line-height:1.6;color:#64748b;">
+                        Bu kod 10 dakika geçerlidir ve tek kullanımlıktır. Bu işlemi sen başlatmadıysan hesabın güvende kalır; bu e-postayı yok sayabilirsin.
+                      </p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:18px 28px 28px;">
+                      <div style="border-top:1px solid #e5e7eb;padding-top:18px;font-size:12px;line-height:1.6;color:#94a3b8;">
+                        Bu mesaj PAÜ Market şifre sıfırlama işlemi için otomatik olarak gönderildi.
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+        </html>
         """;
     }
 

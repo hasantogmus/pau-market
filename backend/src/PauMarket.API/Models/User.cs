@@ -69,6 +69,13 @@ public class User
     /// </summary>
     public string? EmailVerificationToken { get; set; }
 
+    /// <summary>
+    /// Şifre sıfırlama için üretilen süreli ve tek kullanımlık kod.
+    /// Şifre güncellendiğinde null'a çekilir.
+    /// </summary>
+    [MaxLength(100)]
+    public string? PasswordResetToken { get; set; }
+
     /// <summary>Kullanıcının rolü. Varsayılan: "User". Adminler için "Admin" atanır.</summary>
     [MaxLength(20)]
     public string Role { get; set; } = "User";

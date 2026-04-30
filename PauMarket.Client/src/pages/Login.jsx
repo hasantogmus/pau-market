@@ -23,6 +23,7 @@ const Login = () => {
     const justVerified = searchParams.get('verified') === 'true';
     const verificationMessage = location.state?.verificationMessage
         || 'E-posta adresin doğrulandı. Artık giriş yapabilirsin.';
+    const passwordResetMessage = location.state?.passwordResetMessage;
     const redirectFromProtectedRoute = location.state?.from;
     const redirectAfterLogin = location.state?.redirectAfterLogin
         || (redirectFromProtectedRoute
@@ -102,6 +103,19 @@ const Login = () => {
                     </motion.div>
                 )}
 
+                {passwordResetMessage && (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="mb-6 flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/90 p-4 shadow-sm"
+                    >
+                        <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+                        <p className="text-sm font-bold leading-relaxed text-emerald-800">
+                            {passwordResetMessage}
+                        </p>
+                    </motion.div>
+                )}
+
                 {error && (
                     <motion.div
                         initial={{ opacity: 0, scale: 0.95 }}
@@ -153,9 +167,13 @@ const Login = () => {
                     </div>
 
                     <div className="flex items-center justify-end">
-                        <span className="cursor-not-allowed select-none text-sm font-bold text-slate-400" title="Yakında eklenecek">
+                        <Link
+                            to="/forgot-password"
+                            state={{ email }}
+                            className="text-sm font-black text-[#0f766e] transition-colors hover:text-[#115e59]"
+                        >
                             Şifremi unuttum
-                        </span>
+                        </Link>
                     </div>
 
                     <button
