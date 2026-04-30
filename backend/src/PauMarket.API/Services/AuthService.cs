@@ -329,7 +329,7 @@ public class AuthService : IAuthService
             _config[$"{sectionName}:Password"],
             _config.GetValue($"{sectionName}:EnableSsl", true),
             _config[$"{sectionName}:FromEmail"],
-            _config[$"{sectionName}:FromName"] ?? "PAU Market");
+            _config[$"{sectionName}:FromName"] ?? "PAÜ Market");
 
     private static void AddIfConfigured(List<SmtpSenderSettings> senders, SmtpSenderSettings sender)
     {
@@ -404,7 +404,7 @@ public class AuthService : IAuthService
 
     private static string BuildVerificationSubject(string recipientName, bool isResend)
     {
-        var prefix = isResend ? "PAU Market yeni dogrulama kodu" : "PAU Market dogrulama kodu";
+        var prefix = isResend ? "PAÜ Market yeni doğrulama kodu" : "PAÜ Market doğrulama kodu";
         return string.IsNullOrWhiteSpace(recipientName)
             ? prefix
             : $"{prefix} - {recipientName}";
@@ -414,27 +414,27 @@ public class AuthService : IAuthService
     {
         var greeting = string.IsNullOrWhiteSpace(recipientName) ? "Merhaba," : $"Merhaba {recipientName},";
         var intro = isResend
-            ? "PAU Market hesabin icin yeni dogrulama kodun:"
-            : "PAU Market hesabini dogrulamak icin kodun:";
+            ? "PAÜ Market hesabın için yeni doğrulama kodun:"
+            : "PAÜ Market hesabını doğrulamak için kodun:";
 
         return $"""
         {greeting}
 
         {intro} {code}
 
-        Bu kod 2 dakika gecerlidir. Kodu sen istemediysen bu e-postayi yok sayabilirsin.
+        Bu kod 2 dakika geçerlidir. Kodu sen istemediysen bu e-postayı yok sayabilirsin.
 
-        PAU Market
+        PAÜ Market
         """;
     }
 
     private static string BuildVerificationHtml(string code, string recipientName, bool isResend)
     {
         var greeting = string.IsNullOrWhiteSpace(recipientName) ? "Merhaba," : $"Merhaba {WebUtility.HtmlEncode(recipientName)},";
-        var title = isResend ? "Yeni e-posta dogrulama kodun" : "E-posta dogrulama kodun";
+        var title = isResend ? "Yeni e-posta doğrulama kodun" : "E-posta doğrulama kodun";
         var intro = isResend
-            ? "PAU Market hesabini aktifleştirmek icin yeni kodun hazir."
-            : "PAU Market hesabini aktifleştirmek icin asagidaki 6 haneli kodu kullanabilirsin.";
+            ? "PAÜ Market hesabını aktifleştirmek için yeni kodun hazır."
+            : "PAÜ Market hesabını aktifleştirmek için aşağıdaki 6 haneli kodu kullanabilirsin.";
 
         return
         $$"""
@@ -444,11 +444,11 @@ public class AuthService : IAuthService
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1">
           <meta name="x-apple-disable-message-reformatting">
-          <title>PAU Market dogrulama kodu</title>
+          <title>PAÜ Market doğrulama kodu</title>
         </head>
         <body style="margin:0;padding:0;background:#eef4ff;color:#111827;font-family:Arial,Helvetica,sans-serif;">
           <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
-            PAU Market hesabini dogrulamak icin 6 haneli kodun hazir.
+            PAÜ Market hesabını doğrulamak için 6 haneli kodun hazır.
           </div>
 
           <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#eef4ff;margin:0;padding:32px 12px;">
@@ -457,7 +457,7 @@ public class AuthService : IAuthService
                 <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:560px;background:#ffffff;border-radius:24px;border:1px solid #dbe7ff;box-shadow:0 18px 50px rgba(37,99,235,.14);overflow:hidden;">
                   <tr>
                     <td style="background:#155eef;padding:24px 28px;color:#ffffff;">
-                      <div style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;opacity:.9;">PAU Market</div>
+                      <div style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;opacity:.9;">PAÜ Market</div>
                       <h1 style="margin:10px 0 0;font-size:26px;line-height:1.25;font-weight:800;">{{title}}</h1>
                     </td>
                   </tr>
@@ -467,18 +467,18 @@ public class AuthService : IAuthService
                         {{greeting}} {{intro}}
                       </p>
                       <div style="background:#f5f8ff;border:1px solid #cfe0ff;border-radius:18px;padding:22px;text-align:center;">
-                        <div style="font-size:12px;line-height:1.4;color:#64748b;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">Dogrulama kodu</div>
+                        <div style="font-size:12px;line-height:1.4;color:#64748b;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">Doğrulama kodu</div>
                         <div style="font-size:38px;line-height:1.2;font-weight:800;letter-spacing:.16em;color:#155eef;margin-top:8px;">{{code}}</div>
                       </div>
                       <p style="margin:18px 0 0;font-size:14px;line-height:1.6;color:#64748b;">
-                        Bu kod 2 dakika gecerlidir. Kodu sen istemediysen bu e-postayi yok sayabilirsin.
+                        Bu kod 2 dakika geçerlidir. Kodu sen istemediysen bu e-postayı yok sayabilirsin.
                       </p>
                     </td>
                   </tr>
                   <tr>
                     <td style="padding:18px 28px 28px;">
                       <div style="border-top:1px solid #e5e7eb;padding-top:18px;font-size:12px;line-height:1.6;color:#94a3b8;">
-                        Bu mesaj PAU Market hesap dogrulama islemi icin otomatik olarak gonderildi.
+                        Bu mesaj PAÜ Market hesap doğrulama işlemi için otomatik olarak gönderildi.
                       </div>
                     </td>
                   </tr>
