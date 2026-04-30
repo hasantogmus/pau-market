@@ -519,7 +519,7 @@ const NewListing = () => {
                                     value={formData.title}
                                     onChange={handleChange}
                                     disabled={isLoading}
-                                    placeholder="İlan başlığını giriniz"
+                                    placeholder="İlan başlığı"
                                     className={inputCls}
                                     required
                                 />
@@ -582,7 +582,7 @@ const NewListing = () => {
                                     value={formData.description}
                                     onChange={handleChange}
                                     disabled={isLoading}
-                                    placeholder="Ürününüzün durumunu, özelliklerini ve neden sattığınızı anlatın..."
+                                    placeholder="Ürünün durumunu, özelliklerini ve neden sattığını anlat..."
                                     rows={4}
                                     className={inputCls + ' resize-none'}
                                 />

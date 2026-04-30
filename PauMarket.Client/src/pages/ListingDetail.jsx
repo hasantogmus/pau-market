@@ -3,7 +3,8 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
     ImageOff, MessageCircle, Tag, Layers, ArrowLeft,
-    User, Calendar, ShieldCheck, AlertTriangle, Star, PencilLine
+    User, Calendar, ShieldCheck, AlertTriangle, Star, PencilLine,
+    Sparkles, MapPin, CheckCircle2
 } from 'lucide-react';
 import listingService from '../services/listingService';
 import userService from '../services/userService';
@@ -66,6 +67,32 @@ const conditionConfig = {
 };
 const getConditionStyle = (cond) =>
     conditionConfig[cond] ?? { color: 'bg-gray-100 text-gray-700 border-gray-200', icon: '📦' };
+
+const trustItems = [
+    {
+        icon: ShieldCheck,
+        title: 'Mesajda netleştir',
+        text: 'Fiyat, teslim ve buluşma detaylarını PAÜ Market mesajlarında yazılı tut.',
+    },
+    {
+        icon: MapPin,
+        title: 'Kampüste kontrol et',
+        text: 'Ürünü görmeden ödeme yapmamanı ve kalabalık alanlarda buluşmanı öneririz.',
+    },
+    {
+        icon: CheckCircle2,
+        title: 'Satıcı geçmişi',
+        text: 'Puan ve yorumları inceleyerek alışverişe daha bilinçli başlayabilirsin.',
+    },
+];
+
+const dealRequestStatusCopy = {
+    Pending: 'Anlaşma isteğin satıcı onayı bekliyor.',
+    Accepted: 'Anlaşma kabul edildi. Teslim detaylarını mesajda netleştir.',
+    Rejected: 'Önceki anlaşma isteği reddedildi. Uygunsa yeniden istek gönderebilirsin.',
+    Withdrawn: 'Önceki isteği geri çektin. İstersen yeniden anlaşma isteği gönderebilirsin.',
+    Cancelled: 'Anlaşma iptal edildi. İlan yeniden anlaşma isteğine açık olabilir.',
+};
 
 const ReviewStars = ({ rating, interactive = false, onSelect }) => (
     <div className="flex items-center gap-1">
@@ -309,8 +336,10 @@ const ListingDetail = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-            <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(219,234,254,0.85),_transparent_32rem),linear-gradient(180deg,#f8fafc_0%,#ffffff_52%,#f8fafc_100%)]">
+            <div className="pointer-events-none absolute right-[-8rem] top-20 h-72 w-72 rounded-full bg-indigo-200/40 blur-3xl" />
+            <div className="pointer-events-none absolute left-[-10rem] bottom-24 h-80 w-80 rounded-full bg-cyan-100/70 blur-3xl" />
+            <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
 
                 {/* Geri Butonu */}
                 <motion.div
@@ -330,7 +359,7 @@ const ListingDetail = () => {
                 </motion.div>
 
                 {/* ── Ana Grid ── */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-start">
+                <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.02fr)_minmax(0,0.98fr)] gap-7 lg:gap-12 items-start">
 
                     {/* ── SOL: Görsel ── */}
                     <motion.div
@@ -338,9 +367,9 @@ const ListingDetail = () => {
                         initial="hidden"
                         animate="visible"
                         custom={0.08}
-                        className="sticky top-8"
+                        className="lg:sticky lg:top-8"
                     >
-                        <div className="w-full aspect-square bg-gray-100 rounded-3xl overflow-hidden shadow-lg border border-gray-100 relative">
+                        <div className="relative w-full aspect-[4/3] sm:aspect-square bg-gray-100 rounded-[2rem] overflow-hidden shadow-2xl shadow-blue-950/10 border border-white">
                             {selectedImage ? (
                                 <img
                                     src={selectedImage}
@@ -355,22 +384,26 @@ const ListingDetail = () => {
                                 </div>
                             )}
                             {/* Tarih rozeti */}
+                            <div className="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1.5 shadow-sm backdrop-blur-sm">
+                                <Sparkles className="w-3.5 h-3.5 text-blue-500" />
+                                <span className="text-xs font-black text-slate-700">PAÜ Market ilanı</span>
+                            </div>
                             <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-sm flex items-center gap-1.5">
                                 <Calendar className="w-3.5 h-3.5 text-gray-400" />
                                 <span className="text-xs font-semibold text-gray-600">{formatDate(listing.createdAt)}</span>
                             </div>
                         </div>
                         {imageUrls.length > 1 && (
-                            <div className="mt-4 grid grid-cols-5 gap-2">
+                            <div className="mt-4 flex gap-2 overflow-x-auto pb-2 sm:grid sm:grid-cols-5 sm:overflow-visible sm:pb-0">
                                 {imageUrls.map((url, index) => (
                                     <button
                                         key={`${url}-${index}`}
                                         type="button"
                                         onClick={() => setSelectedImageIndex(index)}
-                                        className={`aspect-square rounded-2xl overflow-hidden border-2 transition-all ${
+                                        className={`h-20 w-20 shrink-0 sm:h-auto sm:w-auto sm:aspect-square rounded-2xl overflow-hidden border-2 transition-all ${
                                             selectedImageIndex === index
                                                 ? 'border-blue-500 shadow-md shadow-blue-100'
-                                                : 'border-gray-100 hover:border-blue-200'
+                                                : 'border-white hover:border-blue-200'
                                         }`}
                                         aria-label={`${index + 1}. fotoğrafı göster`}
                                     >
@@ -390,33 +423,53 @@ const ListingDetail = () => {
                     <div className="flex flex-col gap-6">
 
                         {/* Başlık & Fiyat */}
-                        <motion.div variants={fadeUpVariants} initial="hidden" animate="visible" custom={0.14}>
-                            <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight leading-tight mb-3">
+                        <motion.div
+                            variants={fadeUpVariants}
+                            initial="hidden"
+                            animate="visible"
+                            custom={0.14}
+                            className="rounded-[2rem] border border-white/80 bg-white/90 p-5 shadow-xl shadow-blue-950/5 backdrop-blur sm:p-6"
+                        >
+                            <div className="mb-4 flex flex-wrap items-center gap-2">
+                                <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-xs font-black text-blue-700">
+                                    <Sparkles className="h-3.5 w-3.5" />
+                                    Kampüs alışverişi
+                                </span>
+                                {listing.isSold && (
+                                    <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-black text-emerald-700">
+                                        <ShieldCheck className="w-3.5 h-3.5" />
+                                        Satıldı
+                                    </span>
+                                )}
+                            </div>
+
+                            <h1 className="text-2xl font-black leading-tight tracking-tight text-slate-950 sm:text-4xl">
                                 {listing.title}
                             </h1>
-                            <p className="text-4xl font-black text-blue-600 tracking-tight">
-                                {formatPrice(listing.price)}
-                            </p>
-                        </motion.div>
 
-                        {/* Badge'ler: Kategori + Durum */}
-                        <motion.div variants={fadeUpVariants} initial="hidden" animate="visible" custom={0.2} className="flex flex-wrap gap-2">
-                            {listing.isSold && (
-                                <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-sm font-bold">
-                                    <ShieldCheck className="w-3.5 h-3.5" />
-                                    Satıldı
+                            <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                                <div>
+                                    <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">İlan fiyatı</p>
+                                    <p className="mt-1 text-4xl font-black tracking-tight text-blue-700 sm:text-5xl">
+                                        {formatPrice(listing.price)}
+                                    </p>
+                                </div>
+                                <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600">
+                                    <span className="block text-xs font-black uppercase tracking-wider text-slate-400">Yayın tarihi</span>
+                                    {formatDate(listing.createdAt)}
+                                </div>
+                            </div>
+
+                            <div className="mt-5 flex flex-wrap gap-2">
+                                <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-sm font-bold">
+                                    <Tag className="w-3.5 h-3.5" />
+                                    {listing.category}
                                 </span>
-                            )}
-                            {/* Kategori */}
-                            <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-sm font-bold">
-                                <Tag className="w-3.5 h-3.5" />
-                                {listing.category}
-                            </span>
-                            {/* Durum */}
-                            <span className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border text-sm font-bold ${conditionStyle.color}`}>
-                                <span>{conditionStyle.icon}</span>
-                                {listing.condition}
-                            </span>
+                                <span className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border text-sm font-bold ${conditionStyle.color}`}>
+                                    <span>{conditionStyle.icon}</span>
+                                    {listing.condition}
+                                </span>
+                            </div>
                         </motion.div>
 
                         {listing.isSold && (
@@ -457,38 +510,38 @@ const ListingDetail = () => {
                             initial="hidden"
                             animate="visible"
                             custom={0.26}
-                            className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-2xl p-4 flex items-start justify-between gap-4"
+                            className="rounded-[2rem] border border-blue-100 bg-white/95 p-4 shadow-lg shadow-blue-950/5 sm:p-5"
                         >
-                            <div className="flex items-center gap-4 min-w-0">
-                                <div className="w-12 h-12 rounded-full bg-white border-2 border-blue-200 flex items-center justify-center shadow-sm shrink-0">
-                                    <User className="w-6 h-6 text-blue-500" />
-                                </div>
-                                <div className="min-w-0">
-                                    <p className="text-xs font-semibold text-blue-500 uppercase tracking-wider mb-0.5">Satıcı</p>
-                                    <p className="text-sm font-bold text-gray-900 truncate">{sellerDisplayName}</p>
-                                    <div className="flex flex-wrap items-center gap-2 mt-1">
-                                        <div className="flex items-center gap-2">
+                            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="flex min-w-0 items-start gap-4">
+                                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-md shadow-blue-200 shrink-0 text-white">
+                                        <User className="w-7 h-7" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-xs font-black text-blue-600 uppercase tracking-[0.2em] mb-1">Satıcı profili</p>
+                                        <p className="text-base font-black text-slate-950 truncate">{sellerDisplayName}</p>
+                                        <div className="mt-2 flex flex-wrap items-center gap-2">
                                             <ReviewStars rating={Math.round(averageRating)} />
-                                            <span className="text-xs font-semibold text-gray-600">
+                                            <span className="text-xs font-bold text-slate-600">
                                                 {averageRating.toFixed(1)} / 5
                                             </span>
-                                            <span className="text-xs text-gray-400">({reviewCount} değerlendirme)</span>
+                                            <span className="text-xs text-slate-400">({reviewCount} değerlendirme)</span>
+                                        </div>
+                                        <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">
+                                            <ShieldCheck className="w-3.5 h-3.5" />
+                                            PAÜ topluluğu içinde alışveriş
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-1 mt-1">
-                                        <ShieldCheck className="w-3.5 h-3.5 text-green-500" />
-                                        <span className="text-xs text-green-600 font-semibold">PAÜ Öğrencisi</span>
-                                    </div>
                                 </div>
+                                <button
+                                    type="button"
+                                    onClick={() => navigate(`/profile/${listing.userId}`)}
+                                    className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-black text-blue-700 transition-colors hover:bg-blue-100 sm:w-auto"
+                                >
+                                    <User className="w-4 h-4" />
+                                    Profili ve yorumları gör
+                                </button>
                             </div>
-                            <button
-                                type="button"
-                                onClick={() => navigate(`/profile/${listing.userId}`)}
-                                className="shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl border border-white/70 bg-white/80 text-gray-700 hover:bg-white transition-colors text-sm font-semibold"
-                            >
-                                <User className="w-4 h-4" />
-                                Profili Gör
-                            </button>
                         </motion.div>
 
                         {reviewSuccess && (
@@ -515,14 +568,44 @@ const ListingDetail = () => {
                             </motion.div>
                         )}
 
+                        {dealRequestError && !isDealModalOpen && (
+                            <motion.div
+                                variants={fadeUpVariants}
+                                initial="hidden"
+                                animate="visible"
+                                custom={0.3}
+                                className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700"
+                            >
+                                {dealRequestError}
+                            </motion.div>
+                        )}
+
+                        {reviewError && !isReviewModalOpen && (
+                            <motion.div
+                                variants={fadeUpVariants}
+                                initial="hidden"
+                                animate="visible"
+                                custom={0.31}
+                                className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700"
+                            >
+                                {reviewError}
+                            </motion.div>
+                        )}
+
                         {/* Açıklama */}
                         {listing.description && (
-                            <motion.div variants={fadeUpVariants} initial="hidden" animate="visible" custom={0.32}>
-                                <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                            <motion.div
+                                variants={fadeUpVariants}
+                                initial="hidden"
+                                animate="visible"
+                                custom={0.32}
+                                className="rounded-[2rem] border border-slate-100 bg-white/90 p-5 shadow-sm"
+                            >
+                                <h2 className="text-sm font-black text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
                                     <Layers className="w-4 h-4" />
                                     Ürün Açıklaması
                                 </h2>
-                                <p className="text-gray-700 leading-relaxed text-sm sm:text-base whitespace-pre-line">
+                                <p className="text-slate-700 leading-relaxed text-sm sm:text-base whitespace-pre-line">
                                     {listing.description}
                                 </p>
                             </motion.div>
@@ -533,28 +616,39 @@ const ListingDetail = () => {
                             initial="hidden"
                             animate="visible"
                             custom={0.35}
-                            className="rounded-2xl border border-blue-100 bg-blue-50/80 p-4"
+                            className="rounded-[2rem] border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-4 sm:p-5"
                         >
-                            <div className="flex items-start gap-3">
-                                <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-blue-600 shadow-sm">
-                                    <ShieldCheck className="h-5 w-5" />
-                                </div>
-                                <div>
-                                    <h2 className="text-sm font-black text-blue-950">Güvenli kampüs alışverişi</h2>
-                                    <p className="mt-1 text-sm leading-6 text-blue-800">
-                                        Mesajlaşmada fiyat ve buluşma yerini netleştir. Ürünü kampüste yüz yüze kontrol etmeden ödeme yapmamanı öneririz.
-                                    </p>
-                                </div>
+                            <div className="mb-4">
+                                <h2 className="text-base font-black text-blue-950">Güvenli kampüs alışverişi</h2>
+                                <p className="mt-1 text-sm leading-6 text-blue-800">
+                                    Alışverişe başlamadan önce bu kısa kontrol listesini kullan.
+                                </p>
+                            </div>
+                            <div className="grid gap-3 sm:grid-cols-3">
+                                {trustItems.map(({ icon: Icon, title, text }) => (
+                                    <div key={title} className="rounded-2xl border border-white/80 bg-white/80 p-3 shadow-sm">
+                                        <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white">
+                                            <Icon className="h-4 w-4" />
+                                        </div>
+                                        <p className="text-sm font-black text-slate-900">{title}</p>
+                                        <p className="mt-1 text-xs leading-5 text-slate-500">{text}</p>
+                                    </div>
+                                ))}
                             </div>
                         </motion.div>
 
                         {/* Aksiyon: Satıcıya Mesaj At */}
                         <motion.div variants={fadeUpVariants} initial="hidden" animate="visible" custom={0.38} className="mt-auto">
+                            {dealRequestStatus && (
+                                <div className="mb-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 shadow-sm">
+                                    {dealRequestStatusCopy[dealRequestStatus] || 'Anlaşma durumu güncellendi.'}
+                                </div>
+                            )}
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 {isOwnListing ? (
                                     <Link
                                         to="/my-listings"
-                                        className="w-full flex items-center justify-center gap-3 py-4 px-6 bg-blue-600 hover:bg-blue-700 text-white text-lg font-extrabold rounded-2xl shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5 active:scale-[0.98]"
+                                        className="w-full flex items-center justify-center gap-3 py-4 px-4 sm:px-6 bg-blue-600 hover:bg-blue-700 text-white text-base sm:text-lg font-extrabold rounded-2xl shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5 active:scale-[0.98]"
                                     >
                                         <PencilLine className="w-6 h-6" />
                                         İlanlarımda Yönet
@@ -563,7 +657,7 @@ const ListingDetail = () => {
                                     <button
                                         disabled={listing.isSold}
                                         onClick={() => navigate(`/messages?listingId=${listing.id}&sellerId=${listing.userId}`)}
-                                        className="w-full flex items-center justify-center gap-3 py-4 px-6 bg-blue-600 hover:bg-blue-700 text-white text-lg font-extrabold rounded-2xl shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5 active:scale-[0.98] disabled:bg-gray-300 disabled:hover:bg-gray-300 disabled:shadow-none disabled:hover:translate-y-0 disabled:cursor-not-allowed"
+                                        className="w-full flex items-center justify-center gap-3 py-4 px-4 sm:px-6 bg-blue-600 hover:bg-blue-700 text-white text-base sm:text-lg font-extrabold rounded-2xl shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5 active:scale-[0.98] disabled:bg-gray-300 disabled:hover:bg-gray-300 disabled:shadow-none disabled:hover:translate-y-0 disabled:cursor-not-allowed"
                                     >
                                         <MessageCircle className="w-6 h-6" />
                                         {listing.isSold ? 'Bu İlan Satıldı' : 'Satıcıya Mesaj At'}
@@ -590,7 +684,7 @@ const ListingDetail = () => {
                                             setIsDealModalOpen(true);
                                         }
                                     }}
-                                    className={`w-full flex items-center justify-center gap-3 py-4 px-6 text-lg font-extrabold rounded-2xl shadow-sm transition-all disabled:bg-gray-50 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed ${
+                                    className={`w-full flex items-center justify-center gap-3 py-4 px-4 sm:px-6 text-base sm:text-lg font-extrabold rounded-2xl shadow-sm transition-all disabled:bg-gray-50 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed ${
                                         canWithdrawDealRequest
                                             ? 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
                                             : canCancelDealRequest
@@ -624,7 +718,7 @@ const ListingDetail = () => {
                                         setReviewError(null);
                                         setIsReviewModalOpen(true);
                                     }}
-                                    className="w-full flex items-center justify-center gap-3 py-4 px-6 bg-white border border-amber-200 text-amber-700 text-lg font-extrabold rounded-2xl shadow-sm hover:bg-amber-50 transition-all disabled:bg-gray-50 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed"
+                                    className="w-full flex items-center justify-center gap-3 py-4 px-4 sm:px-6 bg-white border border-amber-200 text-amber-700 text-base sm:text-lg font-extrabold rounded-2xl shadow-sm hover:bg-amber-50 transition-all disabled:bg-gray-50 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed"
                                 >
                                     <PencilLine className="w-5 h-5" />
                                     {existingReview ? 'Değerlendirildi' : 'Satıcıyı Değerlendir'}
@@ -653,7 +747,7 @@ const ListingDetail = () => {
 
             {isReviewModalOpen && (
                 <div className="fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="w-full max-w-xl bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
+                    <div className="flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-2xl">
                         <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between gap-4">
                             <div>
                                 <h3 className="text-xl font-extrabold text-gray-900">Satıcıyı Değerlendir</h3>
@@ -668,7 +762,7 @@ const ListingDetail = () => {
                             </button>
                         </div>
 
-                        <form onSubmit={handleReviewSubmit} className="p-6 space-y-5">
+                        <form onSubmit={handleReviewSubmit} className="space-y-5 overflow-y-auto p-6">
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 mb-3">Puanın</label>
                                 <ReviewStars
@@ -721,7 +815,7 @@ const ListingDetail = () => {
 
             {isDealModalOpen && (
                 <div className="fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="w-full max-w-xl bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
+                    <div className="flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-2xl">
                         <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between gap-4">
                             <div>
                                 <h3 className="text-xl font-extrabold text-gray-900">Anlaşma İsteği Gönder</h3>
@@ -736,7 +830,7 @@ const ListingDetail = () => {
                             </button>
                         </div>
 
-                        <form onSubmit={handleCreateDealRequest} className="p-6 space-y-5">
+                        <form onSubmit={handleCreateDealRequest} className="space-y-5 overflow-y-auto p-6">
                             <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3">
                                 <p className="text-sm font-semibold text-blue-900">{listing.title}</p>
                                 <p className="text-xs text-blue-700 mt-1">İstersen fiyat veya buluşma notunu satıcıya iletebilirsin.</p>
@@ -751,6 +845,7 @@ const ListingDetail = () => {
                                     rows={4}
                                     value={dealRequestNote}
                                     onChange={(event) => setDealRequestNote(event.target.value)}
+                                    placeholder="Örn. Yarın kampüste görebilir miyim? Fiyatta küçük bir esneklik var mı?"
                                     className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 resize-none"
                                 />
                             </div>

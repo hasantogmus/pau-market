@@ -18,7 +18,7 @@ const Favorites = () => {
                 setFavorites(data);
             } catch (err) {
                 console.error("Favoriler yüklenirken hata oluştu:", err);
-                setError('Favorilerinizi yüklerken bir sorun oluştu.');
+                setError('Favorilerin yüklenirken bir sorun oluştu.');
             } finally {
                 setIsLoading(false);
             }
@@ -61,7 +61,7 @@ const Favorites = () => {
                         onClick={() => window.location.reload()}
                         className="mt-4 px-6 py-2 bg-red-600 text-white rounded-full font-medium hover:bg-red-700 transition-colors"
                     >
-                        Tekrar Dene
+                        Tekrar dene
                     </button>
                 </div>
             </div>

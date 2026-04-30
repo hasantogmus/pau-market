@@ -21,24 +21,25 @@ class ErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
-          <div className="max-w-md w-full space-y-8 bg-white dark:bg-gray-800 p-10 rounded-2xl shadow-xl text-center">
-            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 dark:bg-red-900/30">
-              <svg className="h-8 w-8 text-red-600 dark:text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="min-h-screen flex items-center justify-center bg-[radial-gradient(circle_at_top_left,_rgba(37,99,235,0.14),_transparent_34%),linear-gradient(180deg,#f8fbff_0%,#eef4ff_100%)] py-12 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-md w-full rounded-[2rem] border border-blue-100 bg-white/90 p-8 text-center shadow-2xl shadow-blue-100/70 backdrop-blur">
+            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-2xl bg-red-50 text-red-600 ring-8 ring-red-50/60">
+              <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
             </div>
-            <h2 className="mt-6 text-2xl font-extrabold text-gray-900 dark:text-white">
-              Beklenmeyen Bir Hata Oluştu
+            <p className="mt-6 text-xs font-black uppercase tracking-[0.28em] text-blue-600">PAÜ Market</p>
+            <h2 className="mt-3 text-2xl font-black tracking-tight text-slate-950">
+              Beklenmeyen bir hata oluştu
             </h2>
-            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-              Uygulamada bir şeyler ters gitti. Lütfen sayfayı yenilemeyi deneyin veya daha sonra tekrar dönün.
+            <p className="mt-3 text-sm font-medium leading-6 text-slate-500">
+              Sayfayı yenileyerek tekrar deneyebilirsin. Sorun devam ederse birkaç dakika sonra yeniden giriş yapman yeterli olabilir.
             </p>
             <button
               onClick={() => window.location.reload()}
-              className="mt-6 w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+              className="mt-7 w-full rounded-2xl bg-blue-600 px-4 py-3 text-sm font-black text-white shadow-lg shadow-blue-200 transition-all hover:-translate-y-0.5 hover:bg-blue-700 active:translate-y-0"
             >
-              Sayfayı Yenile
+              Sayfayı yenile
             </button>
           </div>
         </div>

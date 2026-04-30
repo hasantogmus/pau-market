@@ -46,7 +46,7 @@ const Purchases = () => {
                     <h1 className="text-2xl font-extrabold text-gray-900 mb-3">Satın alma geçmişi için giriş yap</h1>
                     <p className="text-gray-600 mb-6">Tamamlanan alışverişlerini ve değerlendirme bağlantılarını görmek için hesabınla giriş yapman gerekiyor.</p>
                     <Link to="/login" className="inline-flex items-center justify-center px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-2xl transition-colors">
-                        Giriş Yap
+                        Giriş yap
                     </Link>
                 </div>
             </div>
@@ -65,7 +65,7 @@ const Purchases = () => {
                     onClick={() => navigate('/profile')}
                     className="inline-flex items-center justify-center px-4 py-2.5 rounded-2xl border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors font-semibold"
                 >
-                    Profile Dön
+                    Profiline dön
                 </button>
             </div>
 

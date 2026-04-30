@@ -30,7 +30,14 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && error.response.status === 401) {
+    const requestUrl = error.config?.url || '';
+    const hadAuthHeader = Boolean(error.config?.headers?.Authorization);
+    const isAuthEndpoint = requestUrl.includes('/auth/login')
+      || requestUrl.includes('/auth/register')
+      || requestUrl.includes('/auth/verify')
+      || requestUrl.includes('/auth/resend');
+
+    if (error.response && error.response.status === 401 && hadAuthHeader && !isAuthEndpoint) {
       window.dispatchEvent(new Event('auth-expired'));
     }
     return Promise.reject(error);

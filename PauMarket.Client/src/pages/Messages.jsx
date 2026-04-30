@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, MessageCircle, Send, User, Wifi, WifiOff } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, MessageCircle, Package, Send, ShieldCheck, User, Wifi, WifiOff } from 'lucide-react';
 import { HubConnectionBuilder, LogLevel } from '@microsoft/signalr';
 import { useAuth } from '../hooks/useAuth';
 import messageService from '../services/messageService';
@@ -278,6 +278,8 @@ const Messages = () => {
         : canLoadConversation
             ? 'Konuşma'
             : 'Mesajlar';
+    const unreadMessageCount = threads.reduce((total, thread) => total + (thread.unreadCount || 0), 0);
+    const activeListingImage = activeConversation?.listingImageUrl || null;
 
     const handleOpenThread = (thread) => {
         setError(null);
@@ -396,12 +398,29 @@ const Messages = () => {
     }
 
     return (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-            <div className="grid grid-cols-1 lg:grid-cols-[360px_minmax(0,1fr)] gap-6">
-                <aside className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-                    <div className="px-6 py-5 border-b border-gray-100">
-                        <h1 className="text-2xl font-extrabold tracking-tight text-gray-900">Mesajlar</h1>
-                        <p className="text-sm text-gray-500 mt-1">İlanlar üzerinden başlattığın tüm görüşmeler burada listelenir.</p>
+        <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(219,234,254,0.78),_transparent_30rem),linear-gradient(180deg,#f8fafc_0%,#ffffff_50%,#f8fafc_100%)]">
+            <div className="pointer-events-none absolute right-[-9rem] top-12 h-72 w-72 rounded-full bg-indigo-200/40 blur-3xl" />
+            <div className="pointer-events-none absolute left-[-10rem] bottom-16 h-80 w-80 rounded-full bg-cyan-100/70 blur-3xl" />
+            <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-[360px_minmax(0,1fr)] lg:gap-6">
+                <aside className={`${canLoadConversation ? 'hidden lg:block' : 'block'} overflow-hidden rounded-[2rem] border border-white bg-white/95 shadow-xl shadow-blue-950/5`}>
+                    <div className="border-b border-slate-100 bg-gradient-to-br from-slate-950 to-blue-950 px-6 py-6 text-white">
+                        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-black text-blue-100">
+                            <ShieldCheck className="h-3.5 w-3.5" />
+                            Güvenli görüşmeler
+                        </div>
+                        <h1 className="text-3xl font-black tracking-tight">Mesajlar</h1>
+                        <p className="text-sm text-blue-100 mt-2">İlanlar üzerinden başlattığın görüşmeleri ve anlaşma durumlarını takip et.</p>
+                        <div className="mt-5 grid grid-cols-2 gap-3">
+                            <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3">
+                                <p className="text-xs font-bold text-blue-100">Görüşme</p>
+                                <p className="text-2xl font-black">{threads.length}</p>
+                            </div>
+                            <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3">
+                                <p className="text-xs font-bold text-blue-100">Okunmamış</p>
+                                <p className="text-2xl font-black">{unreadMessageCount}</p>
+                            </div>
+                        </div>
                     </div>
 
                     <div className="max-h-[42rem] overflow-y-auto">
@@ -413,7 +432,7 @@ const Messages = () => {
                                     <MessageCircle className="w-7 h-7" />
                                 </div>
                                 <p className="text-gray-700 font-semibold mb-2">Henüz konuşman yok</p>
-                                <p className="text-sm text-gray-500">Bir ilan detayındaki mesaj butonundan ilk görüşmeni başlatabilirsin.</p>
+                                <p className="text-sm text-gray-500">Bir ilan detayındaki mesaj butonundan ilk güvenli görüşmeni başlatabilirsin.</p>
                             </div>
                         ) : (
                             threads.map((thread) => {
@@ -424,18 +443,20 @@ const Messages = () => {
                                         key={`${thread.listingId}-${thread.otherUserId}`}
                                         type="button"
                                         onClick={() => handleOpenThread(thread)}
-                                        className={`w-full text-left px-5 py-4 border-b border-gray-100 transition-colors ${isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                                        className={`w-full border-b border-slate-100 px-5 py-4 text-left transition-all ${isSelected ? 'bg-blue-50 shadow-[inset_4px_0_0_#2563eb]' : 'hover:bg-slate-50'}`}
                                     >
                                         <div className="flex gap-3">
                                             <div className="w-14 h-14 rounded-2xl overflow-hidden bg-gray-100 shrink-0">
                                                 {thread.listingImageUrl ? (
                                                     <img src={thread.listingImageUrl} alt={thread.listingTitle} className="w-full h-full object-cover" />
                                                 ) : (
-                                                    <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs font-bold">PAU</div>
+                                                    <div className="w-full h-full flex items-center justify-center text-gray-400">
+                                                        <Package className="h-5 w-5" />
+                                                    </div>
                                                 )}
                                             </div>
                                             <div className="min-w-0 flex-1">
-                            <div className="flex items-start justify-between gap-2">
+                                                <div className="flex items-start justify-between gap-2">
                                                     <p className="text-sm font-bold text-gray-900 truncate">{thread.otherUserName}</p>
                                                     <span className="text-[11px] text-gray-400 whitespace-nowrap">{formatMessageTime(thread.lastMessageAt)}</span>
                                                 </div>
@@ -463,22 +484,44 @@ const Messages = () => {
                     </div>
                 </aside>
 
-                <section className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden min-h-[42rem] flex flex-col">
-                    <div className="px-6 py-5 border-b border-gray-100">
-                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                <section className={`${!canLoadConversation ? 'hidden lg:flex' : 'flex'} min-h-[calc(100vh-7rem)] overflow-hidden rounded-[2rem] border border-white bg-white/95 shadow-xl shadow-blue-950/5 lg:min-h-[42rem] flex-col`}>
+                    <div className="border-b border-slate-100 bg-white px-4 py-4 sm:px-6 sm:py-5">
+                        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                             <div>
                                 {canLoadConversation && (
                                     <button
                                         type="button"
                                         onClick={() => navigate('/messages')}
-                                        className="mb-3 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-blue-600 lg:hidden"
+                                        className="mb-3 inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-black uppercase tracking-wider text-blue-700 lg:hidden"
                                     >
                                         <ArrowLeft className="w-4 h-4" />
                                         Mesajlara dön
                                     </button>
                                 )}
+                                {activeConversation && (
+                                    <div className="mb-4 flex items-center gap-3 rounded-2xl border border-blue-100 bg-blue-50/70 p-3">
+                                        <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-white">
+                                            {activeListingImage ? (
+                                                <img src={activeListingImage} alt={activeConversation.listingTitle} className="h-full w-full object-cover" />
+                                            ) : (
+                                                <div className="flex h-full w-full items-center justify-center text-blue-400">
+                                                    <Package className="h-5 w-5" />
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-blue-500">İlan görüşmesi</p>
+                                            <Link
+                                                to={`/listings/${activeConversation.listingId}`}
+                                                className="block truncate text-sm font-black text-slate-900 hover:text-blue-700"
+                                            >
+                                                {activeConversation.listingTitle}
+                                            </Link>
+                                        </div>
+                                    </div>
+                                )}
                                 <div className="flex flex-wrap items-center gap-3">
-                                    <h2 className="text-2xl font-extrabold tracking-tight text-gray-900">{conversationTitle}</h2>
+                                    <h2 className="text-2xl font-black tracking-tight text-gray-900">{conversationTitle}</h2>
                                     <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-black ${
                                         connectionStatus === 'Canlı'
                                             ? 'bg-emerald-50 text-emerald-700'
@@ -490,37 +533,29 @@ const Messages = () => {
                                 </div>
                                 <p className="text-sm text-gray-500 mt-1">
                                     {activeConversation
-                                        ? `${activeConversation.listingTitle} ilanı hakkında konuşuyorsun.`
+                                        ? 'Fiyat, teslim ve ödeme detaylarını burada netleştir.'
                                         : 'Sol taraftan bir konuşma seç ya da ilan detayından yeni mesaj başlat.'}
                                 </p>
-                                {activeConversation && (
-                                    <Link
-                                        to={`/listings/${activeConversation.listingId}`}
-                                        className="mt-2 inline-flex text-xs font-bold text-blue-600 hover:text-blue-800"
-                                    >
-                                        İlan detayına git
-                                    </Link>
-                                )}
                                 {activeConversation?.dealRequestStatusName && (
-                                    <div className="flex flex-wrap items-center gap-2 mt-3">
+                                    <div className="mt-3 flex flex-wrap items-center gap-2">
                                         <span className={`inline-flex px-3 py-1 rounded-full text-xs font-bold border ${dealStatusTone[activeConversation.dealRequestStatusName] || 'bg-gray-50 text-gray-600 border-gray-200'}`}>
                                             {dealStatusLabels[activeConversation.dealRequestStatusName] || 'Durum güncellendi'}
                                         </span>
                                         {activeConversation.dealRequestNote && (
-                                            <span className="text-xs text-gray-500">Not: {activeConversation.dealRequestNote}</span>
+                                            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-gray-500">Not: {activeConversation.dealRequestNote}</span>
                                         )}
                                     </div>
                                 )}
                             </div>
                             {activeConversation && (
-                                <div className="flex flex-wrap items-center gap-3">
+                                <div className="grid gap-2 sm:grid-cols-2 xl:flex xl:flex-wrap xl:items-center xl:justify-end">
                                     {activeConversation.canRespondToDealRequest && (
                                         <>
                                             <button
                                                 type="button"
                                                 onClick={() => handleDealRequestAction('reject')}
                                                 disabled={isUpdatingDealRequest}
-                                                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl border border-rose-200 text-rose-700 hover:bg-rose-50 transition-colors font-semibold text-sm disabled:opacity-60"
+                                                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-200 px-4 py-2.5 text-sm font-bold text-rose-700 transition-colors hover:bg-rose-50 disabled:opacity-60"
                                             >
                                                 Reddet
                                             </button>
@@ -528,7 +563,7 @@ const Messages = () => {
                                                 type="button"
                                                 onClick={() => handleDealRequestAction('accept')}
                                                 disabled={isUpdatingDealRequest}
-                                                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white transition-colors font-semibold text-sm disabled:opacity-60"
+                                                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-emerald-700 disabled:opacity-60"
                                             >
                                                 {isUpdatingDealRequest ? 'Güncelleniyor...' : 'Anlaşmayı Kabul Et'}
                                             </button>
@@ -539,7 +574,7 @@ const Messages = () => {
                                             type="button"
                                             onClick={() => handleDealRequestAction('withdraw')}
                                             disabled={isUpdatingDealRequest}
-                                            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors font-semibold text-sm disabled:opacity-60"
+                                            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-60"
                                         >
                                             {isUpdatingDealRequest ? 'Güncelleniyor...' : 'İsteği Geri Çek'}
                                         </button>
@@ -549,7 +584,7 @@ const Messages = () => {
                                             type="button"
                                             onClick={() => handleDealRequestAction('cancel')}
                                             disabled={isUpdatingDealRequest}
-                                            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl border border-orange-200 text-orange-700 hover:bg-orange-50 transition-colors font-semibold text-sm disabled:opacity-60"
+                                            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-orange-200 px-4 py-2.5 text-sm font-bold text-orange-700 transition-colors hover:bg-orange-50 disabled:opacity-60"
                                         >
                                             {isUpdatingDealRequest ? 'Güncelleniyor...' : 'Anlaşmayı İptal Et'}
                                         </button>
@@ -557,7 +592,7 @@ const Messages = () => {
                                     <button
                                         type="button"
                                         onClick={() => navigate(`/profile/${activeConversation.otherUserId}`)}
-                                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors font-semibold text-sm"
+                                        className="inline-flex items-center justify-center gap-2 rounded-2xl border border-gray-200 px-4 py-2.5 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-50"
                                     >
                                         <User className="w-4 h-4" />
                                         Profili Gör
@@ -566,6 +601,21 @@ const Messages = () => {
                             )}
                         </div>
                     </div>
+
+                    {canLoadConversation && (
+                        <div className="border-b border-blue-100 bg-blue-50/70 px-4 py-3 sm:px-6">
+                            <div className="grid gap-2 text-xs font-semibold text-blue-800 sm:grid-cols-2">
+                                <div className="flex items-center gap-2">
+                                    <ShieldCheck className="h-4 w-4 shrink-0" />
+                                    Mesajlaşmayı ödeme ve teslim detayları için kayıt olarak kullan.
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <CheckCircle2 className="h-4 w-4 shrink-0" />
+                                    Ürünü kampüste yüz yüze görmeden ödeme yapmamaya dikkat et.
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {!canLoadConversation ? (
                         <div className="flex-1 flex items-center justify-center px-6">
@@ -579,19 +629,23 @@ const Messages = () => {
                         </div>
                     ) : (
                         <>
-                            <div className="flex-1 p-6 space-y-4 overflow-y-auto bg-gray-50">
+                            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-[radial-gradient(circle_at_top_left,rgba(219,234,254,0.8),transparent_22rem),linear-gradient(180deg,#f8fafc,#f1f5f9)] p-4 sm:p-6">
                                 {isLoadingMessages ? (
                                     <div className="text-center text-gray-500 py-20">Konuşma yükleniyor...</div>
                                 ) : messages.length === 0 ? (
-                                    <div className="text-center text-gray-500 py-20">Henüz mesaj yok. İlk mesajı sen gönder.</div>
+                                    <div className="mx-auto max-w-md rounded-[2rem] border border-dashed border-blue-200 bg-white/80 px-6 py-10 text-center shadow-sm">
+                                        <MessageCircle className="mx-auto mb-4 h-10 w-10 text-blue-500" />
+                                        <p className="text-base font-black text-slate-900">Henüz mesaj yok</p>
+                                        <p className="mt-2 text-sm leading-6 text-slate-500">İlk mesajda ürün durumu, teslim yeri ve zamanını netleştirebilirsin.</p>
+                                    </div>
                                 ) : (
                                     messages.map((message) => {
                                         const mine = Number(message.senderId) === Number(user?.id);
 
                                         return (
                                             <div key={message.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-                                                <div className={`max-w-[85%] rounded-2xl px-4 py-3 shadow-sm ${mine ? 'bg-blue-600 text-white' : 'bg-white text-gray-800 border border-gray-100'}`}>
-                                                    <p className="text-sm leading-relaxed whitespace-pre-line">{message.content}</p>
+                                                <div className={`max-w-[min(85%,38rem)] rounded-[1.35rem] px-4 py-3 shadow-sm ${mine ? 'rounded-br-md bg-blue-600 text-white shadow-blue-200/70' : 'rounded-bl-md border border-white bg-white text-gray-800'}`}>
+                                                    <p className="whitespace-pre-line break-words text-sm leading-relaxed">{message.content}</p>
                                                     <p className={`text-[11px] mt-2 font-medium ${mine ? 'text-blue-100' : 'text-gray-400'}`}>
                                                         {formatMessageTime(message.sentAt)}
                                                     </p>
@@ -603,21 +657,25 @@ const Messages = () => {
                                 <div ref={messagesEndRef} />
                             </div>
 
-                            <form onSubmit={handleSend} className="border-t border-gray-100 p-4 sm:p-5 bg-white">
-                                {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
+                            <form onSubmit={handleSend} className="border-t border-gray-100 bg-white p-4 sm:p-5">
+                                {error && (
+                                    <div className="mb-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                                        {error}
+                                    </div>
+                                )}
                                 <div className="flex flex-col sm:flex-row gap-3">
                                     <textarea
                                         value={content}
                                         onChange={(event) => setContent(event.target.value)}
                                         onKeyDown={handleComposerKeyDown}
-                                        rows={3}
+                                        rows={2}
                                         placeholder="Mesajını yaz... Enter ile gönder, Shift+Enter yeni satır"
-                                        className="flex-1 resize-none rounded-2xl border border-gray-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition-all"
+                                        className="flex-1 resize-none rounded-2xl border border-gray-200 bg-slate-50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition-all"
                                     />
                                     <button
                                         type="submit"
                                         disabled={isSending || !content.trim()}
-                                        className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-semibold rounded-2xl transition-colors"
+                                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 font-black text-white transition-colors hover:bg-blue-700 disabled:bg-blue-300"
                                     >
                                         <Send className="w-4 h-4" />
                                         {isSending ? 'Gönderiliyor...' : 'Gönder'}
@@ -627,6 +685,7 @@ const Messages = () => {
                         </>
                     )}
                 </section>
+            </div>
             </div>
         </div>
     );
