@@ -156,13 +156,107 @@ def add_weight_scale(slide, x, y):
         ("Satıldı", "5.0", PAU_GREEN, PAGE_WHITE),
     ]
     add_text(slide, "Etkileşim gücü", x, y - 0.65, 9.0, 0.5, size=12.5, bold=True, color=PAU_BLUE_DARK)
+    step = 3.18
     for idx, (label, weight, fill, color) in enumerate(events):
-        px = x + idx * 4.55
-        add_pill(slide, weight, px, y, 2.0, 1.25, fill=fill, line=PAU_BLUE, color=color, size=13)
-        add_text(slide, label, px - 0.65, y + 1.42, 3.3, 0.45, size=9.8, bold=True, color=TEXT, align=PP_ALIGN.CENTER)
-    add_flow_arrow(slide, x + 0.9, y + 2.35, x + 19.2, y + 2.35, color=PAU_GREEN)
+        px = x + idx * step
+        add_pill(slide, weight, px, y, 1.75, 1.12, fill=fill, line=PAU_BLUE, color=color, size=11.5)
+        add_text(slide, label, px - 0.7, y + 1.28, 3.15, 0.45, size=8.6, bold=True, color=TEXT, align=PP_ALIGN.CENTER)
+    add_flow_arrow(slide, x + 0.8, y + 2.18, x + 14.0, y + 2.18, color=PAU_GREEN)
     add_text(slide, "ilgi zayıf", x, y + 2.55, 3.5, 0.45, size=9.6, bold=False, color=TEXT)
-    add_text(slide, "satın alma niyeti güçlü", x + 15.2, y + 2.55, 7.5, 0.45, size=9.6, bold=False, color=TEXT, align=PP_ALIGN.RIGHT)
+    add_text(slide, "satın alma niyeti güçlü", x + 8.0, y + 2.55, 6.8, 0.45, size=9.6, bold=False, color=TEXT, align=PP_ALIGN.RIGHT)
+
+
+def add_header_badges(slide, x, y):
+    badges = [
+        ("PAÜ e-posta doğrulama", PAU_GREEN),
+        ("Güvenli mesajlaşma", PAU_NAVY),
+        ("Kampüs içi teslim", PAU_BLUE_DARK),
+        ("LightFM öneri sistemi", PAU_GREEN),
+    ]
+    for idx, (label, color) in enumerate(badges):
+        add_pill(slide, label, x + idx * 8.4, y, 7.65, 0.85, fill=PAGE_WHITE, line=PAGE_WHITE, color=color, size=8.8)
+
+
+def add_mini_listing_card(slide, x, y, title, price, category, fill):
+    add_rect(slide, x, y, 6.45, 4.55, fill=PAGE_WHITE, line=BORDER_BLUE, width=0.7)
+    add_rect(slide, x + 0.25, y + 0.25, 2.05, 2.0, fill=fill, line=fill, width=0.3)
+    add_text(slide, "✓", x + 0.68, y + 0.53, 1.25, 0.8, size=21, bold=True, color=PAGE_WHITE, align=PP_ALIGN.CENTER)
+    add_text(slide, title, x + 2.55, y + 0.38, 3.35, 0.75, size=10.7, bold=True, color=PAU_NAVY)
+    add_text(slide, price, x + 2.55, y + 1.25, 2.5, 0.65, size=13.5, bold=True, color=PAU_BLUE)
+    add_pill(slide, category, x + 2.55, y + 2.15, 2.85, 0.72, fill=PAU_SKY, line=BORDER_BLUE, color=PAU_BLUE_DARK, size=7.6)
+    add_text(slide, "PAÜ Kampüsü", x + 2.55, y + 3.1, 2.9, 0.45, size=8.5, bold=False, color=RGBColor(71, 85, 105))
+    add_text(slide, "♥", x + 5.35, y + 0.2, 0.65, 0.55, size=13, bold=True, color=RED, align=PP_ALIGN.CENTER)
+
+
+def add_marketplace_mockup(slide, x, y):
+    add_rect(slide, x, y, 21.4, 8.2, fill=PAGE_WHITE, line=BORDER_BLUE, width=0.8)
+    add_rect(slide, x, y, 21.4, 1.35, fill=PAU_NAVY, line=PAU_NAVY, width=0.3)
+    add_text(slide, "PAÜ Market arayüz örneği", x + 0.7, y + 0.32, 8.5, 0.6, size=12, bold=True, color=PAGE_WHITE)
+    add_pill(slide, "Ara: macbook, şarj, ders notu", x + 10.6, y + 0.32, 9.3, 0.72, fill=PAGE_WHITE, line=PAGE_WHITE, color=PAU_NAVY, size=8.6)
+    add_mini_listing_card(slide, x + 0.75, y + 2.05, "MacBook Air", "₺18.500", "Elektronik", PAU_BLUE)
+    add_mini_listing_card(slide, x + 7.45, y + 2.05, "Şarj Aleti", "₺250", "Elektronik", PAU_GREEN)
+    add_mini_listing_card(slide, x + 14.15, y + 2.05, "Algoritma Notu", "₺50", "Not / Özet", PAU_BLUE_DARK)
+
+
+def add_matrix_heatmap(slide, x, y):
+    add_rect(slide, x, y, 8.2, 5.5, fill=PAGE_WHITE, line=BORDER_BLUE, width=0.7)
+    add_text(slide, "R[u,i] Etkileşim Matrisi", x + 0.3, y + 0.25, 7.5, 0.5, size=10.7, bold=True, color=PAU_BLUE_DARK, align=PP_ALIGN.CENTER)
+    values = [
+        [1, 0, 3, 0, 5],
+        [0, 2, 0, 4, 0],
+        [3, 0, 1, 0, 4],
+        [0, 5, 2, 0, 0],
+    ]
+    colors = {
+        0: RGBColor(226, 232, 240),
+        1: RGBColor(191, 219, 254),
+        2: RGBColor(147, 197, 253),
+        3: RGBColor(96, 165, 250),
+        4: RGBColor(52, 211, 153),
+        5: PAU_GREEN,
+    }
+    start_x = x + 1.45
+    start_y = y + 1.25
+    cell = 0.78
+    for c in range(5):
+        add_text(slide, f"İ{c+1}", start_x + c * 1.02, y + 0.85, 0.75, 0.35, size=7.4, bold=True, color=TEXT, align=PP_ALIGN.CENTER)
+    for r, row in enumerate(values):
+        add_text(slide, f"U{r+1}", x + 0.55, start_y + r * 0.95 + 0.12, 0.55, 0.35, size=7.4, bold=True, color=TEXT, align=PP_ALIGN.CENTER)
+        for c, value in enumerate(row):
+            add_rect(slide, start_x + c * 1.02, start_y + r * 0.95, cell, cell, fill=colors[value], line=PAGE_WHITE, width=0.35)
+    add_text(slide, "0: yok  •  5: güçlü niyet", x + 0.65, y + 4.85, 6.9, 0.35, size=7.4, bold=True, color=RGBColor(71, 85, 105), align=PP_ALIGN.CENTER)
+
+
+def add_pilot_bar_chart(slide, x, y):
+    add_rect(slide, x, y, 21.8, 5.2, fill=PAGE_WHITE, line=BORDER_BLUE, width=0.7)
+    add_text(slide, "Pilot veri hedefi", x + 0.6, y + 0.35, 7.0, 0.55, size=11.5, bold=True, color=PAU_BLUE_DARK)
+    bars = [
+        ("İlan", 50, PAU_BLUE),
+        ("Öğrenci", 20, PAU_GREEN),
+        ("Etkileşim", 400, PAU_NAVY),
+    ]
+    max_value = 400
+    for idx, (label, value, color) in enumerate(bars):
+        by = y + 1.25 + idx * 1.18
+        add_text(slide, label, x + 0.7, by + 0.12, 3.0, 0.35, size=8.8, bold=True, color=TEXT)
+        add_rect(slide, x + 4.0, by, 14.6, 0.55, fill=PAU_SKY, line=PAU_SKY, width=0.2)
+        add_rect(slide, x + 4.0, by, max(1.1, 14.6 * value / max_value), 0.55, fill=color, line=color, width=0.2)
+        add_text(slide, str(value), x + 19.0, by - 0.02, 1.8, 0.45, size=9.2, bold=True, color=color, align=PP_ALIGN.RIGHT)
+    add_text(slide, "Sentetik veri değil, kontrollü gerçek kampüs etkileşimi", x + 0.7, y + 4.35, 20.0, 0.45, size=8.8, bold=True, color=RGBColor(71, 85, 105), align=PP_ALIGN.CENTER)
+
+
+def add_metric_cards(slide, x, y):
+    cards = [
+        ("Precision@5", "İlk 5 öneri\nne kadar isabetli?"),
+        ("Recall@5", "İlgili ilanların\nne kadarı yakalandı?"),
+        ("NDCG@5", "Doğru ilanlar\nüst sırada mı?"),
+    ]
+    for idx, (title, desc) in enumerate(cards):
+        cx = x + idx * 7.35
+        add_rect(slide, cx, y, 6.65, 3.3, fill=PAGE_WHITE, line=BORDER_BLUE, width=0.8)
+        add_rect(slide, cx, y, 6.65, 0.24, fill=PAU_GREEN if idx == 0 else PAU_BLUE, line=PAU_GREEN if idx == 0 else PAU_BLUE, width=0)
+        add_text(slide, title, cx + 0.35, y + 0.55, 5.95, 0.5, size=10.2, bold=True, color=PAU_BLUE_DARK, align=PP_ALIGN.CENTER)
+        add_text(slide, desc, cx + 0.55, y + 1.35, 5.55, 1.05, size=8.4, bold=False, color=TEXT, align=PP_ALIGN.CENTER)
 
 
 def add_table(slide, x, y, w, h):
@@ -296,6 +390,7 @@ def build_poster():
         color=RGBColor(235, 242, 250),
         align=PP_ALIGN.CENTER,
     )
+    add_header_badges(slide, title_x + 0.2, header_y + 8.55)
 
     # Main gray content area.
     content_y = header_y + header_h + 0.7
@@ -373,10 +468,11 @@ def build_poster():
         left_x,
         content_y + 36.75,
         col_w,
-        12.5,
+        21.4,
         body_size=16.0,
         bullet=True,
     )
+    add_marketplace_mockup(slide, left_x + 1.15, content_y + 47.25)
 
     add_section(
         slide,
@@ -394,6 +490,7 @@ def build_poster():
         body_size=15.9,
     )
     add_weight_scale(slide, right_x + 1.0, content_y + 8.85)
+    add_matrix_heatmap(slide, right_x + 16.0, content_y + 4.35)
 
     add_section(
         slide,
@@ -410,6 +507,7 @@ def build_poster():
         11.6,
         body_size=15.9,
     )
+    add_pilot_bar_chart(slide, right_x + 1.4, content_y + 20.45)
 
     add_section(
         slide,
@@ -426,6 +524,7 @@ def build_poster():
         body_size=15.4,
     )
     add_table(slide, right_x + 0.5, content_y + 37.75, col_w - 1.0, 7.5)
+    add_metric_cards(slide, right_x + 0.75, content_y + 45.75)
 
     add_section(
         slide,
@@ -437,9 +536,9 @@ def build_poster():
             "Mikroservis mimarisi, öneri modelini ana backend'den ayırarak sürdürülebilir bir yapı sağlar.",
         ],
         right_x,
-        content_y + 46.15,
+        content_y + 50.25,
         col_w,
-        13.1,
+        9.0,
         body_size=15.6,
         bullet=True,
     )
