@@ -75,6 +75,21 @@ def add_text(slide, text, x, y, w, h, size=18, bold=False, color=TEXT, align=PP_
     return box
 
 
+def add_pill(slide, text, x, y, w, h, fill=PAGE_WHITE, line=BORDER_BLUE, color=TEXT, size=12.5):
+    pill = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, cm(x), cm(y), cm(w), cm(h))
+    pill.fill.solid()
+    pill.fill.fore_color.rgb = fill
+    pill.line.color.rgb = line
+    pill.line.width = Pt(0.8)
+    pill.text_frame.clear()
+    pill.text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
+    p = pill.text_frame.paragraphs[0]
+    p.alignment = PP_ALIGN.CENTER
+    p.text = text
+    set_font(p.runs[0], size=size, bold=True, color=color)
+    return pill
+
+
 def add_centered_shape_text(shape, text, size=18, bold=True, color=TEXT):
     shape.text_frame.clear()
     shape.text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
@@ -107,6 +122,47 @@ def add_section(slide, title, lines, x, y, w, h, body_size=17, bullet=False):
     add_rect(slide, x, y, w, 1.18, fill=SECTION_BLUE, line=SECTION_BLUE, width=0.4)
     add_text(slide, title, x + 0.15, y + 0.18, w - 0.3, 0.7, size=22, bold=True, color=PAGE_WHITE, align=PP_ALIGN.CENTER)
     add_paragraph_box(slide, lines, x + 0.33, y + 1.45, w - 0.66, h - 1.65, size=body_size, bullet=bullet)
+
+
+def add_flow_arrow(slide, x1, y1, x2, y2, color=PAU_BLUE):
+    line = slide.shapes.add_connector(1, cm(x1), cm(y1), cm(x2), cm(y2))
+    line.line.color.rgb = color
+    line.line.width = Pt(1.7)
+    line.line.end_arrowhead = True
+    return line
+
+
+def add_architecture_flow(slide, x, y):
+    cards = [
+        ("React\nArayüz", x, y, 4.8, 2.3, PAU_BLUE),
+        (".NET\nAPI", x + 5.65, y, 4.8, 2.3, PAU_BLUE_DARK),
+        ("MSSQL\nVeri", x + 11.3, y, 4.8, 2.3, PAU_GREEN),
+        ("FastAPI\nÖneri", x + 16.95, y, 5.2, 2.3, PAU_NAVY),
+    ]
+    for label, cx, cy, cw, ch, fill in cards:
+        add_pill(slide, label, cx, cy, cw, ch, fill=fill, line=fill, color=PAGE_WHITE, size=11.5)
+    add_flow_arrow(slide, x + 4.8, y + 1.15, x + 5.65, y + 1.15)
+    add_flow_arrow(slide, x + 10.45, y + 1.15, x + 11.3, y + 1.15)
+    add_flow_arrow(slide, x + 16.1, y + 1.15, x + 16.95, y + 1.15)
+    add_text(slide, "Docker Compose ile tek komutla çalışan dağıtık yapı", x, y + 2.6, 22.2, 0.6, size=11.5, bold=True, color=PAU_BLUE_DARK, align=PP_ALIGN.CENTER)
+
+
+def add_weight_scale(slide, x, y):
+    events = [
+        ("Görüntüleme", "1.0", PAU_SKY, PAU_BLUE_DARK),
+        ("Mesaj", "2.0", RGBColor(219, 234, 254), PAU_BLUE_DARK),
+        ("Favori", "3.0", RGBColor(204, 251, 241), PAU_NAVY),
+        ("Anlaşma", "4.0", RGBColor(187, 247, 208), PAU_NAVY),
+        ("Satıldı", "5.0", PAU_GREEN, PAGE_WHITE),
+    ]
+    add_text(slide, "Etkileşim gücü", x, y - 0.65, 9.0, 0.5, size=12.5, bold=True, color=PAU_BLUE_DARK)
+    for idx, (label, weight, fill, color) in enumerate(events):
+        px = x + idx * 4.55
+        add_pill(slide, weight, px, y, 2.0, 1.25, fill=fill, line=PAU_BLUE, color=color, size=13)
+        add_text(slide, label, px - 0.65, y + 1.42, 3.3, 0.45, size=9.8, bold=True, color=TEXT, align=PP_ALIGN.CENTER)
+    add_flow_arrow(slide, x + 0.9, y + 2.35, x + 19.2, y + 2.35, color=PAU_GREEN)
+    add_text(slide, "ilgi zayıf", x, y + 2.55, 3.5, 0.45, size=9.6, bold=False, color=TEXT)
+    add_text(slide, "satın alma niyeti güçlü", x + 15.2, y + 2.55, 7.5, 0.45, size=9.6, bold=False, color=TEXT, align=PP_ALIGN.RIGHT)
 
 
 def add_table(slide, x, y, w, h):
@@ -266,6 +322,9 @@ def build_poster():
         10.0,
         body_size=16.2,
     )
+    add_pill(slide, "Sadece PAÜ öğrencileri", left_x + 0.85, content_y + 8.85, 7.0, 1.0, fill=PAGE_WHITE, line=PAU_GREEN, color=PAU_NAVY, size=10.8)
+    add_pill(slide, "Kampüs içi alışveriş", left_x + 8.4, content_y + 8.85, 6.7, 1.0, fill=PAGE_WHITE, line=PAU_BLUE, color=PAU_NAVY, size=10.8)
+    add_pill(slide, "Akıllı öneriler", left_x + 15.65, content_y + 8.85, 5.8, 1.0, fill=PAGE_WHITE, line=PAU_BLUE, color=PAU_NAVY, size=10.8)
 
     add_section(
         slide,
@@ -299,6 +358,7 @@ def build_poster():
         body_size=15.8,
         bullet=True,
     )
+    add_architecture_flow(slide, left_x + 1.35, content_y + 31.7)
 
     add_section(
         slide,
@@ -333,6 +393,7 @@ def build_poster():
         13.2,
         body_size=15.9,
     )
+    add_weight_scale(slide, right_x + 1.0, content_y + 8.85)
 
     add_section(
         slide,
