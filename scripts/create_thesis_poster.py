@@ -259,6 +259,48 @@ def add_metric_cards(slide, x, y):
         add_text(slide, desc, cx + 0.55, y + 1.35, 5.55, 1.05, size=8.4, bold=False, color=TEXT, align=PP_ALIGN.CENTER)
 
 
+def add_trade_flow(slide, x, y):
+    steps = [
+        ("1", "Okul e-postası\nile doğrula", PAU_GREEN),
+        ("2", "İlanı keşfet\nve favorile", PAU_BLUE),
+        ("3", "Satıcıyla\nmesajlaş", PAU_BLUE_DARK),
+        ("4", "Kampüste\nel değiştir", PAU_NAVY),
+    ]
+    add_text(slide, "Güvenli alışveriş akışı", x, y - 0.68, 10.0, 0.48, size=12, bold=True, color=PAU_BLUE_DARK)
+    for idx, (number, label, color) in enumerate(steps):
+        cx = x + idx * 5.35
+        circle = slide.shapes.add_shape(MSO_SHAPE.OVAL, cm(cx), cm(y), cm(1.65), cm(1.65))
+        circle.fill.solid()
+        circle.fill.fore_color.rgb = color
+        circle.line.color.rgb = color
+        circle.text_frame.clear()
+        circle.text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
+        p = circle.text_frame.paragraphs[0]
+        p.alignment = PP_ALIGN.CENTER
+        p.text = number
+        set_font(p.runs[0], size=13, bold=True, color=PAGE_WHITE)
+        add_text(slide, label, cx - 0.8, y + 1.9, 3.25, 0.95, size=8.9, bold=True, color=TEXT, align=PP_ALIGN.CENTER)
+        if idx < len(steps) - 1:
+            add_flow_arrow(slide, cx + 1.72, y + 0.82, cx + 4.95, y + 0.82, color=PAU_BLUE)
+
+
+def add_cold_start_fallback(slide, x, y):
+    add_rect(slide, x, y, 24.1, 3.05, fill=PAGE_WHITE, line=BORDER_BLUE, width=0.7)
+    add_rect(slide, x, y, 0.25, 3.05, fill=PAU_GREEN, line=PAU_GREEN, width=0)
+    add_text(slide, "Cold-start kalkanı", x + 0.55, y + 0.35, 5.0, 0.48, size=10.8, bold=True, color=PAU_BLUE_DARK)
+    nodes = [
+        ("Onboarding", x + 6.0, PAU_BLUE),
+        ("Kategori", x + 10.3, PAU_GREEN),
+        ("Yeni/Popüler", x + 14.3, PAU_BLUE_DARK),
+        ("Dolu vitrin", x + 19.0, PAU_NAVY),
+    ]
+    for idx, (label, nx, color) in enumerate(nodes):
+        add_pill(slide, label, nx, y + 0.85, 3.25, 0.95, fill=color, line=color, color=PAGE_WHITE, size=8.4)
+        if idx < len(nodes) - 1:
+            add_flow_arrow(slide, nx + 3.3, y + 1.32, nodes[idx + 1][1] - 0.15, y + 1.32, color=PAU_GREEN)
+    add_text(slide, "Model yeni kullanıcıyı tanımadığında sistem boş kalmaz; yerel PAÜ ilanlarıyla öneri üretir.", x + 0.55, y + 2.12, 22.7, 0.48, size=8.5, bold=False, color=RGBColor(71, 85, 105), align=PP_ALIGN.CENTER)
+
+
 def add_table(slide, x, y, w, h):
     rows, cols = 6, 3
     table_shape = slide.shapes.add_table(rows, cols, cm(x), cm(y), cm(w), cm(h))
@@ -435,6 +477,7 @@ def build_poster():
         11.0,
         body_size=16.0,
     )
+    add_trade_flow(slide, left_x + 1.15, content_y + 18.0)
 
     add_section(
         slide,
@@ -542,6 +585,7 @@ def build_poster():
         body_size=15.6,
         bullet=True,
     )
+    add_cold_start_fallback(slide, right_x + 0.55, content_y + 59.75)
 
     # Footer: approximately 3 cm high strip, matching the sample poster's bottom identity area.
     footer_y = page_y + page_h - 3.35
