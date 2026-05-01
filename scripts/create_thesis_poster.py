@@ -16,15 +16,25 @@ OUTPUT = ROOT / "docs" / "PAU_Market_Tez_Posteri.pptx"
 # - Project code on upper-right, white background, Arial 50, black
 # - Blue title band, gray two-column content area, GBYF footer strip
 
-DARK_BLUE = RGBColor(31, 78, 121)
-HEADER_BLUE = RGBColor(32, 82, 128)
-SECTION_BLUE = RGBColor(32, 82, 128)
+# PAU Market brand palette: campus-safe, modern marketplace blue with a
+# verification green accent. The template structure stays intact; these colors
+# make the poster feel like the actual product rather than a generic sample.
+PAU_NAVY = RGBColor(15, 23, 42)
+PAU_BLUE = RGBColor(37, 99, 235)
+PAU_BLUE_DARK = RGBColor(30, 64, 175)
+PAU_SKY = RGBColor(229, 241, 255)
+PAU_CLOUD = RGBColor(246, 249, 255)
+PAU_GREEN = RGBColor(16, 185, 129)
+
+DARK_BLUE = PAU_NAVY
+HEADER_BLUE = PAU_BLUE
+SECTION_BLUE = PAU_BLUE_DARK
 PAGE_WHITE = RGBColor(255, 255, 255)
-PANEL_GRAY = RGBColor(217, 217, 217)
-PANEL_LIGHT = RGBColor(241, 241, 241)
-BORDER_BLUE = RGBColor(142, 169, 219)
+PANEL_GRAY = PAU_SKY
+PANEL_LIGHT = PAU_CLOUD
+BORDER_BLUE = RGBColor(191, 219, 254)
 BLACK = RGBColor(0, 0, 0)
-TEXT = RGBColor(10, 10, 10)
+TEXT = PAU_NAVY
 RED = RGBColor(220, 38, 38)
 
 
@@ -93,6 +103,7 @@ def add_paragraph_box(slide, lines, x, y, w, h, size=17, bullet=False):
 
 def add_section(slide, title, lines, x, y, w, h, body_size=17, bullet=False):
     add_rect(slide, x, y, w, h, fill=PANEL_LIGHT, line=BORDER_BLUE, width=0.6)
+    add_rect(slide, x, y, 0.22, h, fill=PAU_GREEN, line=PAU_GREEN, width=0)
     add_rect(slide, x, y, w, 1.18, fill=SECTION_BLUE, line=SECTION_BLUE, width=0.4)
     add_text(slide, title, x + 0.15, y + 0.18, w - 0.3, 0.7, size=22, bold=True, color=PAGE_WHITE, align=PP_ALIGN.CENTER)
     add_paragraph_box(slide, lines, x + 0.33, y + 1.45, w - 0.66, h - 1.65, size=body_size, bullet=bullet)
@@ -119,7 +130,7 @@ def add_table(slide, x, y, w, h):
         for c, text in enumerate(row):
             cell = table.cell(r, c)
             cell.fill.solid()
-            cell.fill.fore_color.rgb = SECTION_BLUE if r == 0 else (RGBColor(248, 248, 248) if r % 2 else PAGE_WHITE)
+            cell.fill.fore_color.rgb = SECTION_BLUE if r == 0 else (PAU_SKY if r % 2 else PAGE_WHITE)
             p = cell.text_frame.paragraphs[0]
             p.text = text
             set_font(p.runs[0], size=12.5, bold=(r == 0 or c == 0), color=PAGE_WHITE if r == 0 else TEXT)
@@ -135,7 +146,7 @@ def add_university_seal(slide, x, y, size_cm=5.0):
 
     inner = slide.shapes.add_shape(MSO_SHAPE.OVAL, cm(x + 0.48), cm(y + 0.48), cm(size_cm - 0.96), cm(size_cm - 0.96))
     inner.fill.solid()
-    inner.fill.fore_color.rgb = RGBColor(223, 235, 247)
+    inner.fill.fore_color.rgb = PAU_SKY
     inner.line.color.rgb = DARK_BLUE
     inner.line.width = Pt(0.8)
 
@@ -146,7 +157,7 @@ def add_university_seal(slide, x, y, size_cm=5.0):
 def add_gbyf_mark(slide, x, y):
     logo = slide.shapes.add_shape(MSO_SHAPE.OVAL, cm(x), cm(y), cm(2.4), cm(2.4))
     logo.fill.solid()
-    logo.fill.fore_color.rgb = RGBColor(180, 40, 40)
+    logo.fill.fore_color.rgb = PAU_BLUE
     logo.line.color.rgb = RGBColor(235, 235, 235)
     logo.line.width = Pt(1.5)
     add_text(slide, "GBYF", x + 0.25, y + 0.78, 1.9, 0.55, size=15, bold=True, color=PAGE_WHITE, align=PP_ALIGN.CENTER)
