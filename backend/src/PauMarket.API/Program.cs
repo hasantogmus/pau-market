@@ -85,7 +85,7 @@ builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new()
     {
-        Title       = "PauMarket API",
+        Title       = "PAUMarket API",
         Version     = "v1",
         Description = "PAÜ öğrencilerine özel C2C pazaryeri — sadece @posta.pau.edu.tr e-postaları kabul edilir."
     });
@@ -192,15 +192,22 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "PauMarket API v1"));
+    app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "PAUMarket API v1"));
 
-    // Geliştirme ortamında migration'ları otomatik uygula ve Sahte İlan ekle
+    // Geliştirme ortamında migration'ları otomatik uygula.
+    // Demo ilan seed'i pilot veri toplamaya karışmaması için varsayılan olarak kapalıdır.
     using var scope = app.Services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<PauMarketDbContext>();
     await dbContext.Database.MigrateAsync();
 
     // ─── EĞER VERİTABANI BOŞSA VİTRİN/TEST İÇİN 12 ADET KOPYA İLAN EKLE ───
-    if (!await dbContext.Listings.AnyAsync())
+    var enableDemoListings = app.Configuration.GetValue("Seed:EnableDemoListings", false);
+
+    if (!enableDemoListings)
+    {
+        Console.WriteLine("[SEED] Demo listing seed disabled. Pilot data will start clean.");
+    }
+    else if (!await dbContext.Listings.AnyAsync())
     {
         Console.WriteLine("[SEED] Veritabanı boş! Sunum/Test için 12 adet başlangıç ilanı yükleniyor...");
 

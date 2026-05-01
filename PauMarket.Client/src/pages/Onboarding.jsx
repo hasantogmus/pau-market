@@ -221,7 +221,7 @@ const Onboarding = () => {
                                 <ShoppingBag className="h-6 w-6" />
                             </span>
                             <div>
-                                <p className="text-2xl font-black tracking-tight">PAÜ Market</p>
+                                <p className="text-2xl font-black tracking-tight">PAUMarket</p>
                                 <p className="text-xs font-black uppercase tracking-[0.26em] text-cyan-100/80">Kişisel akış</p>
                             </div>
                         </div>
@@ -263,7 +263,7 @@ const Onboarding = () => {
                                     <Sparkles className="h-5 w-5" />
                                 </span>
                                 <div>
-                                    <h1 className="text-2xl font-black tracking-tight">PAÜ Market’e hoş geldin!</h1>
+                                    <h1 className="text-2xl font-black tracking-tight">PAUMarket’e hoş geldin!</h1>
                                     <p className="mt-1 text-sm font-medium text-cyan-50/80">Sana daha iyi ilanlar göstermek için iki kısa tercih alıyoruz.</p>
                                 </div>
                             </div>

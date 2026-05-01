@@ -156,14 +156,11 @@ const Navbar = () => {
                     <Link
                         to="/"
                         className="flex-shrink-0 flex items-center group"
-                        aria-label="PAÜ Market ana sayfa"
+                        aria-label="PAUMarket ana sayfa"
                     >
                         <span className="text-2xl font-extrabold tracking-tight select-none">
-                            <span className="text-blue-600 group-hover:text-blue-700 transition-colors">PAÜ</span>
-                            <span
-                                className="text-gray-900 group-hover:text-gray-800 transition-colors"
-                                style={{ fontFamily: "'Palatino Linotype', 'Palatino', 'Book Antiqua', Georgia, serif", fontStyle: 'italic', fontSize: '1.35rem' }}
-                            > Market</span>
+                            <span className="text-blue-600 group-hover:text-blue-700 transition-colors">PAU</span>
+                            <span className="text-gray-900 group-hover:text-gray-800 transition-colors">Market</span>
                         </span>
                     </Link>
 

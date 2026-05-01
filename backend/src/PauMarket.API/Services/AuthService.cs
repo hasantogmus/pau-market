@@ -21,7 +21,7 @@ public class AuthService : IAuthService
     private readonly IConfiguration      _config;
     private readonly ILogger<AuthService> _logger;
     private const string PasswordResetGenericMessage =
-        "Eğer bu e-posta ile doğrulanmış bir PAÜ Market hesabı varsa, şifre sıfırlama kodu okul e-posta adresine gönderildi.";
+        "Eğer bu e-posta ile doğrulanmış bir PAUMarket hesabı varsa, şifre sıfırlama kodu okul e-posta adresine gönderildi.";
 
     private sealed record SmtpSenderSettings(
         string Label,
@@ -440,7 +440,7 @@ public class AuthService : IAuthService
             _config[$"{sectionName}:Password"],
             _config.GetValue($"{sectionName}:EnableSsl", true),
             _config[$"{sectionName}:FromEmail"],
-            _config[$"{sectionName}:FromName"] ?? "PAÜ Market");
+            _config[$"{sectionName}:FromName"] ?? "PAUMarket");
 
     private static void AddIfConfigured(List<SmtpSenderSettings> senders, SmtpSenderSettings sender)
     {
@@ -559,7 +559,7 @@ public class AuthService : IAuthService
 
     private static string BuildVerificationSubject(string recipientName, bool isResend)
     {
-        var prefix = isResend ? "PAÜ Market yeni doğrulama kodu" : "PAÜ Market doğrulama kodu";
+        var prefix = isResend ? "PAUMarket yeni doğrulama kodu" : "PAUMarket doğrulama kodu";
         return string.IsNullOrWhiteSpace(recipientName)
             ? prefix
             : $"{prefix} - {recipientName}";
@@ -567,7 +567,7 @@ public class AuthService : IAuthService
 
     private static string BuildPasswordResetSubject(string recipientName)
     {
-        const string prefix = "PAÜ Market şifre sıfırlama kodu";
+        const string prefix = "PAUMarket şifre sıfırlama kodu";
         return string.IsNullOrWhiteSpace(recipientName)
             ? prefix
             : $"{prefix} - {recipientName}";
@@ -577,8 +577,8 @@ public class AuthService : IAuthService
     {
         var greeting = string.IsNullOrWhiteSpace(recipientName) ? "Merhaba," : $"Merhaba {recipientName},";
         var intro = isResend
-            ? "PAÜ Market hesabın için yeni doğrulama kodun:"
-            : "PAÜ Market hesabını doğrulamak için kodun:";
+            ? "PAUMarket hesabın için yeni doğrulama kodun:"
+            : "PAUMarket hesabını doğrulamak için kodun:";
 
         return $"""
         {greeting}
@@ -587,7 +587,7 @@ public class AuthService : IAuthService
 
         Bu kod 2 dakika geçerlidir. Kodu sen istemediysen bu e-postayı yok sayabilirsin.
 
-        PAÜ Market
+        PAUMarket
         """;
     }
 
@@ -598,11 +598,11 @@ public class AuthService : IAuthService
         return $"""
         {greeting}
 
-        PAÜ Market hesabın için şifre sıfırlama kodun: {code}
+        PAUMarket hesabın için şifre sıfırlama kodun: {code}
 
         Bu kod 10 dakika geçerlidir ve tek kullanımlıktır. Bu işlemi sen başlatmadıysan bu e-postayı yok sayabilirsin.
 
-        PAÜ Market
+        PAUMarket
         """;
     }
 
@@ -618,11 +618,11 @@ public class AuthService : IAuthService
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1">
           <meta name="x-apple-disable-message-reformatting">
-          <title>PAÜ Market şifre sıfırlama kodu</title>
+          <title>PAUMarket şifre sıfırlama kodu</title>
         </head>
         <body style="margin:0;padding:0;background:#eef4ff;color:#111827;font-family:Arial,Helvetica,sans-serif;">
           <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
-            PAÜ Market hesabın için şifre sıfırlama kodun hazır.
+            PAUMarket hesabın için şifre sıfırlama kodun hazır.
           </div>
 
           <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#eef4ff;margin:0;padding:32px 12px;">
@@ -631,14 +631,14 @@ public class AuthService : IAuthService
                 <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:560px;background:#ffffff;border-radius:24px;border:1px solid #dbe7ff;box-shadow:0 18px 50px rgba(37,99,235,.14);overflow:hidden;">
                   <tr>
                     <td style="background:#0f172a;padding:24px 28px;color:#ffffff;">
-                      <div style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;opacity:.9;">PAÜ Market</div>
+                      <div style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;opacity:.9;">PAUMarket</div>
                       <h1 style="margin:10px 0 0;font-size:26px;line-height:1.25;font-weight:800;">Şifre sıfırlama kodun</h1>
                     </td>
                   </tr>
                   <tr>
                     <td style="padding:30px 28px 8px;">
                       <p style="margin:0 0 18px;font-size:16px;line-height:1.6;color:#374151;">
-                        {{greeting}} PAÜ Market hesabın için yeni şifre oluşturmak üzere aşağıdaki 6 haneli kodu kullanabilirsin.
+                        {{greeting}} PAUMarket hesabın için yeni şifre oluşturmak üzere aşağıdaki 6 haneli kodu kullanabilirsin.
                       </p>
                       <div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:18px;padding:22px;text-align:center;">
                         <div style="font-size:12px;line-height:1.4;color:#64748b;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">Şifre sıfırlama kodu</div>
@@ -652,7 +652,7 @@ public class AuthService : IAuthService
                   <tr>
                     <td style="padding:18px 28px 28px;">
                       <div style="border-top:1px solid #e5e7eb;padding-top:18px;font-size:12px;line-height:1.6;color:#94a3b8;">
-                        Bu mesaj PAÜ Market şifre sıfırlama işlemi için otomatik olarak gönderildi.
+                        Bu mesaj PAUMarket şifre sıfırlama işlemi için otomatik olarak gönderildi.
                       </div>
                     </td>
                   </tr>
@@ -670,8 +670,8 @@ public class AuthService : IAuthService
         var greeting = string.IsNullOrWhiteSpace(recipientName) ? "Merhaba," : $"Merhaba {WebUtility.HtmlEncode(recipientName)},";
         var title = isResend ? "Yeni e-posta doğrulama kodun" : "E-posta doğrulama kodun";
         var intro = isResend
-            ? "PAÜ Market hesabını aktifleştirmek için yeni kodun hazır."
-            : "PAÜ Market hesabını aktifleştirmek için aşağıdaki 6 haneli kodu kullanabilirsin.";
+            ? "PAUMarket hesabını aktifleştirmek için yeni kodun hazır."
+            : "PAUMarket hesabını aktifleştirmek için aşağıdaki 6 haneli kodu kullanabilirsin.";
 
         return
         $$"""
@@ -681,11 +681,11 @@ public class AuthService : IAuthService
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1">
           <meta name="x-apple-disable-message-reformatting">
-          <title>PAÜ Market doğrulama kodu</title>
+          <title>PAUMarket doğrulama kodu</title>
         </head>
         <body style="margin:0;padding:0;background:#eef4ff;color:#111827;font-family:Arial,Helvetica,sans-serif;">
           <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
-            PAÜ Market hesabını doğrulamak için 6 haneli kodun hazır.
+            PAUMarket hesabını doğrulamak için 6 haneli kodun hazır.
           </div>
 
           <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#eef4ff;margin:0;padding:32px 12px;">
@@ -694,7 +694,7 @@ public class AuthService : IAuthService
                 <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:560px;background:#ffffff;border-radius:24px;border:1px solid #dbe7ff;box-shadow:0 18px 50px rgba(37,99,235,.14);overflow:hidden;">
                   <tr>
                     <td style="background:#155eef;padding:24px 28px;color:#ffffff;">
-                      <div style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;opacity:.9;">PAÜ Market</div>
+                      <div style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;opacity:.9;">PAUMarket</div>
                       <h1 style="margin:10px 0 0;font-size:26px;line-height:1.25;font-weight:800;">{{title}}</h1>
                     </td>
                   </tr>
@@ -715,7 +715,7 @@ public class AuthService : IAuthService
                   <tr>
                     <td style="padding:18px 28px 28px;">
                       <div style="border-top:1px solid #e5e7eb;padding-top:18px;font-size:12px;line-height:1.6;color:#94a3b8;">
-                        Bu mesaj PAÜ Market hesap doğrulama işlemi için otomatik olarak gönderildi.
+                        Bu mesaj PAUMarket hesap doğrulama işlemi için otomatik olarak gönderildi.
                       </div>
                     </td>
                   </tr>

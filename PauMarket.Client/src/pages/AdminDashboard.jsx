@@ -196,7 +196,7 @@ const AdminDashboard = () => {
                         <div>
                             <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-sm font-bold text-blue-100">
                                 <ShieldCheck className="w-4 h-4" />
-                                PAÜ Market Yönetim Merkezi
+                                PAUMarket Yönetim Merkezi
                             </div>
                             <h1 className="mt-5 max-w-3xl text-3xl md:text-5xl font-black tracking-tight text-white">
                                 Platform sağlığı, kullanıcı güvenliği ve ilan moderasyonu tek ekranda.

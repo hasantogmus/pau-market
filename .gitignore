@@ -4,3 +4,5 @@
 .venv/
 __pycache__/
 ~$*.pptx
+backups/*.bak
+.DS_Store

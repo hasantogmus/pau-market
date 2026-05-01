@@ -106,7 +106,7 @@ const Purchases = () => {
                                                 </span>
                                             </div>
                                             <h2 className="text-xl font-extrabold text-gray-900">{item.title}</h2>
-                                            <p className="text-sm text-gray-500 mt-1">Satıcı: {item.sellerName || 'PAÜ Market Kullanıcısı'}</p>
+                                            <p className="text-sm text-gray-500 mt-1">Satıcı: {item.sellerName || 'PAUMarket Kullanıcısı'}</p>
                                             <p className="text-sm text-gray-500">Tamamlanma: {formatDate(item.soldAt)}</p>
                                         </div>
                                         <p className="text-2xl font-black text-blue-600 shrink-0">{formatPrice(item.price)}</p>

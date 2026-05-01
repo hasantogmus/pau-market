@@ -72,7 +72,7 @@ const trustItems = [
     {
         icon: ShieldCheck,
         title: 'Mesajda netleştir',
-        text: 'Fiyat, teslim ve buluşma detaylarını PAÜ Market mesajlarında yazılı tut.',
+        text: 'Fiyat, teslim ve buluşma detaylarını PAUMarket mesajlarında yazılı tut.',
     },
     {
         icon: MapPin,
@@ -190,10 +190,10 @@ const ListingDetail = () => {
     // Dinamik sekme başlığı (SEO ve UX için)
     useEffect(() => {
         if (listing?.title) {
-            document.title = `${listing.title} - PAÜ Market`;
+            document.title = `${listing.title} - PAUMarket`;
         }
         return () => {
-            document.title = 'PAÜ Market';
+            document.title = 'PAUMarket';
         };
     }, [listing?.title]);
 
@@ -227,7 +227,7 @@ const ListingDetail = () => {
             ? [listing.imageUrl]
             : [];
     const selectedImage = imageUrls[selectedImageIndex] ?? imageUrls[0] ?? null;
-    const sellerDisplayName = listing.sellerName || sellerProfile?.fullName || 'PAÜ Market Kullanıcısı';
+    const sellerDisplayName = listing.sellerName || sellerProfile?.fullName || 'PAUMarket Kullanıcısı';
     const reviewCount = reviewSummary?.totalReviews ?? 0;
     const averageRating = reviewSummary?.averageRating ?? 0;
     const isOwnListing = Number(user?.id) === Number(listing.userId);
@@ -386,7 +386,7 @@ const ListingDetail = () => {
                             {/* Tarih rozeti */}
                             <div className="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1.5 shadow-sm backdrop-blur-sm">
                                 <Sparkles className="w-3.5 h-3.5 text-blue-500" />
-                                <span className="text-xs font-black text-slate-700">PAÜ Market ilanı</span>
+                                <span className="text-xs font-black text-slate-700">PAUMarket ilanı</span>
                             </div>
                             <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-sm flex items-center gap-1.5">
                                 <Calendar className="w-3.5 h-3.5 text-gray-400" />

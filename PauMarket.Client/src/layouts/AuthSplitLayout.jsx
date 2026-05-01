@@ -30,7 +30,7 @@ const AuthSplitLayout = ({ children, title, subtitle }) => {
                             <ShoppingBag className="h-6 w-6 text-amber-200 transition-transform group-hover:-rotate-6" />
                         </span>
                         <span>
-                            <span className="block text-2xl font-black tracking-tight">PAÜ Market</span>
+                            <span className="block text-2xl font-black tracking-tight">PAUMarket</span>
                             <span className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-100/80">Öğrenci pazarı</span>
                         </span>
                     </Link>
@@ -126,7 +126,7 @@ const AuthSplitLayout = ({ children, title, subtitle }) => {
                                 <ShoppingBag className="h-5 w-5" />
                             </span>
                             <span>
-                                <span className="block text-xl font-black tracking-tight text-slate-950">PAÜ Market</span>
+                                <span className="block text-xl font-black tracking-tight text-slate-950">PAUMarket</span>
                                 <span className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Öğrenci pazarı</span>
                             </span>
                         </Link>

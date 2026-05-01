@@ -248,13 +248,13 @@ const Messages = () => {
                 setConversationMeta({
                     listingTitle: listingResult?.title || 'İlan',
                     listingImageUrl: listingResult?.imageUrl || null,
-                    otherUserName: profileResult?.fullName || 'PAÜ Market Kullanıcısı',
+                    otherUserName: profileResult?.fullName || 'PAUMarket Kullanıcısı',
                 });
             } catch {
                 setConversationMeta({
                     listingTitle: 'İlan',
                     listingImageUrl: null,
-                    otherUserName: 'PAÜ Market Kullanıcısı',
+                    otherUserName: 'PAUMarket Kullanıcısı',
                 });
             }
         };
@@ -264,7 +264,7 @@ const Messages = () => {
 
     const activeConversation = selectedThread || (canLoadConversation ? {
         otherUserId: sellerId,
-        otherUserName: conversationMeta?.otherUserName || 'PAÜ Market Kullanıcısı',
+        otherUserName: conversationMeta?.otherUserName || 'PAUMarket Kullanıcısı',
         listingId,
         listingTitle: conversationMeta?.listingTitle || 'İlan',
         listingImageUrl: conversationMeta?.listingImageUrl || null,
@@ -305,7 +305,7 @@ const Messages = () => {
                 const existing = prev.find((thread) => Number(thread.listingId) === listingId && Number(thread.otherUserId) === sellerId);
                 const threadBase = existing || {
                     otherUserId: sellerId,
-                    otherUserName: activeConversation?.otherUserName || 'PAÜ Market Kullanıcısı',
+                    otherUserName: activeConversation?.otherUserName || 'PAUMarket Kullanıcısı',
                     listingId,
                     listingTitle: activeConversation?.listingTitle || 'İlan',
                     listingImageUrl: activeConversation?.listingImageUrl || null,

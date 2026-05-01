@@ -1,13 +1,13 @@
-# PAU Market Recommender System - Matris, Matematik ve Cikti Savunma Notu
+# PAUMarket Recommender System - Matris, Matematik ve Cikti Savunma Notu
 
 Bu dosya, tez hocasina onerici sistemin "matrisi nasil olusturuldu, hangi matematiksel model kullanildi, agirliklar neye gore verildi ve sistemden hangi ciktilar alinabiliyor?" sorularina hazir cevap vermek icin hazirlanmistir.
 
 ## 1. Kisa Savunma Ozeti
 
-PAU Market onerici sistemi iki katmanli calisir:
+PAUMarket onerici sistemi iki katmanli calisir:
 
 1. **Canli kisilestirme katmani (Backend):** Kullanicinin anlik goruntuleme, favori, mesaj ve anlasma sinyallerini hemen kullanir. Yeniden egitim beklemeden ana sayfadaki "Sana Ozel Oneriler" alanini gunceller.
-2. **Model tabanli katman (Python/FastAPI):** PAU Market etkilesim export'u ile LightFM tabanli hibrit model egitir. Yeterli etkilesim gecmisi olan kullanicilarda collaborative + kategori ozellikli siralama uretir.
+2. **Model tabanli katman (Python/FastAPI):** PAUMarket etkilesim export'u ile LightFM tabanli hibrit model egitir. Yeterli etkilesim gecmisi olan kullanicilarda collaborative + kategori ozellikli siralama uretir.
 
 Bu ayrim onemlidir: Bir kullanici favori yaptiginda veya mesaj attiginda sistem hemen tepki verebilir; fakat daha derin "bu kullaniciya benzeyenler neleri begendi?" bilgisinin modele yansimasi icin yeniden egitim gerekir.
 
@@ -64,11 +64,11 @@ listing_id -> item_idx
 item_idx   -> original Listing.Id
 ```
 
-Bu mapping kritik bir savunma noktasi: Model kendi icinde `0..N` indexleriyle calisir, fakat backend'e donerken mutlaka gercek PAU Market `Listing.Id` degeri kullanilir.
+Bu mapping kritik bir savunma noktasi: Model kendi icinde `0..N` indexleriyle calisir, fakat backend'e donerken mutlaka gercek PAUMarket `Listing.Id` degeri kullanilir.
 
 ## 4. Etkilesim Agirliklari
 
-PAU Market'te klasik e-ticaret sepet akisi yoktur. Bu nedenle RetailRocket'taki "addtocart" davranisi bizde "anlasma istegi / satin alma niyeti" olarak yorumlanir. PAU Market'in gercek davranis agirliklari backend'de tek kaynak olarak hesaplanir:
+PAUMarket'te klasik e-ticaret sepet akisi yoktur. Bu nedenle RetailRocket'taki "addtocart" davranisi bizde "anlasma istegi / satin alma niyeti" olarak yorumlanir. PAUMarket'in gercek davranis agirliklari backend'de tek kaynak olarak hesaplanir:
 
 | Event | Agirlik | Anlam |
 |---|---:|---|
@@ -89,7 +89,7 @@ Ayni kullanici-ilan-event tekrar ederse en son kayit tutulur. Farkli event turle
 
 ## 5. Train/Test Split ve Data Leakage Onlemi
 
-PAU Market preprocessor akisi:
+PAUMarket preprocessor akisi:
 
 1. CSV yuklenir.
 2. Event isimleri normalize edilir.
@@ -170,7 +170,7 @@ WARP (Weighted Approximate-Rank Pairwise) loss, explicit puan tahmininden cok si
 Kullanicinin ilgilendigi ilanlar, ilgilenmedigi ilanlardan daha yukarida siralansin.
 ```
 
-Bu PAU Market icin dogrudur, cunku elimizde Netflix gibi 1-5 yildiz puani yok; implicit feedback vardir.
+Bu PAUMarket icin dogrudur, cunku elimizde Netflix gibi 1-5 yildiz puani yok; implicit feedback vardir.
 
 ## 9. Oneri Uretme
 
@@ -208,13 +208,13 @@ Bir kullanicinin train setinde 5'ten az etkileşimi varsa Python model canli PAU
 3. Kategori/condition benzerligi.
 4. En yeni veya popüler onayli ilanlar.
 
-Bu karar ozellikle iki veri seti savunmasinda onemlidir: Mercari veya RetailRocket ID'leri PAU Market ID'siymis gibi kullanilmaz.
+Bu karar ozellikle iki veri seti savunmasinda onemlidir: Mercari veya RetailRocket ID'leri PAUMarket ID'siymis gibi kullanilmaz.
 
 ## 11. Iki Veri Setini Nasil Savunuruz?
 
 Hocanin "iki veri setinin ID'leri uyusmaz" elestirisi teknik olarak dogru. Bizim savunmamiz su olmali:
 
-> Biz iki veri setini dogrudan ID seviyesinde birlestirmiyoruz. RetailRocket/PAU Market davranis matrisi kullanici-ilan etkileşim mantigini test etmek icin, Mercari ise C2C urun metni/kategori yapisini NLP benchmark'i olarak kullaniliyor. Canli PAU Market onerilerinde backend'e sadece PAU Market `Listing.Id` donmesine izin veriyoruz.
+> Biz iki veri setini dogrudan ID seviyesinde birlestirmiyoruz. RetailRocket/PAUMarket davranis matrisi kullanici-ilan etkileşim mantigini test etmek icin, Mercari ise C2C urun metni/kategori yapisini NLP benchmark'i olarak kullaniliyor. Canli PAUMarket onerilerinde backend'e sadece PAUMarket `Listing.Id` donmesine izin veriyoruz.
 
 Yani yanlis olan sey:
 
@@ -300,7 +300,7 @@ Kullanicilari satir, ilanlari sutun yaptik. Her user-listing hucresine goruntule
 
 ### Soru: Neden yildiz puani yerine implicit feedback?
 
-PAU Market'te kullanici urunlere 1-5 puan vermiyor. Davranislari ilgi sinyali olarak kullanmak daha dogru: favori yapmak, mesaj atmak veya anlasma istemek gercek niyet gosteriyor.
+PAUMarket'te kullanici urunlere 1-5 puan vermiyor. Davranislari ilgi sinyali olarak kullanmak daha dogru: favori yapmak, mesaj atmak veya anlasma istemek gercek niyet gosteriyor.
 
 ### Soru: Favori neden goruntulemeden daha yuksek agirlikli?
 
@@ -312,7 +312,7 @@ Satis tamamlanmis davranistir. Sadece ilgi degil, gercek tercih kanitidir. Bu ne
 
 ### Soru: Sepet yoksa RetailRocket'taki addtocart neye denk geliyor?
 
-PAU Market'te sepet yerine anlasma istegi vardir. Bu nedenle addtocart mantigi "kullanici satin alma niyetini guclu sekilde belli etti" anlamina gelen `deal_request` davranisina karsilik gelir.
+PAUMarket'te sepet yerine anlasma istegi vardir. Bu nedenle addtocart mantigi "kullanici satin alma niyetini guclu sekilde belli etti" anlamina gelen `deal_request` davranisina karsilik gelir.
 
 ### Soru: Iki veri seti ID uyusmazsa neden problem olmuyor?
 
@@ -341,10 +341,10 @@ Bu sistemin guclu tarafi mimaridir: veri toplama, agirliklandirma, sparse matris
 Sinirliliklar:
 
 1. Pilot veri az oldugunda metrikler dusuk veya dengesiz olabilir.
-2. Gercek akademik basari icin daha fazla PAU Market kullanici etkileşimi gerekir.
+2. Gercek akademik basari icin daha fazla PAUMarket kullanici etkileşimi gerekir.
 3. Yeniden egitim su an otomatik zamanlayiciya bagli degil; endpoint hazir, cron eklenebilir.
 4. Mercari content modeli canli PAU ID'si dondurmez; benchmark ve NLP savunmasi icin ayridir.
 
 Savunma cumlesi:
 
-> Bu tezde asil katkimiz, PAU Market'e uygun implicit feedback agirliklariyla sparse interaction matrisi kurup, LightFM WARP modeliyle ranking uretmek ve ID uyumsuzlugu/cold-start gibi gercek hayat problemlerini backend dogrulamasi ve fallback katmaniyla guvenli hale getirmektir.
+> Bu tezde asil katkimiz, PAUMarket'e uygun implicit feedback agirliklariyla sparse interaction matrisi kurup, LightFM WARP modeliyle ranking uretmek ve ID uyumsuzlugu/cold-start gibi gercek hayat problemlerini backend dogrulamasi ve fallback katmaniyla guvenli hale getirmektir.

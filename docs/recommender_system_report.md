@@ -1,6 +1,6 @@
-# PAÜ Market - Hibrit Öneri Sistemi (Recommender System) Teknik Raporu
+# PAUMarket - Hibrit Öneri Sistemi (Recommender System) Teknik Raporu
 
-Bu rapor, "PAÜ Market" e-ticaret platformunun kalbini oluşturan makine öğrenmesi tabanlı Öneri Sistemi'nin (Recommender System) uçtan uca mimarisini, teknik detaylarını ve veri entegrasyonu aşamalarını kapsar. 
+Bu rapor, "PAUMarket" e-ticaret platformunun kalbini oluşturan makine öğrenmesi tabanlı Öneri Sistemi'nin (Recommender System) uçtan uca mimarisini, teknik detaylarını ve veri entegrasyonu aşamalarını kapsar. 
 
 ---
 
@@ -19,7 +19,7 @@ Python tarafı, elindeki milyarlarca tıklama matrisini işleyebilecek hibrit (C
 ### A. Veri Setleri (Simülasyon İçin: RetailRocket & Mercari)
 Yerel veritabanımızın sıfırıncı gününde (Day-0) hiç tıklama ve kullanıcı verisi olmadığı için sistemi test edebilmek adına iki devasa veri seti hibritlenerek kullanılmıştır:
 - **RetailRocket:** Kullanıcıların tıklama, favorileme ve sepet hareketlerini (Interaction Matrix) modellemek için temel "İşbirlikçi Filtreleme" kaynağı olarak kullanıldı.
-- **Mercari Price Suggestion:** PAÜ Market'in özündeki **C2C (Tüketiciden Tüketiciye)** yapısına tam uyum sağlamak için kullanıldı. İkinci el eşyaların "Durum" (Condition), "Kategori" ve "Açıklama" metinlerinin analizi bu veri seti sayesinde modele öğretildi. Bu sayede yapay zeka; ikinci el ürünler arasındaki semantik benzerlikleri çok daha isabetli kavrayabilmektedir.
+- **Mercari Price Suggestion:** PAUMarket'in özündeki **C2C (Tüketiciden Tüketiciye)** yapısına tam uyum sağlamak için kullanıldı. İkinci el eşyaların "Durum" (Condition), "Kategori" ve "Açıklama" metinlerinin analizi bu veri seti sayesinde modele öğretildi. Bu sayede yapay zeka; ikinci el ürünler arasındaki semantik benzerlikleri çok daha isabetli kavrayabilmektedir.
 
 ### B. Uygulanan Algoritma: LightFM
 Standart K-Nearest Neighbors (KNN) gibi basit algoritmalar yerine Endüstri Standardı olan **LightFM** kullanıldı. Bu algoritmanın en büyük gücü; hem kullanıcıların tıkladıkları ürünleri (Collaborative/İşbirlikçi) hem de ürünlerin kendi özelliklerini (Content-Based/İçeriksel) aynı anda hesaba katarak matrisleri birleştirmesidir. Bu sayede önerilerde körlük ve tıkanma engellenmiştir.

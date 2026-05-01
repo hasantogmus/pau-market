@@ -134,7 +134,7 @@ const Profile = () => {
     }
 
     const effectiveProfile = {
-        fullName: profile?.fullName || user?.name || 'PAÜ Market kullanıcısı',
+        fullName: profile?.fullName || user?.name || 'PAUMarket kullanıcısı',
         email: isOwnProfile ? (profile?.email || user?.email || 'Belirtilmemiş') : null,
         department: profile?.department,
         grade: profile?.grade,

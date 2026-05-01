@@ -49,6 +49,7 @@ services:
       - EmailVerification__CodeLifetimeSeconds=${EMAIL_VERIFICATION_CODE_LIFETIME_SECONDS:-120}
       - PasswordReset__CodeLifetimeSeconds=${PASSWORD_RESET_CODE_LIFETIME_SECONDS:-600}
       - Moderation__EnableAutomaticModeration=${MODERATION_ENABLE_AUTOMATIC_MODERATION:-false}
+      - Seed__EnableDemoListings=${SEED_ENABLE_DEMO_LISTINGS:-false}
       - Cors__AllowedOrigins__0=${CORS_ALLOWED_ORIGIN_1:-http://localhost:5173}
       - Cors__AllowedOrigins__1=${CORS_ALLOWED_ORIGIN_2:-http://127.0.0.1:5173}
       - Smtp__Host=${SMTP_HOST:-}
@@ -57,14 +58,14 @@ services:
       - Smtp__Password=${SMTP_PASSWORD:-}
       - Smtp__EnableSsl=${SMTP_ENABLE_SSL:-true}
       - Smtp__FromEmail=${SMTP_FROM_EMAIL:-}
-      - Smtp__FromName=${SMTP_FROM_NAME:-PAÜ Market}
+      - Smtp__FromName=${SMTP_FROM_NAME:-PAUMarket}
       - SmtpBackup__Host=${SMTP_BACKUP_HOST:-}
       - SmtpBackup__Port=${SMTP_BACKUP_PORT:-587}
       - SmtpBackup__Username=${SMTP_BACKUP_USERNAME:-}
       - SmtpBackup__Password=${SMTP_BACKUP_PASSWORD:-}
       - SmtpBackup__EnableSsl=${SMTP_BACKUP_ENABLE_SSL:-true}
       - SmtpBackup__FromEmail=${SMTP_BACKUP_FROM_EMAIL:-}
-      - SmtpBackup__FromName=${SMTP_BACKUP_FROM_NAME:-PAÜ Market}
+      - SmtpBackup__FromName=${SMTP_BACKUP_FROM_NAME:-PAUMarket}
       - CloudinarySettings__CloudName=${CLOUDINARY_CLOUD_NAME}
       - CloudinarySettings__ApiKey=${CLOUDINARY_API_KEY}
       - CloudinarySettings__ApiSecret=${CLOUDINARY_API_SECRET}

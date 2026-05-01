@@ -16,7 +16,7 @@ OUTPUT = ROOT / "docs" / "PAU_Market_Tez_Posteri.pptx"
 # - Project code on upper-right, white background, Arial 50, black
 # - Blue title band, gray two-column content area, GBYF footer strip
 
-# PAU Market brand palette: campus-safe, modern marketplace blue with a
+# PAUMarket brand palette: campus-safe, modern marketplace blue with a
 # verification green accent. The template structure stays intact; these colors
 # make the poster feel like the actual product rather than a generic sample.
 PAU_NAVY = RGBColor(15, 23, 42)
@@ -191,7 +191,7 @@ def add_mini_listing_card(slide, x, y, title, price, category, fill):
 def add_marketplace_mockup(slide, x, y):
     add_rect(slide, x, y, 21.4, 8.2, fill=PAGE_WHITE, line=BORDER_BLUE, width=0.8)
     add_rect(slide, x, y, 21.4, 1.35, fill=PAU_NAVY, line=PAU_NAVY, width=0.3)
-    add_text(slide, "PAÜ Market arayüz örneği", x + 0.7, y + 0.32, 8.5, 0.6, size=12, bold=True, color=PAGE_WHITE)
+    add_text(slide, "PAUMarket arayüz örneği", x + 0.7, y + 0.32, 8.5, 0.6, size=12, bold=True, color=PAGE_WHITE)
     add_pill(slide, "Ara: macbook, şarj, ders notu", x + 10.6, y + 0.32, 9.3, 0.72, fill=PAGE_WHITE, line=PAGE_WHITE, color=PAU_NAVY, size=8.6)
     add_mini_listing_card(slide, x + 0.75, y + 2.05, "MacBook Air", "₺18.500", "Elektronik", PAU_BLUE)
     add_mini_listing_card(slide, x + 7.45, y + 2.05, "Şarj Aleti", "₺250", "Elektronik", PAU_GREEN)
@@ -386,7 +386,7 @@ def build_poster():
     add_text(slide, "Pamukkale Üniversitesi", title_x, header_y + 0.75, title_w, 1.1, size=31, bold=True, color=PAGE_WHITE, align=PP_ALIGN.CENTER)
     add_text(
         slide,
-        "PAÜ Market: Kampüs İçi Akıllı",
+        "PAUMarket: Kampüs İçi Akıllı",
         title_x,
         header_y + 2.25,
         title_w,
@@ -449,7 +449,7 @@ def build_poster():
         slide,
         "Proje Özeti",
         [
-            "PAÜ Market, Pamukkale Üniversitesi öğrencilerine özel kapalı bir C2C ikinci el pazar yeri uygulamasıdır.",
+            "PAUMarket, Pamukkale Üniversitesi öğrencilerine özel kapalı bir C2C ikinci el pazar yeri uygulamasıdır.",
             "Okul e-postasıyla doğrulanan öğrenciler ilan ekler, ilanları keşfeder, favoriler, satıcıya mesaj atar ve anlaşma isteği gönderir.",
             "Tezin teknik odağı, kullanıcı etkileşimlerinden öğrenen kişiselleştirilmiş öneri sistemidir.",
         ],
@@ -558,7 +558,7 @@ def build_poster():
         [
             "Bu sistem klasik sınıflandırma problemi olmadığı için tek başına accuracy metriği kullanılmaz.",
             "Recommender sistemlerde Top-N sıralama metrikleri daha uygundur: Precision@5, Recall@5, HitRate@5, NDCG@5 ve RMSE.",
-            "Pilot veri toplandıktan sonra model PAÜ Market verisiyle yeniden eğitilecek ve sonuçlar bu tabloya işlenecektir.",
+            "Pilot veri toplandıktan sonra model PAUMarket verisiyle yeniden eğitilecek ve sonuçlar bu tabloya işlenecektir.",
         ],
         right_x,
         content_y + 27.25,
@@ -573,7 +573,7 @@ def build_poster():
         slide,
         "Beklenen Sonuç ve Katkılar",
         [
-            "PAÜ Market, kampüs içinde doğrulanmış ve güvenli ikinci el alışveriş ortamı sunar.",
+            "PAUMarket, kampüs içinde doğrulanmış ve güvenli ikinci el alışveriş ortamı sunar.",
             "Mesajlaşma ve anlaşma akışı sayesinde gerçek satın alma niyeti veri olarak toplanır.",
             "Öneri sistemi kullanıcıların ilgi alanlarına göre ilanları sıralayarak keşif sürecini kolaylaştırır.",
             "Mikroservis mimarisi, öneri modelini ana backend'den ayırarak sürdürülebilir bir yapı sağlar.",

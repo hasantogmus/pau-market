@@ -21,7 +21,7 @@ const STATUS_TABS = [
 const REJECTION_TEMPLATES = [
     'Görsel veya açıklama platform kurallarına uygun değil.',
     'İlan bilgileri eksik veya yanıltıcı görünüyor.',
-    'Ürün PAÜ Market kullanım amacına uygun değil.',
+    'Ürün PAUMarket kullanım amacına uygun değil.',
 ];
 
 const MODERATION_STATUS_LABELS = {

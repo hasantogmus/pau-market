@@ -1,6 +1,6 @@
-# PAÜ Market - Hibrit Öneri Sistemi (Recommender System) Teknik Raporu
+# PAUMarket - Hibrit Öneri Sistemi (Recommender System) Teknik Raporu
 
-Bu rapor, "PAÜ Market" e-ticaret platformunun kalbini oluşturan makine öğrenmesi tabanlı Öneri Sistemi'nin (Recommender System) uçtan uca mimarisini, teknik detaylarını ve veri entegrasyonu aşamalarını kapsar. 
+Bu rapor, "PAUMarket" e-ticaret platformunun kalbini oluşturan makine öğrenmesi tabanlı Öneri Sistemi'nin (Recommender System) uçtan uca mimarisini, teknik detaylarını ve veri entegrasyonu aşamalarını kapsar. 
 
 ---
 

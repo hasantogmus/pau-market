@@ -273,7 +273,7 @@ const Settings = () => {
                                 Güven veren profilini buradan yönet.
                             </h1>
                             <p className="mt-3 max-w-2xl text-slate-500">
-                                PAÜ Market’te güven; doğrulanmış okul e-postası, gerçek profil bilgileri ve temiz iletişim akışıyla başlar.
+                                PAUMarket’te güven; doğrulanmış okul e-postası, gerçek profil bilgileri ve temiz iletişim akışıyla başlar.
                             </p>
                         </div>
                         <div className="rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-sm">

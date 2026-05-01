@@ -1,6 +1,6 @@
-# PauMarket Client
+# PAUMarket Client
 
-PAÜ Market frontend uygulaması React + Vite ile geliştirilmiştir.
+PAUMarket frontend uygulaması React + Vite ile geliştirilmiştir.
 
 ## Komutlar
 

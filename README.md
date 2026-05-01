@@ -1,6 +1,6 @@
-# PAÜ Market
+# PAUMarket
 
-PAÜ Market, Pamukkale Üniversitesi öğrencileri için geliştirilen bir C2C kampüs pazaryeri projesidir. Sistem; React tabanlı istemci, ASP.NET Core Web API backend, SQL Server veritabanı ve Python/FastAPI recommender mikroservisinden oluşur.
+PAUMarket, Pamukkale Üniversitesi öğrencileri için geliştirilen bir C2C kampüs pazaryeri projesidir. Sistem; React tabanlı istemci, ASP.NET Core Web API backend, SQL Server veritabanı ve Python/FastAPI recommender mikroservisinden oluşur.
 
 ## Mimari
 

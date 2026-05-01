@@ -1,4 +1,4 @@
-# PAÜ Market Smoke Test Checklist
+# PAUMarket Smoke Test Checklist
 
 Bu dosya, projeyi ayağa kaldırdıktan sonra temel akışların gerçekten çalıştığını hızlıca doğrulamak için hazırlanmıştır. Amaç ayrıntılı test değil, sistemin demo ve geliştirme için hazır olup olmadığını kısa sürede kontrol etmektir.
 

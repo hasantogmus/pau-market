@@ -137,7 +137,7 @@ const VerifyEmail = () => {
                     E-postanı doğrula
                 </h2>
                 <p className="mx-auto mt-3 mb-6 max-w-sm text-center text-sm font-medium leading-6 text-slate-500">
-                    Kodunu girdikten sonra hesabın aktif olacak ve PAÜ Market’e giriş yapabileceksin.
+                    Kodunu girdikten sonra hesabın aktif olacak ve PAUMarket’e giriş yapabileceksin.
                 </p>
 
                 <div className="mb-6 overflow-hidden rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-4 shadow-sm">

@@ -87,7 +87,7 @@ const Login = () => {
                     Hesabına giriş yap
                 </h2>
                 <p className="mx-auto mt-3 mb-7 max-w-sm text-center text-sm font-medium leading-6 text-slate-500">
-                    Üniversite e-postan ve şifrenle PAÜ Market akışına kaldığın yerden devam et.
+                    Üniversite e-postan ve şifrenle PAUMarket akışına kaldığın yerden devam et.
                 </p>
 
                 {justVerified && (

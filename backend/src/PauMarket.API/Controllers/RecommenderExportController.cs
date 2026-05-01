@@ -6,7 +6,7 @@ using PauMarket.API.Services;
 namespace PauMarket.API.Controllers;
 
 /// <summary>
-/// Recommender training için PAÜ Market verisini CSV olarak dışa aktarır.
+/// Recommender training için PAUMarket verisini CSV olarak dışa aktarır.
 /// Yalnızca admin erişimine açıktır.
 /// </summary>
 [ApiController]
