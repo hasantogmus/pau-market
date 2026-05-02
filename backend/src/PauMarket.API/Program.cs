@@ -75,6 +75,7 @@ builder.Services.AddAuthentication(options =>
 });
 
 // ─── Servisler (DI) ──────────────────────────────────────────────────────────
+builder.Services.AddHttpClient();
 builder.Services.AddMemoryCache();
 builder.Services.AddScoped<IAuthService, AuthService>();
 

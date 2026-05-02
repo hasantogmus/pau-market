@@ -24,6 +24,10 @@ public class ListingResponseDto
     public DateTime? SoldAt { get; set; }
     public int? SoldToUserId { get; set; }
     public string? SoldToUserName { get; set; }
+    /// <summary>
+    /// Bu ilan kullanıcıya NEDEN önerildi? (XAI - Explainability)
+    /// Örn: "Daha önce incelediğiniz Kitap kategorisinden."
+    /// </summary>
     public string? RecommendationReason { get; set; }
     public DateTime CreatedAt { get; set; }
 }

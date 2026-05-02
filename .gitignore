@@ -3,6 +3,14 @@
 !.env.example
 .venv/
 __pycache__/
+*.csv
+*.tmp
+*.pkl
+model_backups/
+retrain_logs/
 ~$*.pptx
 backups/*.bak
 .DS_Store
+
+# Makineye ozel / gizli config dosyalari
+appsettings.Development.json

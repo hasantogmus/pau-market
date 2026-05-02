@@ -19,8 +19,8 @@ Varsayılan portlar:
 ## Öne Çıkan Özellikler
 
 - PAÜ e-posta kısıtlı kullanıcı kaydı ve JWT tabanlı kimlik doğrulama
-- İlan oluşturma, görüntüleme, güncelleme, pasife alma ve silme
-- Favoriler, mesajlaşma ve kullanıcı profil/tercih yönetimi
+- İlan oluşturma, görüntüleme, güncelleme, satıldı işaretleme ve silme
+- Favoriler, mesajlaşma, anlaşma isteği ve kullanıcı profil/tercih yönetimi
 - Recommender mikroservisi + cold-start fallback mantığı
 - Docker Compose ile tek komutluk geliştirme ortamı
 
@@ -105,6 +105,32 @@ python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+## Nightly LightFM Retraining
+
+Kullanıcı etkileşimleri `dbo.Interactions` tablosunda birikir. `egitim_pipeline.py` bu veriyi kullanarak:
+
+- güncel kullanıcı ve ilan mapping'ini yeniden oluşturur,
+- yeni LightFM modelini eğitir,
+- model dosyalarını atomik olarak kaydeder,
+- ardından çalışan FastAPI servisine model reload çağrısı yapar.
+
+FastAPI tarafında:
+
+- `GET /health/model-status` ile aktif model durumu görülebilir,
+- `POST /admin/reload-model` ile model bundle yeniden yüklenebilir.
+
+Yerel makinede gece 03:00 görevi kurmak için:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\register_nightly_retrain.ps1
+```
+
+Farklı saat veya Python yolu ile:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\register_nightly_retrain.ps1 -RunAt "02:30" -PythonExe "C:\Python310\python.exe"
 ```
 
 ## Kullanılan Temel Komutlar
