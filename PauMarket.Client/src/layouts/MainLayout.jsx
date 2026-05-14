@@ -9,14 +9,14 @@ const MainLayout = ({ children }) => {
             <Navbar />
 
             {/* ─── Ana İçerik ──────────────────────────────────────────── */}
-            <main className="flex-grow w-full max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+            <main className="flex-grow w-full">
                 {children}
             </main>
 
             {/* ─── Footer ──────────────────────────────────────────────── */}
             <footer className="bg-white border-t border-gray-100 py-8 mt-auto">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-gray-500 text-sm">
-                    <p>© {new Date().getFullYear()} Paü Market. Tüm hakları saklıdır.</p>
+                    <p>© {new Date().getFullYear()} PAUMarket. Tüm hakları saklıdır.</p>
                     <p className="mt-1">Pamukkale Üniversitesi öğrencileri için sevgiyle geliştirildi.</p>
                 </div>
             </footer>

@@ -1,0 +1,96 @@
+services:
+  paumarket-sql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: paumarket-sql
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=${MSSQL_SA_PASSWORD}
+      # Enable Turkish collation if needed, but default is usually fine
+    ports:
+      - "1433:1433"
+    volumes:
+      - sql_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD", "/opt/mssql-tools18/bin/sqlcmd", "-C", "-U", "${DB_USER:-sa}", "-P", "${MSSQL_SA_PASSWORD}", "-Q", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  recommender:
+    build:
+      context: ./recommender
+      dockerfile: Dockerfile
+    container_name: paumarket-recommender
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./recommender:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+      - RECOMMENDER_ADMIN_TOKEN=${RECOMMENDER_ADMIN_TOKEN:-}
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: paumarket-backend
+    ports:
+      - "5251:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
+      - ConnectionStrings__DefaultConnection=Server=${DB_SERVER:-paumarket-sql};Database=${DB_NAME:-PauMarketDb};User Id=${DB_USER:-sa};Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;
+      - Jwt__Key=${JWT_KEY}
+      - Jwt__Issuer=${JWT_ISSUER:-PauMarket.API}
+      - Jwt__Audience=${JWT_AUDIENCE:-PauMarket.Client}
+      - Jwt__ExpireMinutes=${JWT_EXPIRE_MINUTES:-1440}
+      - AllowedEmailDomain=${ALLOWED_EMAIL_DOMAIN:-@posta.pau.edu.tr}
+      - EmailVerification__AutoVerify=${EMAIL_VERIFICATION_AUTO_VERIFY:-false}
+      - EmailVerification__CodeLifetimeSeconds=${EMAIL_VERIFICATION_CODE_LIFETIME_SECONDS:-120}
+      - PasswordReset__CodeLifetimeSeconds=${PASSWORD_RESET_CODE_LIFETIME_SECONDS:-600}
+      - Moderation__EnableAutomaticModeration=${MODERATION_ENABLE_AUTOMATIC_MODERATION:-false}
+      - Seed__EnableDemoListings=${SEED_ENABLE_DEMO_LISTINGS:-false}
+      - Cors__AllowedOrigins__0=${CORS_ALLOWED_ORIGIN_1:-http://localhost:5173}
+      - Cors__AllowedOrigins__1=${CORS_ALLOWED_ORIGIN_2:-http://127.0.0.1:5173}
+      - Smtp__Host=${SMTP_HOST:-}
+      - Smtp__Port=${SMTP_PORT:-587}
+      - Smtp__Username=${SMTP_USERNAME:-}
+      - Smtp__Password=${SMTP_PASSWORD:-}
+      - Smtp__EnableSsl=${SMTP_ENABLE_SSL:-true}
+      - Smtp__FromEmail=${SMTP_FROM_EMAIL:-}
+      - Smtp__FromName=${SMTP_FROM_NAME:-PAUMarket}
+      - SmtpBackup__Host=${SMTP_BACKUP_HOST:-}
+      - SmtpBackup__Port=${SMTP_BACKUP_PORT:-587}
+      - SmtpBackup__Username=${SMTP_BACKUP_USERNAME:-}
+      - SmtpBackup__Password=${SMTP_BACKUP_PASSWORD:-}
+      - SmtpBackup__EnableSsl=${SMTP_BACKUP_ENABLE_SSL:-true}
+      - SmtpBackup__FromEmail=${SMTP_BACKUP_FROM_EMAIL:-}
+      - SmtpBackup__FromName=${SMTP_BACKUP_FROM_NAME:-PAUMarket}
+      - CloudinarySettings__CloudName=${CLOUDINARY_CLOUD_NAME}
+      - CloudinarySettings__ApiKey=${CLOUDINARY_API_KEY}
+      - CloudinarySettings__ApiSecret=${CLOUDINARY_API_SECRET}
+      - RecommenderApiUrl=${RECOMMENDER_API_URL:-http://recommender:8000}
+    depends_on:
+      paumarket-sql:
+        condition: service_healthy
+      recommender:
+        condition: service_started
+
+  frontend:
+    image: node:20-slim
+    container_name: paumarket-frontend
+    working_dir: /app
+    volumes:
+      - ./PauMarket.Client:/app
+      - /app/node_modules # Prevent standard local node_modules from conflicting with linux container
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:5251/api}
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    depends_on:
+      backend:
+        condition: service_started
+
+volumes:
+  sql_data:

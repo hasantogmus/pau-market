@@ -1,11 +1,16 @@
-*.csv
+.env
+.env.*
+!.env.example
+.venv/
 __pycache__/
+*.csv
+*.tmp
+*.pkl
 model_backups/
 retrain_logs/
-*.tmp
+~$*.pptx
+backups/*.bak
+.DS_Store
 
 # Makineye ozel / gizli config dosyalari
 appsettings.Development.json
-
-# Buyuk ML model dosyalari
-*.pkl

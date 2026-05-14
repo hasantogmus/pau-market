@@ -35,10 +35,16 @@ public class Listing
     [MaxLength(50)]
     public required string Condition { get; set; }
 
-    /// <summary>Cloudinary fotoğraf URL'si.</summary>
+    /// <summary>Kapak fotoğrafı URL'si. Çoklu görseller ListingImages tablosunda tutulur.</summary>
     public string? ImageUrl { get; set; }
 
     public bool IsActive { get; set; } = true;
+    public bool IsSold { get; set; } = false;
+    public bool IsApproved { get; set; } = false;
+    public ListingModerationStatus ModerationStatus { get; set; } = ListingModerationStatus.Pending;
+    public string? ModerationReason { get; set; }
+    public DateTime? SoldAt { get; set; }
+    public int? SoldToUserId { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
@@ -48,4 +54,6 @@ public class Listing
 
     public ICollection<Interaction> Interactions { get; set; } = [];
     public ICollection<Message> Messages { get; set; } = [];
+    public ICollection<DealRequest> DealRequests { get; set; } = [];
+    public ICollection<ListingImage> Images { get; set; } = [];
 }

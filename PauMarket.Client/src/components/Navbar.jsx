@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Search,
     PlusCircle,
-    Bell,
+    MessageCircle,
     User,
     Menu,
     X,
@@ -15,17 +15,11 @@ import {
     Settings,
     Package,
     Home,
+    Heart,
+    ShieldCheck,
 } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
-
-/* ─── Bell swing animation ────────────────────────────────────── */
-const bellSwing = {
-    rest: { rotate: 0 },
-    hover: {
-        rotate: [0, -22, 18, -14, 10, -6, 4, 0],
-        transition: { duration: 0.65, ease: 'easeInOut' },
-    },
-};
+import { useAuth } from '../hooks/useAuth';
+import messageService from '../services/messageService';
 
 /* ─── Dropdown slide-in animation ────────────────────────────── */
 const dropdownVariants = {
@@ -66,18 +60,27 @@ const getInitials = (name = '') => {
     return name.slice(0, 2).toUpperCase() || 'U';
 };
 
+const isActivePath = (pathname, target) => {
+    if (target === '/') return pathname === '/';
+    return pathname === target || pathname.startsWith(`${target}/`);
+};
+
 /* ═══════════════════════════════════════════════════════════════
    NAVBAR COMPONENT
 ═══════════════════════════════════════════════════════════════ */
 const Navbar = () => {
     const { user, isAuthenticated, logout } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
 
     const [searchQuery, setSearchQuery] = useState('');
     const [mobileOpen, setMobileOpen] = useState(false);
     const [profileOpen, setProfileOpen] = useState(false);
+    const [unreadMessageCount, setUnreadMessageCount] = useState(0);
 
     const profileRef = useRef(null);
+    const isAdmin = String(user?.role || '').toLowerCase() === 'admin';
+    const hasUnreadMessages = unreadMessageCount > 0;
 
     /* Close profile dropdown on outside click */
     useEffect(() => {
@@ -99,10 +102,39 @@ const Navbar = () => {
         return () => window.removeEventListener('resize', handler);
     }, []);
 
+    useEffect(() => {
+        if (!isAuthenticated) {
+            return;
+        }
+
+        let isMounted = true;
+
+        const loadThreads = async () => {
+            try {
+                const threads = await messageService.getThreads();
+                if (isMounted) {
+                    setUnreadMessageCount(
+                        threads.reduce((total, thread) => total + Number(thread.unreadCount || 0), 0)
+                    );
+                }
+            } catch {
+                if (isMounted) {
+                    setUnreadMessageCount(0);
+                }
+            }
+        };
+
+        loadThreads();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [isAuthenticated, location.pathname]);
+
     const handleSearch = (e) => {
         e.preventDefault();
         if (searchQuery.trim()) {
-            navigate(`/?q=${encodeURIComponent(searchQuery.trim())}`);
+            navigate(`/listings?q=${encodeURIComponent(searchQuery.trim())}`);
             setMobileOpen(false);
         }
     };
@@ -124,16 +156,24 @@ const Navbar = () => {
                     <Link
                         to="/"
                         className="flex-shrink-0 flex items-center group"
-                        aria-label="PAU Market ana sayfa"
+                        aria-label="PAUMarket ana sayfa"
                     >
                         <span className="text-2xl font-extrabold tracking-tight select-none">
                             <span className="text-blue-600 group-hover:text-blue-700 transition-colors">PAU</span>
-                            <span
-                                className="text-gray-900 group-hover:text-gray-800 transition-colors"
-                                style={{ fontFamily: "'Palatino Linotype', 'Palatino', 'Book Antiqua', Georgia, serif", fontStyle: 'italic', fontSize: '1.35rem' }}
-                            > Market</span>
+                            <span className="text-gray-900 group-hover:text-gray-800 transition-colors">Market</span>
                         </span>
                     </Link>
+
+                    <nav className="hidden xl:flex items-center gap-1 text-sm font-semibold">
+                        <DesktopNavLink to="/" label="Ana Sayfa" active={isActivePath(location.pathname, '/')} />
+                        <DesktopNavLink to="/listings" label="İlanlar" active={isActivePath(location.pathname, '/listings')} />
+                        {isAuthenticated && (
+                            <>
+                                <DesktopNavLink to="/favorites" label="Favoriler" active={isActivePath(location.pathname, '/favorites')} />
+                                <DesktopNavLink to="/profile" label="Profil" active={isActivePath(location.pathname, '/profile')} />
+                            </>
+                        )}
+                    </nav>
 
                     {/* ── CENTER: Search bar (hidden on mobile) ── */}
                     <form
@@ -181,19 +221,30 @@ const Navbar = () => {
                             </Link>
                         </motion.div>
 
-                        {/* Notifications Bell */}
-                        <motion.button
-                            initial="rest"
-                            whileHover="hover"
-                            aria-label="Bildirimler"
-                            className="relative p-2 rounded-full text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                        >
-                            <motion.span variants={bellSwing} style={{ display: 'inline-flex' }}>
-                                <Bell className="w-5 h-5" />
-                            </motion.span>
-                            {/* Notification dot */}
-                            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white" />
-                        </motion.button>
+                        {isAuthenticated && (
+                            <Link
+                                to="/messages"
+                                className="relative inline-flex items-center gap-2 px-3.5 py-2 text-sm font-semibold text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                            >
+                                <MessageCircle className="w-4 h-4" />
+                                Mesajlar
+                                {hasUnreadMessages && (
+                                    <span className="absolute -top-0.5 -right-0.5 min-w-5 h-5 px-1 rounded-full bg-red-500 border-2 border-white text-[10px] leading-4 text-white text-center font-black">
+                                        {unreadMessageCount > 9 ? '9+' : unreadMessageCount}
+                                    </span>
+                                )}
+                            </Link>
+                        )}
+
+                        {isAuthenticated && isAdmin && (
+                            <Link
+                                to="/admin"
+                                className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-full transition-colors"
+                            >
+                                <ShieldCheck className="w-4 h-4" />
+                                Yönetim Paneli
+                            </Link>
+                        )}
 
                         {/* Profile / Auth */}
                         {isAuthenticated ? (
@@ -205,10 +256,17 @@ const Navbar = () => {
                                     aria-haspopup="true"
                                     aria-expanded={profileOpen}
                                 >
-                                    {/* Avatar */}
-                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold shadow-sm">
-                                        {initials}
-                                    </div>
+                                    {user?.profilePhotoUrl ? (
+                                        <img
+                                            src={user.profilePhotoUrl}
+                                            alt={`${user?.name || 'Kullanıcı'} profil fotoğrafı`}
+                                            className="w-8 h-8 rounded-full object-cover shadow-sm"
+                                        />
+                                    ) : (
+                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold shadow-sm">
+                                            {initials}
+                                        </div>
+                                    )}
                                     <span className="text-sm font-semibold text-gray-700 group-hover:text-gray-900 max-w-[90px] truncate">
                                         {user?.name?.split(' ')[0] || 'Profilim'}
                                     </span>
@@ -244,8 +302,13 @@ const Navbar = () => {
 
                                             {/* Menu items */}
                                             <div className="py-1.5">
+                                                <DropdownItem to="/messages" icon={<MessageCircle className="w-4 h-4" />} label="Mesajlar" onClick={() => setProfileOpen(false)} />
                                                 <DropdownItem to="/profile" icon={<User className="w-4 h-4" />} label="Profilim" onClick={() => setProfileOpen(false)} />
                                                 <DropdownItem to="/my-listings" icon={<Package className="w-4 h-4" />} label="İlanlarım" onClick={() => setProfileOpen(false)} />
+                                                <DropdownItem to="/favorites" icon={<Heart className="w-4 h-4" />} label="Favorilerim" onClick={() => setProfileOpen(false)} />
+                                                {isAdmin && (
+                                                    <DropdownItem to="/admin" icon={<ShieldCheck className="w-4 h-4" />} label="Yönetim Paneli" onClick={() => setProfileOpen(false)} />
+                                                )}
                                                 <DropdownItem to="/settings" icon={<Settings className="w-4 h-4" />} label="Ayarlar" onClick={() => setProfileOpen(false)} />
                                             </div>
 
@@ -359,6 +422,7 @@ const Navbar = () => {
                             {/* Mobile Nav Links */}
                             <nav className="space-y-1">
                                 <MobileNavLink to="/" icon={<Home className="w-5 h-5" />} label="Ana Sayfa" onClick={() => setMobileOpen(false)} />
+                                <MobileNavLink to="/listings" icon={<Search className="w-5 h-5" />} label="İlanları Keşfet" onClick={() => setMobileOpen(false)} />
 
                                 <MobileNavLink
                                     to="/listings/new"
@@ -374,16 +438,29 @@ const Navbar = () => {
                                     <div className="space-y-1">
                                         {/* User info pill */}
                                         <div className="flex items-center gap-3 px-3 py-2 bg-blue-50 rounded-xl mb-2">
-                                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-                                                {initials}
-                                            </div>
+                                            {user?.profilePhotoUrl ? (
+                                                <img
+                                                    src={user.profilePhotoUrl}
+                                                    alt={`${user?.name || 'Kullanıcı'} profil fotoğrafı`}
+                                                    className="w-9 h-9 rounded-full object-cover flex-shrink-0"
+                                                />
+                                            ) : (
+                                                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                                                    {initials}
+                                                </div>
+                                            )}
                                             <div className="min-w-0">
                                                 <p className="text-sm font-bold text-gray-800 truncate">{user?.name}</p>
                                                 <p className="text-xs text-gray-500 truncate">{user?.email}</p>
                                             </div>
                                         </div>
+                                        <MobileNavLink to="/messages" icon={<MessageCircle className="w-5 h-5" />} label="Mesajlar" showDot={hasUnreadMessages} onClick={() => setMobileOpen(false)} />
                                         <MobileNavLink to="/profile" icon={<User className="w-5 h-5" />} label="Profilim" onClick={() => setMobileOpen(false)} />
                                         <MobileNavLink to="/my-listings" icon={<Package className="w-5 h-5" />} label="İlanlarım" onClick={() => setMobileOpen(false)} />
+                                        <MobileNavLink to="/favorites" icon={<Heart className="w-5 h-5" />} label="Favorilerim" onClick={() => setMobileOpen(false)} />
+                                        {isAdmin && (
+                                            <MobileNavLink to="/admin" icon={<ShieldCheck className="w-5 h-5" />} label="Yönetim Paneli" onClick={() => setMobileOpen(false)} />
+                                        )}
                                         <MobileNavLink to="/settings" icon={<Settings className="w-5 h-5" />} label="Ayarlar" onClick={() => setMobileOpen(false)} />
                                         <button
                                             onClick={handleLogout}
@@ -425,6 +502,19 @@ const Navbar = () => {
 
 /* ─── Sub-components ──────────────────────────────────────────── */
 
+const DesktopNavLink = ({ to, label, active }) => (
+    <Link
+        to={to}
+        className={`px-3 py-2 rounded-full transition-colors ${
+            active
+                ? 'bg-blue-50 text-blue-700'
+                : 'text-gray-600 hover:bg-gray-100 hover:text-blue-700'
+        }`}
+    >
+        {label}
+    </Link>
+);
+
 const DropdownItem = ({ to, icon, label, onClick }) => (
     <Link
         to={to}
@@ -436,11 +526,11 @@ const DropdownItem = ({ to, icon, label, onClick }) => (
     </Link>
 );
 
-const MobileNavLink = ({ to, icon, label, highlight, onClick }) => (
+const MobileNavLink = ({ to, icon, label, highlight, showDot, onClick }) => (
     <Link
         to={to}
         onClick={onClick}
-        className={`flex items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-xl transition-colors ${
+        className={`relative flex items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-xl transition-colors ${
             highlight
                 ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
                 : 'text-gray-700 hover:bg-gray-100 hover:text-blue-600'
@@ -448,6 +538,9 @@ const MobileNavLink = ({ to, icon, label, highlight, onClick }) => (
     >
         {icon}
         {label}
+        {showDot && (
+            <span className="ml-auto w-2.5 h-2.5 rounded-full bg-red-500" />
+        )}
     </Link>
 );
 

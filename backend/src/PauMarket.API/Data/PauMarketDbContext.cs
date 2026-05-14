@@ -13,8 +13,10 @@ public class PauMarketDbContext(DbContextOptions<PauMarketDbContext> options) : 
     public DbSet<Listing> Listings => Set<Listing>();
     public DbSet<Interaction> Interactions => Set<Interaction>();
     public DbSet<Message> Messages => Set<Message>();
+    public DbSet<ListingImage> ListingImages => Set<ListingImage>();
     public DbSet<UserView> UserViews => Set<UserView>();
     public DbSet<Review> Reviews => Set<Review>();
+    public DbSet<DealRequest> DealRequests => Set<DealRequest>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -52,6 +54,10 @@ public class PauMarketDbContext(DbContextOptions<PauMarketDbContext> options) : 
 
             entity.Property(u => u.Department).HasMaxLength(100);
             entity.Property(u => u.Grade);
+            entity.Property(u => u.Bio).HasMaxLength(500);
+            entity.Property(u => u.PhoneNumber).HasMaxLength(20);
+            entity.Property(u => u.ProfilePhotoUrl).HasMaxLength(500);
+            entity.Property(u => u.PasswordResetToken).HasMaxLength(100);
             entity.Property(u => u.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
         });
 
@@ -60,7 +66,15 @@ public class PauMarketDbContext(DbContextOptions<PauMarketDbContext> options) : 
         // ═══════════════════════════════════════════════════════════
         modelBuilder.Entity<Listing>(entity =>
         {
-            entity.ToTable("Listings");
+            entity.ToTable("Listings", table =>
+            {
+                table.HasCheckConstraint(
+                    "CK_Listings_SaleState",
+                    "([IsSold] = 0 AND [SoldAt] IS NULL AND [SoldToUserId] IS NULL) OR ([IsSold] = 1 AND [SoldAt] IS NOT NULL AND [SoldToUserId] IS NOT NULL)");
+                table.HasCheckConstraint(
+                    "CK_Listings_ModerationState",
+                    "[ModerationStatus] IN (1, 2, 3) AND (([IsApproved] = 1 AND [ModerationStatus] = 2) OR ([IsApproved] = 0 AND [ModerationStatus] <> 2))");
+            });
             entity.HasKey(l => l.Id);
 
             entity.Property(l => l.Title).IsRequired().HasMaxLength(200);
@@ -69,6 +83,12 @@ public class PauMarketDbContext(DbContextOptions<PauMarketDbContext> options) : 
             entity.Property(l => l.Category).IsRequired().HasMaxLength(50);
             entity.Property(l => l.Condition).IsRequired().HasMaxLength(50);
             entity.Property(l => l.IsActive).HasDefaultValue(true);
+            entity.Property(l => l.IsSold).HasDefaultValue(false);
+            entity.Property(l => l.IsApproved).HasDefaultValue(false);
+            entity.Property(l => l.ModerationStatus)
+                  .HasConversion<int>()
+                  .HasDefaultValue(ListingModerationStatus.Pending);
+            entity.Property(l => l.ModerationReason).HasMaxLength(500);
             entity.Property(l => l.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
 
             // Listing → User (N:1)
@@ -79,9 +99,43 @@ public class PauMarketDbContext(DbContextOptions<PauMarketDbContext> options) : 
                   .OnDelete(DeleteBehavior.Restrict)
                   .HasConstraintName("FK_Listings_Users_UserId");
 
+            entity.HasOne<User>()
+                  .WithMany()
+                  .HasForeignKey(l => l.SoldToUserId)
+                  .OnDelete(DeleteBehavior.Restrict)
+                  .HasConstraintName("FK_Listings_Users_SoldToUserId");
+
             // Aktif ilanlar üzerinde sorgular için index
-            entity.HasIndex(l => new { l.IsActive, l.Category })
-                  .HasDatabaseName("IX_Listings_IsActive_Category");
+            entity.HasIndex(l => new { l.IsActive, l.IsApproved, l.Category })
+                  .HasDatabaseName("IX_Listings_IsActive_IsApproved_Category");
+        });
+
+        // ═══════════════════════════════════════════════════════════
+        // LISTING IMAGE
+        // ═══════════════════════════════════════════════════════════
+        modelBuilder.Entity<ListingImage>(entity =>
+        {
+            entity.ToTable("ListingImages");
+            entity.HasKey(image => image.Id);
+
+            entity.Property(image => image.ImageUrl)
+                  .IsRequired();
+
+            entity.Property(image => image.SortOrder)
+                  .IsRequired();
+
+            entity.Property(image => image.CreatedAt)
+                  .HasDefaultValueSql("GETUTCDATE()");
+
+            entity.HasOne(image => image.Listing)
+                  .WithMany(listing => listing.Images)
+                  .HasForeignKey(image => image.ListingId)
+                  .OnDelete(DeleteBehavior.Cascade)
+                  .HasConstraintName("FK_ListingImages_Listings_ListingId");
+
+            entity.HasIndex(image => new { image.ListingId, image.SortOrder })
+                  .IsUnique()
+                  .HasDatabaseName("UX_ListingImages_Listing_SortOrder");
         });
 
         // ═══════════════════════════════════════════════════════════
@@ -161,6 +215,51 @@ public class PauMarketDbContext(DbContextOptions<PauMarketDbContext> options) : 
         });
 
         // ═══════════════════════════════════════════════════════════
+        // DEAL REQUEST
+        // ═══════════════════════════════════════════════════════════
+        modelBuilder.Entity<DealRequest>(entity =>
+        {
+            entity.ToTable("DealRequests");
+            entity.HasKey(request => request.Id);
+
+            entity.Property(request => request.Note).HasMaxLength(500);
+            entity.Property(request => request.Status)
+                  .HasConversion<int>()
+                  .HasDefaultValue(DealRequestStatus.Pending);
+            entity.Property(request => request.RequestedAt).HasDefaultValueSql("GETUTCDATE()");
+
+            entity.HasOne(request => request.Listing)
+                  .WithMany(listing => listing.DealRequests)
+                  .HasForeignKey(request => request.ListingId)
+                  .OnDelete(DeleteBehavior.Cascade)
+                  .HasConstraintName("FK_DealRequests_Listings_ListingId");
+
+            entity.HasOne(request => request.Buyer)
+                  .WithMany()
+                  .HasForeignKey(request => request.BuyerId)
+                  .OnDelete(DeleteBehavior.Restrict)
+                  .HasConstraintName("FK_DealRequests_Users_BuyerId");
+
+            entity.HasOne(request => request.Seller)
+                  .WithMany()
+                  .HasForeignKey(request => request.SellerId)
+                  .OnDelete(DeleteBehavior.Restrict)
+                  .HasConstraintName("FK_DealRequests_Users_SellerId");
+
+            entity.HasIndex(request => new { request.ListingId, request.BuyerId })
+                  .IsUnique()
+                  .HasDatabaseName("UX_DealRequests_Listing_Buyer");
+
+            entity.HasIndex(request => request.ListingId)
+                  .IsUnique()
+                  .HasFilter("[Status] = 2")
+                  .HasDatabaseName("UX_DealRequests_Listing_Accepted");
+
+            entity.HasIndex(request => new { request.SellerId, request.Status })
+                  .HasDatabaseName("IX_DealRequests_Seller_Status");
+        });
+
+        // ═══════════════════════════════════════════════════════════
         // USER_VIEW  (Görüntüleme Geçmişi)
         // ═══════════════════════════════════════════════════════════
         modelBuilder.Entity<UserView>(entity =>
@@ -236,4 +335,3 @@ public class PauMarketDbContext(DbContextOptions<PauMarketDbContext> options) : 
         });
     }
 }
-

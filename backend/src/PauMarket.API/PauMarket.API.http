@@ -1,6 +1,11 @@
 @PauMarket.API_HostAddress = http://localhost:5251
 
-GET {{PauMarket.API_HostAddress}}/weatherforecast/
+GET {{PauMarket.API_HostAddress}}/health
+Accept: application/json
+
+###
+
+GET {{PauMarket.API_HostAddress}}/api/listings
 Accept: application/json
 
 ###

@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+*.egg-info/
+
+# Datasets (büyük dosyalar — repo'ya girmesin)
+app/data/datasets/
+*.csv
+
+# Trained models (eğitilmiş modeller — repo'ya girmesin)
+app/trained_models/*.pkl
+app/trained_models/*.joblib
+
+# Jupyter
+.ipynb_checkpoints/
+notebooks/.ipynb_checkpoints/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Evaluation outputs
+evaluation_results/
+app/trained_models/evaluation_metrics.json
+*.png

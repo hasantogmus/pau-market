@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
 import {
@@ -7,7 +7,7 @@ import {
     Info, CheckCircle2, Camera, DollarSign, Package, Tablet, Watch
 } from 'lucide-react';
 import listingService from '../services/listingService';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 
 // ─────────────────────────────────────────────────────────────────
 // Sabit Veriler
@@ -15,6 +15,9 @@ import { useAuth } from '../context/AuthContext';
 const CATEGORIES = ['Elektronik', 'Ders Kitabı', 'Ev Eşyası', 'Giyim', 'Hobi', 'Not / Özet', 'Spor', 'Müzik Aletleri', 'Diğer'];
 const CONDITIONS  = ['Sıfır', 'Az Kullanılmış', 'Çok Kullanılmış'];
 const MAX_IMAGES  = 10;
+const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
+const TARGET_IMAGE_SIZE_BYTES = 9 * 1024 * 1024;
+const MAX_IMAGE_DIMENSION = 1600;
 
 // ─────────────────────────────────────────────────────────────────
 // Yan Dekorasyon Paneli için İkon Grupları
@@ -70,12 +73,81 @@ const RightDecoration = () => (
     </div>
 );
 
+const formatFileSize = (bytes) => {
+    const megabytes = bytes / 1024 / 1024;
+    return `${megabytes.toFixed(megabytes >= 10 ? 0 : 1)} MB`;
+};
+
+const getCompressedFileName = (fileName) => {
+    const baseName = fileName.replace(/\.[^/.]+$/, '');
+    return `${baseName || 'ilan-fotografi'}.jpg`;
+};
+
+const loadImage = (file) => new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        resolve(image);
+    };
+    image.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error('Fotoğraf okunamadı.'));
+    };
+    image.src = objectUrl;
+});
+
+const canvasToBlob = (canvas, quality) => new Promise((resolve) => {
+    canvas.toBlob(resolve, 'image/jpeg', quality);
+});
+
+const compressImageForUpload = async (file) => {
+    if (!file.type.startsWith('image/')) return file;
+
+    const image = await loadImage(file);
+    const largestSide = Math.max(image.naturalWidth, image.naturalHeight);
+    const scale = Math.min(1, MAX_IMAGE_DIMENSION / largestSide);
+    const width = Math.max(1, Math.round(image.naturalWidth * scale));
+    const height = Math.max(1, Math.round(image.naturalHeight * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return file;
+
+    ctx.drawImage(image, 0, 0, width, height);
+
+    let smallestFile = file;
+    for (const quality of [0.85, 0.75, 0.65]) {
+        const blob = await canvasToBlob(canvas, quality);
+        if (!blob) continue;
+
+        const compressedFile = new File([blob], getCompressedFileName(file.name), {
+            type: 'image/jpeg',
+            lastModified: Date.now(),
+        });
+
+        if (compressedFile.size < smallestFile.size) {
+            smallestFile = compressedFile;
+        }
+
+        if (compressedFile.size <= TARGET_IMAGE_SIZE_BYTES) {
+            return compressedFile;
+        }
+    }
+
+    return smallestFile;
+};
+
 // ─────────────────────────────────────────────────────────────────
-// Dropzone Bileşeni (multi-image, max 10)
+// Dropzone Bileşeni
 // ─────────────────────────────────────────────────────────────────
-const ImageDropzone = ({ images, onFilesAdded, onRemove, onLimitExceeded }) => {
+const ImageDropzone = ({ images, onFilesAdded, onRemove, onLimitExceeded, onMoveImage, isProcessing }) => {
     const inputRef = useRef(null);
+    const draggedImageIdRef = useRef(null);
     const [isDragging, setIsDragging] = useState(false);
+    const [draggedImageId, setDraggedImageId] = useState(null);
 
     const processFiles = useCallback((rawFiles) => {
         const valid = Array.from(rawFiles).filter(f => f.type.startsWith('image/'));
@@ -91,32 +163,55 @@ const ImageDropzone = ({ images, onFilesAdded, onRemove, onLimitExceeded }) => {
     const handleDrop = useCallback((e) => {
         e.preventDefault();
         setIsDragging(false);
+        if (isProcessing) return;
         processFiles(e.dataTransfer.files);
-    }, [processFiles]);
+    }, [isProcessing, processFiles]);
 
-    const handleDragOver = (e) => { e.preventDefault(); setIsDragging(true); };
+    const handleDragOver = (e) => { e.preventDefault(); if (!isProcessing) setIsDragging(true); };
     const handleDragLeave = () => setIsDragging(false);
-    const handleInputChange = (e) => { processFiles(e.target.files); e.target.value = ''; };
+    const handleInputChange = (e) => { if (!isProcessing) processFiles(e.target.files); e.target.value = ''; };
+    const handleImageDragStart = (e, imageId) => {
+        draggedImageIdRef.current = imageId;
+        setDraggedImageId(imageId);
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', imageId);
+    };
+    const handleImageDragOver = (e, targetId) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+
+        const activeId = draggedImageIdRef.current || e.dataTransfer.getData('text/plain');
+        if (!activeId || activeId === targetId) return;
+
+        const bounds = e.currentTarget.getBoundingClientRect();
+        const placeAfterTarget = e.clientX > bounds.left + (bounds.width / 2);
+        onMoveImage(activeId, targetId, placeAfterTarget);
+    };
+    const clearImageDrag = () => {
+        draggedImageIdRef.current = null;
+        setDraggedImageId(null);
+    };
 
     const canAddMore = images.length < MAX_IMAGES;
 
     return (
         <div className="space-y-4">
-            <input ref={inputRef} type="file" accept="image/*" multiple onChange={handleInputChange} className="hidden" />
+            <input ref={inputRef} type="file" accept="image/*" multiple onChange={handleInputChange} disabled={isProcessing} className="hidden" />
 
             {canAddMore && (
                 <motion.div
                     onDrop={handleDrop}
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
-                    onClick={() => inputRef.current?.click()}
+                    onClick={() => !isProcessing && inputRef.current?.click()}
                     className={`
                         w-full rounded-2xl border-2 border-dashed transition-all duration-200
-                        flex flex-col items-center justify-center py-10 px-6 gap-3 cursor-pointer
+                        flex flex-col items-center justify-center py-10 px-6 gap-3
                         ${isDragging
                             ? 'border-blue-500 bg-blue-50/90 scale-[1.01]'
                             : 'border-gray-300 bg-gray-50 hover:border-blue-400 hover:bg-blue-50/40'
                         }
+                        ${isProcessing ? 'cursor-wait opacity-75' : 'cursor-pointer'}
                     `}
                 >
                     <div className={`p-4 rounded-2xl transition-colors ${isDragging ? 'bg-blue-100' : 'bg-gray-100'}`}>
@@ -124,39 +219,51 @@ const ImageDropzone = ({ images, onFilesAdded, onRemove, onLimitExceeded }) => {
                     </div>
                     <div className="text-center pointer-events-none">
                         <p className="text-gray-700 font-semibold text-sm">
-                            {isDragging ? 'Bırak!' : 'Görselleri buraya sürükleyin veya'}
+                            {isProcessing ? 'Fotoğraflar hazırlanıyor...' : isDragging ? 'Bırak!' : 'Görselleri buraya sürükleyin veya'}
                         </p>
-                        {!isDragging && (
+                        {!isDragging && !isProcessing && (
                             <p className="text-xs text-gray-400 mt-1">
-                                PNG, JPG, WEBP — en fazla {MAX_IMAGES} fotoğraf &bull; {images.length}/{MAX_IMAGES} yüklendi
+                                PNG, JPG, WEBP — en fazla 10 fotoğraf, büyük görseller otomatik küçültülür
                             </p>
                         )}
                     </div>
                     <button
                         type="button"
-                        onClick={(e) => { e.stopPropagation(); inputRef.current?.click(); }}
-                        className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 text-sm font-bold rounded-xl hover:border-blue-400 hover:text-blue-600 transition-all shadow-sm"
+                        onClick={(e) => { e.stopPropagation(); if (!isProcessing) inputRef.current?.click(); }}
+                        disabled={isProcessing}
+                        className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 text-sm font-bold rounded-xl hover:border-blue-400 hover:text-blue-600 transition-all shadow-sm disabled:cursor-wait disabled:opacity-70"
                     >
-                        Görsel Seç
+                        {isProcessing ? 'Hazırlanıyor' : 'Görsel Seç'}
                     </button>
                 </motion.div>
             )}
 
             {images.length > 0 && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                    <AnimatePresence>
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
+                    <p className="text-xs font-semibold text-gray-400">
+                        Kapak yapmak istediğin fotoğrafı en sola sürükle.
+                    </p>
+                    <div className="flex gap-3 overflow-x-auto pb-2">
                         {images.map((item, idx) => (
                             <motion.div
-                                key={idx}
-                                initial={{ opacity: 0, scale: 0.85 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.85 }}
-                                className="relative aspect-square rounded-xl overflow-hidden border-2 border-gray-200 shadow-sm group"
+                                key={item.id}
+                                layout
+                                draggable
+                                onDragStart={(e) => handleImageDragStart(e, item.id)}
+                                onDragOver={(e) => handleImageDragOver(e, item.id)}
+                                onDragEnd={clearImageDrag}
+                                onDrop={(e) => { e.preventDefault(); clearImageDrag(); }}
+                                animate={{
+                                    opacity: draggedImageId === item.id ? 0.55 : 1,
+                                    scale: draggedImageId === item.id ? 0.97 : 1,
+                                }}
+                                className="relative w-28 h-28 sm:w-32 sm:h-32 flex-shrink-0 rounded-xl overflow-hidden border-2 border-gray-200 shadow-sm group cursor-grab active:cursor-grabbing bg-white"
                             >
-                                <img src={item.preview} alt={`Görsel ${idx + 1}`} className="w-full h-full object-cover" />
+                                <img src={item.preview} alt={`Görsel ${idx + 1}`} draggable={false} className="w-full h-full object-cover pointer-events-none" />
                                 <button
                                     type="button"
                                     onClick={() => onRemove(idx)}
+                                    draggable={false}
                                     className="absolute top-1.5 right-1.5 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
                                 >
                                     <X className="w-3.5 h-3.5" />
@@ -166,19 +273,14 @@ const ImageDropzone = ({ images, onFilesAdded, onRemove, onLimitExceeded }) => {
                                         Ana
                                     </span>
                                 )}
+                                {idx > 0 && (
+                                    <span className="absolute bottom-1.5 left-1.5 text-[10px] font-bold bg-white/90 text-gray-700 px-1.5 py-0.5 rounded-full">
+                                        {idx + 1}
+                                    </span>
+                                )}
                             </motion.div>
                         ))}
-                    </AnimatePresence>
-                    {images.length < MAX_IMAGES && (
-                        <button
-                            type="button"
-                            onClick={() => inputRef.current?.click()}
-                            className="aspect-square rounded-xl border-2 border-dashed border-gray-300 hover:border-blue-400 hover:bg-blue-50 flex flex-col items-center justify-center gap-1.5 text-gray-400 hover:text-blue-500 transition-all"
-                        >
-                            <UploadCloud className="w-6 h-6" />
-                            <span className="text-[11px] font-semibold">Daha Fazla</span>
-                        </button>
-                    )}
+                    </div>
                 </motion.div>
             )}
         </div>
@@ -215,9 +317,37 @@ const NewListing = () => {
     const [formData, setFormData] = useState({ title: '', description: '', price: '', category: '', condition: '' });
     const [images, setImages]     = useState([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [isPreparingImages, setIsPreparingImages] = useState(false);
     const [error, setError]         = useState(null);
     const [showToast, setShowToast] = useState(false);
     const [toastMsg, setToastMsg]   = useState({ type: 'success', text: '' });
+    const imagesRef = useRef([]);
+
+    useEffect(() => {
+        imagesRef.current = images;
+    }, [images]);
+
+    useEffect(() => () => {
+        imagesRef.current.forEach(item => URL.revokeObjectURL(item.preview));
+    }, []);
+
+    const handleMoveImage = useCallback((draggedId, targetId, placeAfterTarget) => {
+        setImages(prev => {
+            const fromIndex = prev.findIndex(item => item.id === draggedId);
+            if (fromIndex === -1) return prev;
+
+            const next = [...prev];
+            const [movedItem] = next.splice(fromIndex, 1);
+            const targetIndex = next.findIndex(item => item.id === targetId);
+            if (targetIndex === -1) return prev;
+
+            const insertIndex = targetIndex + (placeAfterTarget ? 1 : 0);
+            next.splice(insertIndex, 0, movedItem);
+
+            const orderDidNotChange = next.every((item, index) => item.id === prev[index]?.id);
+            return orderDidNotChange ? prev : next;
+        });
+    }, []);
 
     if (!isAuthenticated) { navigate('/login'); return null; }
 
@@ -232,13 +362,41 @@ const NewListing = () => {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleFilesAdded = (newFiles) => {
-        const newItems = newFiles.map(f => ({ file: f, preview: URL.createObjectURL(f) }));
-        setImages(prev => [...prev, ...newItems].slice(0, MAX_IMAGES));
+    const handleFilesAdded = async (newFiles) => {
+        setIsPreparingImages(true);
+
+        try {
+            const preparedFiles = await Promise.all(newFiles.map(async (file) => {
+                const preparedFile = await compressImageForUpload(file);
+
+                if (preparedFile.size > MAX_IMAGE_SIZE_BYTES) {
+                    throw new Error(`${file.name} hâlâ çok büyük (${formatFileSize(preparedFile.size)}). En fazla ${formatFileSize(MAX_IMAGE_SIZE_BYTES)} olmalı.`);
+                }
+
+                return preparedFile;
+            }));
+
+            const optimizedCount = preparedFiles.filter((file, index) => file.size < newFiles[index].size).length;
+            const newItems = preparedFiles.map(f => ({
+                id: `${f.name}-${f.lastModified}-${Date.now()}-${Math.random()}`,
+                file: f,
+                preview: URL.createObjectURL(f)
+            }));
+
+            setImages(prev => [...prev, ...newItems].slice(0, MAX_IMAGES));
+
+            if (optimizedCount > 0) {
+                triggerToast('success', `${optimizedCount} fotoğraf yükleme için otomatik küçültüldü.`);
+            }
+        } catch (err) {
+            triggerToast('warn', err.message || 'Fotoğraflar hazırlanırken bir hata oluştu.');
+        } finally {
+            setIsPreparingImages(false);
+        }
     };
 
     const handleLimitExceeded = () => {
-        triggerToast('warn', `En fazla ${MAX_IMAGES} fotoğraf yükleyebilirsin. Fazla dosyalar otomatik atıldı.`);
+        triggerToast('warn', `En fazla ${MAX_IMAGES} fotoğraf yükleyebilirsin. Fazla görseller eklenmedi.`);
     };
 
     const handleRemoveImage = (idx) => {
@@ -250,6 +408,8 @@ const NewListing = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (isPreparingImages) return;
+
         setError(null);
         setIsLoading(true);
         try {
@@ -261,8 +421,8 @@ const NewListing = () => {
                 condition:   formData.condition,
                 imageFiles:  images.map(i => i.file),
             });
-            triggerToast('success', 'Harika! İlanın yayınlandı 🚀');
-            setTimeout(() => navigate('/'), 2500);
+            triggerToast('success', 'Harika! İlanın moderasyon için gönderildi.');
+            setTimeout(() => navigate('/my-listings'), 2200);
         } catch (err) {
             let msg = 'İlan yayınlanırken bir hata oluştu.';
             if (err.response?.data?.error)   msg = err.response.data.error;
@@ -359,7 +519,7 @@ const NewListing = () => {
                                     value={formData.title}
                                     onChange={handleChange}
                                     disabled={isLoading}
-                                    placeholder="İlan başlığını giriniz"
+                                    placeholder="İlan başlığı"
                                     className={inputCls}
                                     required
                                 />
@@ -422,7 +582,7 @@ const NewListing = () => {
                                     value={formData.description}
                                     onChange={handleChange}
                                     disabled={isLoading}
-                                    placeholder="Ürününüzün durumunu, özelliklerini ve neden sattığınızı anlatın..."
+                                    placeholder="Ürünün durumunu, özelliklerini ve neden sattığını anlat..."
                                     rows={4}
                                     className={inputCls + ' resize-none'}
                                 />
@@ -432,7 +592,7 @@ const NewListing = () => {
                             <div>
                                 <label className="flex items-center text-sm font-semibold text-gray-700 mb-3 gap-2">
                                     <UploadCloud className="w-4 h-4 text-gray-400" />
-                                    Ürün Görselleri<span className="text-red-400 ml-0.5">*</span>
+                                    İlan Fotoğrafları<span className="text-red-400 ml-0.5">*</span>
                                     <span className="ml-auto text-xs font-medium text-gray-400">{images.length}/{MAX_IMAGES}</span>
                                 </label>
                                 <ImageDropzone
@@ -440,16 +600,23 @@ const NewListing = () => {
                                     onFilesAdded={handleFilesAdded}
                                     onRemove={handleRemoveImage}
                                     onLimitExceeded={handleLimitExceeded}
+                                    onMoveImage={handleMoveImage}
+                                    isProcessing={isPreparingImages}
                                 />
                             </div>
 
                             {/* Gönder */}
                             <button
                                 type="submit"
-                                disabled={isLoading || images.length === 0}
+                                disabled={isLoading || isPreparingImages || images.length === 0}
                                 className="w-full flex items-center justify-center gap-3 py-5 px-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-lg font-extrabold rounded-2xl shadow-lg shadow-blue-200 hover:shadow-blue-300 hover:-translate-y-0.5 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
                             >
-                                {isLoading ? (
+                                {isPreparingImages ? (
+                                    <>
+                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        Fotoğraflar hazırlanıyor...
+                                    </>
+                                ) : isLoading ? (
                                     <>
                                         <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                                         Yayınlanıyor...
@@ -461,7 +628,7 @@ const NewListing = () => {
 
                             {images.length === 0 && (
                                 <p className="text-center text-xs text-gray-400 font-medium -mt-3">
-                                    Devam etmek için en az 1 görsel yüklemeniz gerekmektedir.
+                                    Devam etmek için en az 1 fotoğraf yüklemeniz gerekmektedir.
                                 </p>
                             )}
                         </form>

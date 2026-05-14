@@ -1,10 +1,8 @@
 using System.IdentityModel.Tokens.Jwt;
-using System.Net.Security;
-using System.Net.Sockets;
+using System.Net;
+using System.Net.Mail;
 using System.Security.Claims;
 using System.Text;
-using System.Text.RegularExpressions;
-using DnsClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using PauMarket.API.Data;
@@ -15,19 +13,25 @@ namespace PauMarket.API.Services;
 
 /// <summary>
 /// IAuthService implementasyonu.
-/// Kayıt: PAÜ e-posta regex + ad/soyad eşleşmesi + öğrenci no yıl eşleşmesi
-///        + canlı SMTP kutusu kontrolü + BCrypt hash + 6 haneli doğrulama kodu.
-/// Giriş: E-posta doğrulama kontrolü + JWT üretimi.
-/// Doğrulama: 6 haneli kodu eşleştirme + hesap onaylama.
+/// Okul e-postası doğrulamasını zorunlu kılar; SMTP yapılandırması yoksa geliştirme ortamında kod loglara yazılır.
 /// </summary>
 public class AuthService : IAuthService
 {
-    // Sadece @posta.pau.edu.tr uzantısı zorunlu — diğer kurallar kaldırıldı
-    private const string PauEmailSuffix = "@posta.pau.edu.tr";
-
     private readonly PauMarketDbContext   _db;
     private readonly IConfiguration      _config;
     private readonly ILogger<AuthService> _logger;
+    private const string PasswordResetGenericMessage =
+        "Eğer bu e-posta ile doğrulanmış bir PAUMarket hesabı varsa, şifre sıfırlama kodu okul e-posta adresine gönderildi.";
+
+    private sealed record SmtpSenderSettings(
+        string Label,
+        string? Host,
+        int Port,
+        string? Username,
+        string? Password,
+        bool EnableSsl,
+        string? FromEmail,
+        string FromName);
 
     public AuthService(PauMarketDbContext db, IConfiguration config, ILogger<AuthService> logger)
     {
@@ -41,50 +45,76 @@ public class AuthService : IAuthService
     /// <inheritdoc/>
     public async Task<string> RegisterAsync(RegisterDto dto)
     {
-        // ── Adım 1: PAÜ e-posta uzantı kontrolü ────────────────────────────
-        if (!dto.Email.ToLower().EndsWith(PauEmailSuffix))
+        var normalizedEmail = dto.Email.Trim().ToLowerInvariant();
+        var emailSuffix = GetAllowedEmailSuffix();
+
+        if (!normalizedEmail.EndsWith(emailSuffix, StringComparison.Ordinal))
             throw new InvalidOperationException(
-                "Sadece @posta.pau.edu.tr uzantılı üniversite e-posta adresleri ile kayıt olabilirsiniz.");
+                $"Sadece {emailSuffix} uzantılı üniversite e-posta adresleri ile kayıt olabilirsiniz.");
 
-        // ── Adım 2: E-posta daha önce kullanılmış mı? ───────────────────────
-        bool emailExists = await _db.Users
-            .AnyAsync(u => u.Email == dto.Email.ToLower());
-        if (emailExists)
-            throw new InvalidOperationException("Bu e-posta adresi zaten kayıtlı.");
+        var existingUser = await _db.Users
+            .FirstOrDefaultAsync(u => u.Email == normalizedEmail);
+        if (existingUser is not null)
+        {
+            if (existingUser.IsEmailVerified)
+                throw new InvalidOperationException("Bu e-posta adresi zaten kayıtlı. Lütfen giriş yapın.");
 
-        // ── Adım 3: BCrypt şifre hashleme (work factor: 12) ─────────────────
+            if (!IsEmailDeliveryConfigured())
+                throw new InvalidOperationException("Doğrulama kodu şu anda gönderilemiyor. Lütfen daha sonra tekrar deneyin.");
+
+            if (HasUsableVerificationCode(existingUser.EmailVerificationToken))
+            {
+                return "Bu hesap için yakın zamanda bir doğrulama kodu gönderildi. Lütfen e-posta kutundaki son kodu kullan; süre dolunca yeni kod isteyebilirsin.";
+            }
+
+            var resendToken = GenerateVerificationToken();
+            var resendExpiresAt = GetVerificationCodeExpiry();
+            await SendVerificationEmailAsync(existingUser.Email, resendToken, GetUserDisplayName(existingUser), isResend: true);
+            existingUser.EmailVerificationToken = BuildStoredVerificationToken(resendToken, resendExpiresAt);
+            await _db.SaveChangesAsync();
+
+            return "Bu e-posta ile başlatılmış bir kayıt bulundu. Hesabını aktifleştirmek için yeni doğrulama kodu okul e-posta adresine gönderildi.";
+        }
+
         string passwordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password, workFactor: 12);
+        string verificationToken = GenerateVerificationToken();
+        DateTime verificationExpiresAt = GetVerificationCodeExpiry();
+        bool autoVerify = _config.GetValue<bool>("EmailVerification:AutoVerify");
 
-        // ── Adım 4: 6 haneli rastgele doğrulama kodu üret ───────────────────
-        string verificationToken = Random.Shared.Next(0, 1_000_000).ToString("D6");
+        if (!autoVerify && !IsEmailDeliveryConfigured())
+            throw new InvalidOperationException("Doğrulama kodu şu anda gönderilemiyor. Lütfen daha sonra tekrar deneyin.");
 
-        // ── Adım 5: Kullanıcıyı oluştur ve kaydet ───────────────────────────
         var user = new User
         {
             FirstName              = dto.FirstName,
             LastName               = dto.LastName,
-            Email                  = dto.Email.ToLower(),
+            Email                  = normalizedEmail,
             PasswordHash           = passwordHash,
             Department             = dto.Department,
             Grade                  = dto.Grade,
-            IsEmailVerified        = false,
-            EmailVerificationToken = verificationToken
+            IsEmailVerified        = autoVerify,
+            EmailVerificationToken = autoVerify ? null : BuildStoredVerificationToken(verificationToken, verificationExpiresAt)
         };
 
+        if (autoVerify)
+        {
+            _db.Users.Add(user);
+            await _db.SaveChangesAsync();
+            return "Kayıt başarılı. Bu ortamda e-posta doğrulaması otomatik açık olduğu için giriş yapabilirsiniz.";
+        }
+
+        await SendVerificationEmailAsync(user.Email, verificationToken, GetUserDisplayName(user), isResend: false);
         _db.Users.Add(user);
         await _db.SaveChangesAsync();
-
-        // ── Adım 6: E-posta simülasyonu (konsola yaz) ────────────────────────
-        SimulateSendVerificationEmail(user.Email, verificationToken);
-
-        return "Kayıt başarılı. Lütfen e-posta adresinize gönderilen 6 haneli kodu girerek hesabınızı doğrulayın.";
+        return "Kayıt başarılı. Hesabını aktifleştirmek için okul e-posta adresine gönderilen 6 haneli doğrulama kodunu gir.";
     }
 
     /// <inheritdoc/>
     public async Task<string?> LoginAsync(LoginDto dto)
     {
+        var normalizedEmail = dto.Email.Trim().ToLowerInvariant();
         var user = await _db.Users
-            .FirstOrDefaultAsync(u => u.Email == dto.Email.ToLower());
+            .FirstOrDefaultAsync(u => u.Email == normalizedEmail);
 
         if (user is null) return null;
 
@@ -92,7 +122,7 @@ public class AuthService : IAuthService
         if (!passwordValid) return null;
 
         if (!user.IsEmailVerified)
-            throw new InvalidOperationException("Lütfen önce e-posta adresinizi onaylayın.");
+            throw new InvalidOperationException("E-posta adresiniz henüz doğrulanmadı. Lütfen doğrulama kodunu girip hesabınızı aktifleştirin.");
 
         return GenerateJwtToken(user);
     }
@@ -101,7 +131,7 @@ public class AuthService : IAuthService
     public async Task<string> VerifyEmailAsync(string email, string token)
     {
         var user = await _db.Users
-            .FirstOrDefaultAsync(u => u.Email == email.ToLower());
+            .FirstOrDefaultAsync(u => u.Email == email.Trim().ToLowerInvariant());
 
         if (user is null)
             throw new InvalidOperationException("Kullanıcı bulunamadı.");
@@ -109,7 +139,13 @@ public class AuthService : IAuthService
         if (user.IsEmailVerified)
             return "E-posta adresi zaten doğrulanmış.";
 
-        if (user.EmailVerificationToken?.Trim() != token.Trim())
+        if (!TryParseStoredVerificationToken(user.EmailVerificationToken, out var storedToken, out var expiresAt))
+            throw new InvalidOperationException("Doğrulama kodu geçersiz. Lütfen yeni kod isteyin.");
+
+        if (expiresAt < DateTime.UtcNow)
+            throw new InvalidOperationException("Doğrulama kodunun süresi doldu. Lütfen yeni kod isteyin.");
+
+        if (!string.Equals(storedToken, token.Trim(), StringComparison.Ordinal))
             throw new InvalidOperationException("Doğrulama kodu hatalı veya süresi dolmuş.");
 
         user.IsEmailVerified        = true;
@@ -119,24 +155,577 @@ public class AuthService : IAuthService
         return "E-posta başarıyla doğrulandı. Artık giriş yapabilirsiniz.";
     }
 
+    /// <inheritdoc/>
+    public async Task<string> ResendVerificationAsync(string email)
+    {
+        var normalizedEmail = email.Trim().ToLowerInvariant();
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail);
+
+        if (user is null)
+            throw new InvalidOperationException("Kullanıcı bulunamadı.");
+
+        if (user.IsEmailVerified)
+            return "Bu hesap zaten doğrulanmış durumda. Giriş yapabilirsiniz.";
+
+        if (HasUsableVerificationCode(user.EmailVerificationToken))
+            return "Önceki doğrulama kodun hâlâ geçerli. Gereksiz e-posta filtresine takılmaması için süre dolana kadar yeni kod göndermiyoruz.";
+
+        var verificationToken = GenerateVerificationToken();
+        var verificationExpiresAt = GetVerificationCodeExpiry();
+        if (!IsEmailDeliveryConfigured())
+            throw new InvalidOperationException("Doğrulama kodu şu anda gönderilemiyor. Lütfen daha sonra tekrar deneyin.");
+
+        await SendVerificationEmailAsync(user.Email, verificationToken, GetUserDisplayName(user), isResend: true);
+        user.EmailVerificationToken = BuildStoredVerificationToken(verificationToken, verificationExpiresAt);
+        await _db.SaveChangesAsync();
+
+        return "Yeni doğrulama kodu gönderildi. Lütfen okul e-posta kutunu kontrol et.";
+    }
+
+    /// <inheritdoc/>
+    public async Task<string> RequestPasswordResetAsync(ForgotPasswordRequestDto dto)
+    {
+        var normalizedEmail = dto.Email.Trim().ToLowerInvariant();
+        var emailSuffix = GetAllowedEmailSuffix();
+
+        if (!normalizedEmail.EndsWith(emailSuffix, StringComparison.Ordinal))
+            throw new InvalidOperationException(
+                $"Şifre sıfırlama için {emailSuffix} uzantılı okul e-posta adresini kullanmalısın.");
+
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail);
+        if (user is null || !user.IsEmailVerified)
+            return PasswordResetGenericMessage;
+
+        if (HasUsableVerificationCode(user.PasswordResetToken))
+            return $"{PasswordResetGenericMessage} Yakın zamanda gelen kod hâlâ geçerliyse aynı kodu kullanabilirsin.";
+
+        if (!IsEmailDeliveryConfigured())
+            throw new InvalidOperationException("Şifre sıfırlama e-postası şu anda gönderilemiyor. Lütfen daha sonra tekrar deneyin.");
+
+        var resetToken = GenerateVerificationToken();
+        var resetExpiresAt = GetPasswordResetCodeExpiry();
+
+        await SendPasswordResetEmailAsync(user.Email, resetToken, GetUserDisplayName(user));
+        user.PasswordResetToken = BuildStoredVerificationToken(resetToken, resetExpiresAt);
+        await _db.SaveChangesAsync();
+
+        return PasswordResetGenericMessage;
+    }
+
+    /// <inheritdoc/>
+    public async Task<string> ResetPasswordAsync(ResetPasswordDto dto)
+    {
+        var normalizedEmail = dto.Email.Trim().ToLowerInvariant();
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail);
+
+        if (user is null)
+            throw new InvalidOperationException("Şifre sıfırlama kodu hatalı veya süresi dolmuş.");
+
+        if (!user.IsEmailVerified)
+            throw new InvalidOperationException("Şifre sıfırlamak için önce okul e-postanı doğrulaman gerekir.");
+
+        if (!TryParseStoredVerificationToken(user.PasswordResetToken, out var storedToken, out var expiresAt))
+            throw new InvalidOperationException("Şifre sıfırlama kodu hatalı veya süresi dolmuş.");
+
+        if (expiresAt < DateTime.UtcNow)
+        {
+            user.PasswordResetToken = null;
+            await _db.SaveChangesAsync();
+            throw new InvalidOperationException("Şifre sıfırlama kodunun süresi doldu. Lütfen yeni kod iste.");
+        }
+
+        if (!string.Equals(storedToken, dto.Token.Trim(), StringComparison.Ordinal))
+            throw new InvalidOperationException("Şifre sıfırlama kodu hatalı veya süresi dolmuş.");
+
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword, workFactor: 12);
+        user.PasswordResetToken = null;
+        await _db.SaveChangesAsync();
+
+        return "Şifren başarıyla güncellendi. Yeni şifrenle giriş yapabilirsin.";
+    }
+
 
     // ─── E-posta Simülasyonu ──────────────────────────────────────────────────
 
 
-    private void SimulateSendVerificationEmail(string toEmail, string code)
-    {
-        _logger.LogInformation(
-            "📧 [E-POSTA SİMÜLASYONU] Alıcı: {Email} | Doğrulama Kodu: {Code}",
-            toEmail, code);
+    private string GetAllowedEmailSuffix() =>
+        _config["AllowedEmailDomain"]?.Trim().ToLowerInvariant() ?? "@posta.pau.edu.tr";
 
-        Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine("┌─────────────────────────────────────────┐");
-        Console.WriteLine("│         PAÜ Market — E-posta Simülasyonu │");
-        Console.WriteLine("├─────────────────────────────────────────┤");
-        Console.WriteLine($"│  Alıcı : {toEmail,-31}│");
-        Console.WriteLine($"│  Kod   : {code,-31}│");
-        Console.WriteLine("└─────────────────────────────────────────┘");
-        Console.ResetColor();
+    private string GenerateVerificationToken() =>
+        Random.Shared.Next(0, 1_000_000).ToString("D6");
+
+    private int GetVerificationCodeLifetimeSeconds()
+    {
+        var seconds = _config.GetValue<int?>("EmailVerification:CodeLifetimeSeconds") ?? 120;
+        return seconds > 0 ? seconds : 120;
+    }
+
+    private DateTime GetVerificationCodeExpiry() =>
+        DateTime.UtcNow.AddSeconds(GetVerificationCodeLifetimeSeconds());
+
+    private int GetPasswordResetCodeLifetimeSeconds()
+    {
+        var seconds = _config.GetValue<int?>("PasswordReset:CodeLifetimeSeconds") ?? 600;
+        return seconds > 0 ? seconds : 600;
+    }
+
+    private DateTime GetPasswordResetCodeExpiry() =>
+        DateTime.UtcNow.AddSeconds(GetPasswordResetCodeLifetimeSeconds());
+
+    private static bool HasUsableVerificationCode(string? storedValue) =>
+        TryParseStoredVerificationToken(storedValue, out _, out var expiresAt) &&
+        expiresAt > DateTime.UtcNow;
+
+    private static string GetUserDisplayName(User user) =>
+        $"{user.FirstName} {user.LastName}".Trim();
+
+    private static string BuildStoredVerificationToken(string token, DateTime expiresAt) =>
+        $"{token}:{expiresAt.Ticks}";
+
+    private static bool TryParseStoredVerificationToken(
+        string? storedValue,
+        out string token,
+        out DateTime expiresAt)
+    {
+        token = string.Empty;
+        expiresAt = DateTime.MinValue;
+
+        if (string.IsNullOrWhiteSpace(storedValue))
+            return false;
+
+        var parts = storedValue.Split(':', 2, StringSplitOptions.TrimEntries);
+        if (parts.Length != 2 || string.IsNullOrWhiteSpace(parts[0]) || !long.TryParse(parts[1], out var ticks))
+            return false;
+
+        token = parts[0];
+        expiresAt = new DateTime(ticks, DateTimeKind.Utc);
+        return true;
+    }
+
+    private bool IsEmailDeliveryConfigured() =>
+        GetConfiguredSmtpSenders().Count > 0;
+
+    private async Task SendVerificationEmailAsync(string toEmail, string code, string recipientName, bool isResend)
+    {
+        var senders = GetConfiguredSmtpSenders();
+        if (senders.Count == 0)
+        {
+            throw new InvalidOperationException("Doğrulama kodu şu anda gönderilemiyor. Lütfen daha sonra tekrar deneyin.");
+        }
+
+        var successfulSends = 0;
+        Exception? lastError = null;
+
+        foreach (var sender in OrderSmtpSendersForAttempt(senders, isResend))
+        {
+            if (successfulSends > 0)
+                break;
+
+            try
+            {
+                using var client = BuildSmtpClient(sender);
+                using var message = BuildVerificationEmail(sender, toEmail, code, recipientName, isResend);
+                await client.SendMailAsync(message);
+                successfulSends++;
+
+                _logger.LogInformation(
+                    "Doğrulama e-postası {SenderLabel} göndericisiyle başarıyla gönderildi: {Email}",
+                    sender.Label,
+                    toEmail);
+            }
+            catch (Exception ex)
+            {
+                lastError = ex;
+                _logger.LogWarning(
+                    ex,
+                    "Doğrulama e-postası {SenderLabel} göndericisiyle gönderilemedi: {Email}",
+                    sender.Label,
+                    toEmail);
+            }
+        }
+
+        if (successfulSends == 0)
+        {
+            _logger.LogError(lastError, "Doğrulama e-postası hiçbir SMTP göndericisiyle gönderilemedi: {Email}", toEmail);
+            throw new InvalidOperationException("Doğrulama e-postası gönderilemedi. Lütfen daha sonra tekrar deneyin.");
+        }
+
+        if (successfulSends > 1)
+        {
+            _logger.LogInformation(
+                "Doğrulama kodu teslim edilebilirliği artırmak için {Count} SMTP göndericisiyle gönderildi: {Email}",
+                successfulSends,
+                toEmail);
+        }
+    }
+
+    private async Task SendPasswordResetEmailAsync(string toEmail, string code, string recipientName)
+    {
+        var senders = GetConfiguredSmtpSenders();
+        if (senders.Count == 0)
+        {
+            throw new InvalidOperationException("Şifre sıfırlama e-postası şu anda gönderilemiyor. Lütfen daha sonra tekrar deneyin.");
+        }
+
+        Exception? lastError = null;
+        foreach (var sender in OrderSmtpSendersForAttempt(senders, isResend: false))
+        {
+            try
+            {
+                using var client = BuildSmtpClient(sender);
+                using var message = BuildPasswordResetEmail(sender, toEmail, code, recipientName);
+                await client.SendMailAsync(message);
+
+                _logger.LogInformation(
+                    "Şifre sıfırlama e-postası {SenderLabel} göndericisiyle başarıyla gönderildi: {Email}",
+                    sender.Label,
+                    toEmail);
+                return;
+            }
+            catch (Exception ex)
+            {
+                lastError = ex;
+                _logger.LogWarning(
+                    ex,
+                    "Şifre sıfırlama e-postası {SenderLabel} göndericisiyle gönderilemedi: {Email}",
+                    sender.Label,
+                    toEmail);
+            }
+        }
+
+        _logger.LogError(lastError, "Şifre sıfırlama e-postası hiçbir SMTP göndericisiyle gönderilemedi: {Email}", toEmail);
+        throw new InvalidOperationException("Şifre sıfırlama e-postası gönderilemedi. Lütfen daha sonra tekrar deneyin.");
+    }
+
+    private List<SmtpSenderSettings> GetConfiguredSmtpSenders()
+    {
+        var senders = new List<SmtpSenderSettings>();
+        AddIfConfigured(senders, BuildSmtpSenderSettings("Primary", "Smtp"));
+        AddIfConfigured(senders, BuildSmtpSenderSettings("Backup", "SmtpBackup"));
+
+        return senders
+            .GroupBy(sender => new
+            {
+                Host = sender.Host?.Trim().ToLowerInvariant(),
+                Username = sender.Username?.Trim().ToLowerInvariant(),
+                FromEmail = sender.FromEmail?.Trim().ToLowerInvariant()
+            })
+            .Select(group => group.First())
+            .ToList();
+    }
+
+    private static IEnumerable<SmtpSenderSettings> OrderSmtpSendersForAttempt(
+        List<SmtpSenderSettings> senders,
+        bool isResend)
+    {
+        var primary = senders.FirstOrDefault(sender => sender.Label == "Primary");
+        var backup = senders.FirstOrDefault(sender => sender.Label == "Backup");
+
+        if (primary is not null)
+            yield return primary;
+
+        if (backup is not null)
+            yield return backup;
+
+        foreach (var sender in senders.Where(sender => sender != primary && sender != backup))
+            yield return sender;
+    }
+
+    private SmtpSenderSettings BuildSmtpSenderSettings(string label, string sectionName) =>
+        new(
+            label,
+            _config[$"{sectionName}:Host"],
+            _config.GetValue($"{sectionName}:Port", 587),
+            _config[$"{sectionName}:Username"],
+            _config[$"{sectionName}:Password"],
+            _config.GetValue($"{sectionName}:EnableSsl", true),
+            _config[$"{sectionName}:FromEmail"],
+            _config[$"{sectionName}:FromName"] ?? "PAUMarket");
+
+    private static void AddIfConfigured(List<SmtpSenderSettings> senders, SmtpSenderSettings sender)
+    {
+        if (!string.IsNullOrWhiteSpace(sender.Host) && !string.IsNullOrWhiteSpace(sender.FromEmail))
+            senders.Add(sender);
+    }
+
+    private static SmtpClient BuildSmtpClient(SmtpSenderSettings sender)
+    {
+        var client = new SmtpClient(sender.Host, sender.Port)
+        {
+            EnableSsl = sender.EnableSsl,
+            DeliveryMethod = SmtpDeliveryMethod.Network
+        };
+
+        if (!string.IsNullOrWhiteSpace(sender.Username))
+            client.Credentials = new NetworkCredential(sender.Username, sender.Password);
+
+        return client;
+    }
+
+    private static MailMessage BuildVerificationEmail(
+        SmtpSenderSettings sender,
+        string toEmail,
+        string code,
+        string recipientName,
+        bool isResend)
+    {
+        var fromAddress = string.IsNullOrWhiteSpace(sender.FromName)
+            ? new MailAddress(sender.FromEmail!)
+            : new MailAddress(sender.FromEmail!, sender.FromName, Encoding.UTF8);
+
+        var safeRecipientName = NormalizeRecipientName(recipientName);
+        var subject = BuildVerificationSubject(safeRecipientName, isResend);
+        var plainTextBody = BuildVerificationPlainText(code, safeRecipientName, isResend);
+        var htmlBody = BuildVerificationHtml(code, safeRecipientName, isResend);
+
+        var message = new MailMessage
+        {
+            From = fromAddress,
+            Sender = fromAddress,
+            Subject = subject,
+            Body = plainTextBody,
+            IsBodyHtml = false,
+            Priority = MailPriority.Normal,
+            SubjectEncoding = Encoding.UTF8,
+            BodyEncoding = Encoding.UTF8,
+            HeadersEncoding = Encoding.UTF8
+        };
+
+        message.AlternateViews.Add(AlternateView.CreateAlternateViewFromString(
+            plainTextBody,
+            Encoding.UTF8,
+            "text/plain"));
+        message.AlternateViews.Add(AlternateView.CreateAlternateViewFromString(
+            htmlBody,
+            Encoding.UTF8,
+            "text/html"));
+        message.ReplyToList.Add(fromAddress);
+        message.To.Add(toEmail);
+        message.Headers.Add("X-Auto-Response-Suppress", "All");
+        message.Headers.Add("Auto-Submitted", "auto-generated");
+        message.Headers.Add("X-PauMarket-Email-Type", "email-verification");
+
+        return message;
+    }
+
+    private static MailMessage BuildPasswordResetEmail(
+        SmtpSenderSettings sender,
+        string toEmail,
+        string code,
+        string recipientName)
+    {
+        var fromAddress = string.IsNullOrWhiteSpace(sender.FromName)
+            ? new MailAddress(sender.FromEmail!)
+            : new MailAddress(sender.FromEmail!, sender.FromName, Encoding.UTF8);
+
+        var safeRecipientName = NormalizeRecipientName(recipientName);
+        var plainTextBody = BuildPasswordResetPlainText(code, safeRecipientName);
+        var htmlBody = BuildPasswordResetHtml(code, safeRecipientName);
+
+        var message = new MailMessage
+        {
+            From = fromAddress,
+            Sender = fromAddress,
+            Subject = BuildPasswordResetSubject(safeRecipientName),
+            Body = plainTextBody,
+            IsBodyHtml = false,
+            Priority = MailPriority.Normal,
+            SubjectEncoding = Encoding.UTF8,
+            BodyEncoding = Encoding.UTF8,
+            HeadersEncoding = Encoding.UTF8
+        };
+
+        message.AlternateViews.Add(AlternateView.CreateAlternateViewFromString(
+            plainTextBody,
+            Encoding.UTF8,
+            "text/plain"));
+        message.AlternateViews.Add(AlternateView.CreateAlternateViewFromString(
+            htmlBody,
+            Encoding.UTF8,
+            "text/html"));
+        message.ReplyToList.Add(fromAddress);
+        message.To.Add(toEmail);
+        message.Headers.Add("X-Auto-Response-Suppress", "All");
+        message.Headers.Add("Auto-Submitted", "auto-generated");
+        message.Headers.Add("X-PauMarket-Email-Type", "password-reset");
+
+        return message;
+    }
+
+    private static string NormalizeRecipientName(string recipientName) =>
+        string.Join(' ', recipientName.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            .Replace('\r', ' ')
+            .Replace('\n', ' ');
+
+    private static string BuildVerificationSubject(string recipientName, bool isResend)
+    {
+        var prefix = isResend ? "PAUMarket yeni doğrulama kodu" : "PAUMarket doğrulama kodu";
+        return string.IsNullOrWhiteSpace(recipientName)
+            ? prefix
+            : $"{prefix} - {recipientName}";
+    }
+
+    private static string BuildPasswordResetSubject(string recipientName)
+    {
+        const string prefix = "PAUMarket şifre sıfırlama kodu";
+        return string.IsNullOrWhiteSpace(recipientName)
+            ? prefix
+            : $"{prefix} - {recipientName}";
+    }
+
+    private static string BuildVerificationPlainText(string code, string recipientName, bool isResend)
+    {
+        var greeting = string.IsNullOrWhiteSpace(recipientName) ? "Merhaba," : $"Merhaba {recipientName},";
+        var intro = isResend
+            ? "PAUMarket hesabın için yeni doğrulama kodun:"
+            : "PAUMarket hesabını doğrulamak için kodun:";
+
+        return $"""
+        {greeting}
+
+        {intro} {code}
+
+        Bu kod 2 dakika geçerlidir. Kodu sen istemediysen bu e-postayı yok sayabilirsin.
+
+        PAUMarket
+        """;
+    }
+
+    private static string BuildPasswordResetPlainText(string code, string recipientName)
+    {
+        var greeting = string.IsNullOrWhiteSpace(recipientName) ? "Merhaba," : $"Merhaba {recipientName},";
+
+        return $"""
+        {greeting}
+
+        PAUMarket hesabın için şifre sıfırlama kodun: {code}
+
+        Bu kod 10 dakika geçerlidir ve tek kullanımlıktır. Bu işlemi sen başlatmadıysan bu e-postayı yok sayabilirsin.
+
+        PAUMarket
+        """;
+    }
+
+    private static string BuildPasswordResetHtml(string code, string recipientName)
+    {
+        var greeting = string.IsNullOrWhiteSpace(recipientName) ? "Merhaba," : $"Merhaba {WebUtility.HtmlEncode(recipientName)},";
+
+        return
+        $$"""
+        <!doctype html>
+        <html lang="tr">
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <meta name="x-apple-disable-message-reformatting">
+          <title>PAUMarket şifre sıfırlama kodu</title>
+        </head>
+        <body style="margin:0;padding:0;background:#eef4ff;color:#111827;font-family:Arial,Helvetica,sans-serif;">
+          <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
+            PAUMarket hesabın için şifre sıfırlama kodun hazır.
+          </div>
+
+          <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#eef4ff;margin:0;padding:32px 12px;">
+            <tr>
+              <td align="center">
+                <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:560px;background:#ffffff;border-radius:24px;border:1px solid #dbe7ff;box-shadow:0 18px 50px rgba(37,99,235,.14);overflow:hidden;">
+                  <tr>
+                    <td style="background:#0f172a;padding:24px 28px;color:#ffffff;">
+                      <div style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;opacity:.9;">PAUMarket</div>
+                      <h1 style="margin:10px 0 0;font-size:26px;line-height:1.25;font-weight:800;">Şifre sıfırlama kodun</h1>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:30px 28px 8px;">
+                      <p style="margin:0 0 18px;font-size:16px;line-height:1.6;color:#374151;">
+                        {{greeting}} PAUMarket hesabın için yeni şifre oluşturmak üzere aşağıdaki 6 haneli kodu kullanabilirsin.
+                      </p>
+                      <div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:18px;padding:22px;text-align:center;">
+                        <div style="font-size:12px;line-height:1.4;color:#64748b;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">Şifre sıfırlama kodu</div>
+                        <div style="font-size:38px;line-height:1.2;font-weight:800;letter-spacing:.16em;color:#155eef;margin-top:8px;">{{code}}</div>
+                      </div>
+                      <p style="margin:18px 0 0;font-size:14px;line-height:1.6;color:#64748b;">
+                        Bu kod 10 dakika geçerlidir ve tek kullanımlıktır. Bu işlemi sen başlatmadıysan hesabın güvende kalır; bu e-postayı yok sayabilirsin.
+                      </p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:18px 28px 28px;">
+                      <div style="border-top:1px solid #e5e7eb;padding-top:18px;font-size:12px;line-height:1.6;color:#94a3b8;">
+                        Bu mesaj PAUMarket şifre sıfırlama işlemi için otomatik olarak gönderildi.
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+        </html>
+        """;
+    }
+
+    private static string BuildVerificationHtml(string code, string recipientName, bool isResend)
+    {
+        var greeting = string.IsNullOrWhiteSpace(recipientName) ? "Merhaba," : $"Merhaba {WebUtility.HtmlEncode(recipientName)},";
+        var title = isResend ? "Yeni e-posta doğrulama kodun" : "E-posta doğrulama kodun";
+        var intro = isResend
+            ? "PAUMarket hesabını aktifleştirmek için yeni kodun hazır."
+            : "PAUMarket hesabını aktifleştirmek için aşağıdaki 6 haneli kodu kullanabilirsin.";
+
+        return
+        $$"""
+        <!doctype html>
+        <html lang="tr">
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <meta name="x-apple-disable-message-reformatting">
+          <title>PAUMarket doğrulama kodu</title>
+        </head>
+        <body style="margin:0;padding:0;background:#eef4ff;color:#111827;font-family:Arial,Helvetica,sans-serif;">
+          <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
+            PAUMarket hesabını doğrulamak için 6 haneli kodun hazır.
+          </div>
+
+          <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#eef4ff;margin:0;padding:32px 12px;">
+            <tr>
+              <td align="center">
+                <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:560px;background:#ffffff;border-radius:24px;border:1px solid #dbe7ff;box-shadow:0 18px 50px rgba(37,99,235,.14);overflow:hidden;">
+                  <tr>
+                    <td style="background:#155eef;padding:24px 28px;color:#ffffff;">
+                      <div style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;opacity:.9;">PAUMarket</div>
+                      <h1 style="margin:10px 0 0;font-size:26px;line-height:1.25;font-weight:800;">{{title}}</h1>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:30px 28px 8px;">
+                      <p style="margin:0 0 18px;font-size:16px;line-height:1.6;color:#374151;">
+                        {{greeting}} {{intro}}
+                      </p>
+                      <div style="background:#f5f8ff;border:1px solid #cfe0ff;border-radius:18px;padding:22px;text-align:center;">
+                        <div style="font-size:12px;line-height:1.4;color:#64748b;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">Doğrulama kodu</div>
+                        <div style="font-size:38px;line-height:1.2;font-weight:800;letter-spacing:.16em;color:#155eef;margin-top:8px;">{{code}}</div>
+                      </div>
+                      <p style="margin:18px 0 0;font-size:14px;line-height:1.6;color:#64748b;">
+                        Bu kod 2 dakika geçerlidir. Kodu sen istemediysen bu e-postayı yok sayabilirsin.
+                      </p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:18px 28px 28px;">
+                      <div style="border-top:1px solid #e5e7eb;padding-top:18px;font-size:12px;line-height:1.6;color:#94a3b8;">
+                        Bu mesaj PAUMarket hesap doğrulama işlemi için otomatik olarak gönderildi.
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+        </html>
+        """;
     }
 
     // ─── JWT ──────────────────────────────────────────────────────────────────

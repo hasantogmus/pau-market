@@ -1,12 +1,30 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using System.Threading.RateLimiting;
 using PauMarket.API.Data;
+using PauMarket.API.Hubs;
 using PauMarket.API.Services;
 using PauMarket.API.Settings;
 
 var builder = WebApplication.CreateBuilder(args);
+const long MaxListingUploadBodyBytes = 100 * 1024 * 1024;
+
+// ─── Dosya Yükleme Limitleri ─────────────────────────────────────────────────
+// Cloudinary ücretsiz planda tek görsel 10 MB ile sınırlı; 10 görsel için
+// toplam multipart request limitini 100 MB'a çıkarıyoruz.
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = MaxListingUploadBodyBytes;
+});
+
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = MaxListingUploadBodyBytes;
+});
 
 // ─── Veritabanı — MSSQL + EF Core ───────────────────────────────────────────
 builder.Services.AddDbContext<PauMarketDbContext>(options =>
@@ -39,6 +57,21 @@ builder.Services.AddAuthentication(options =>
         IssuerSigningKey         = new SymmetricSecurityKey(keyBytes),
         ClockSkew                = TimeSpan.Zero   // Token süresini tam tutuyoruz
     };
+
+    // SignalR, JWT token'ı query string üzerinden gönderir; bunu yakalamamız gerekiyor.
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/chathub"))
+            {
+                context.Token = accessToken;
+            }
+            return Task.CompletedTask;
+        }
+    };
 });
 
 // ─── Servisler (DI) ──────────────────────────────────────────────────────────
@@ -53,7 +86,7 @@ builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new()
     {
-        Title       = "PauMarket API",
+        Title       = "PAUMarket API",
         Version     = "v1",
         Description = "PAÜ öğrencilerine özel C2C pazaryeri — sadece @posta.pau.edu.tr e-postaları kabul edilir."
     });
@@ -86,16 +119,52 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 // ─── CORS (Frontend React Uygulaması için) ────────────────────────────────────
+var allowedOrigins = builder.Configuration
+    .GetSection("Cors:AllowedOrigins")
+    .Get<string[]>()?
+    .Where(origin => !string.IsNullOrWhiteSpace(origin))
+    .Distinct(StringComparer.OrdinalIgnoreCase)
+    .ToArray()
+    ?? [];
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp", policy =>
-        policy.AllowAnyOrigin()
+    {
+        if (allowedOrigins.Length > 0)
+        {
+            policy.WithOrigins(allowedOrigins)
+                  .AllowAnyMethod()
+                  .AllowAnyHeader()
+                  .AllowCredentials();
+            return;
+        }
+
+        policy.WithOrigins("http://localhost:5173", "http://127.0.0.1:5173")
               .AllowAnyMethod()
-              .AllowAnyHeader());
+              .AllowAnyHeader()
+              .AllowCredentials();
+    });
 });
 
 // ─── Health Checks ───────────────────────────────────────────────────────────
 builder.Services.AddHealthChecks();
+
+// ─── Rate Limiting ───────────────────────────────────────────────────────────
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("AuthRateLimit", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            }));
+});
 
 // ─── Application Services ────────────────────────────────────────────────────
 builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection("CloudinarySettings"));
@@ -103,9 +172,20 @@ builder.Services.AddScoped<IPhotoService, PhotoService>();
 builder.Services.AddScoped<IListingService, ListingService>();
 builder.Services.AddScoped<IInteractionService, InteractionService>();
 builder.Services.AddScoped<IMessageService, MessageService>();
-builder.Services.AddScoped<IRecommendationService, RecommendationService>();
+builder.Services.AddScoped<IDealRequestService, DealRequestService>();
+builder.Services.AddHttpClient<IRecommendationService, RecommendationService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddScoped<IRecommenderExportService, RecommenderExportService>();
+
+// ─── Background Services ─────────────────────────────────────────────────────
+if (builder.Configuration.GetValue("Moderation:EnableAutomaticModeration", false))
+{
+    builder.Services.AddHostedService<ModerationBackgroundService>();
+}
+
+// ─── SignalR ────────────────────────────────────────────────────────────────
+builder.Services.AddSignalR();
 
 var app = builder.Build();
 
@@ -113,20 +193,72 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "PauMarket API v1"));
+    app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "PAUMarket API v1"));
 
-    // Geliştirme ortamında migration'ları otomatik uygula
+    // Geliştirme ortamında migration'ları otomatik uygula.
+    // Demo ilan seed'i pilot veri toplamaya karışmaması için varsayılan olarak kapalıdır.
     using var scope = app.Services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<PauMarketDbContext>();
     await dbContext.Database.MigrateAsync();
+
+    // ─── EĞER VERİTABANI BOŞSA VİTRİN/TEST İÇİN 12 ADET KOPYA İLAN EKLE ───
+    var enableDemoListings = app.Configuration.GetValue("Seed:EnableDemoListings", false);
+
+    if (!enableDemoListings)
+    {
+        Console.WriteLine("[SEED] Demo listing seed disabled. Pilot data will start clean.");
+    }
+    else if (!await dbContext.Listings.AnyAsync())
+    {
+        Console.WriteLine("[SEED] Veritabanı boş! Sunum/Test için 12 adet başlangıç ilanı yükleniyor...");
+
+        // 1. Sistem kullanıcısını bul veya oluştur
+        var systemUser = await dbContext.Users.FirstOrDefaultAsync(u => u.Email == "system@posta.pau.edu.tr");
+        if (systemUser == null)
+        {
+            systemUser = new PauMarket.API.Models.User
+            {
+                FirstName = "Sistem",
+                LastName = "Kullanıcısı",
+                Email = "system@posta.pau.edu.tr",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("PauMarket2026!", 12),
+                IsEmailVerified = true,
+                Role = "Admin"
+            };
+            dbContext.Users.Add(systemUser);
+            await dbContext.SaveChangesAsync(); // userId alabilmek için
+        }
+
+        // 2. İlanları oluştur (Frontend'deki MOCK_LISTINGS ile tam eşleşen)
+        var mockListings = new List<PauMarket.API.Models.Listing>
+        {
+            new() { Title = "Apple MacBook Air M2 - 13\"", Price = 28500, Condition = "Az Kullanılmış", Category = "Elektronik", ImageUrl = "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400&q=80", UserId = systemUser.Id, IsApproved = true, ModerationStatus = PauMarket.API.Models.ListingModerationStatus.Approved },
+            new() { Title = "Calculus - James Stewart (8. Baskı)", Price = 180, Condition = "Çok Kullanılmış", Category = "Ders Kitabı", ImageUrl = "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400&q=80", UserId = systemUser.Id, IsApproved = true, ModerationStatus = PauMarket.API.Models.ListingModerationStatus.Approved },
+            new() { Title = "Nike Air Force 1 – 42 Numara", Price = 750, Condition = "Sıfır", Category = "Giyim", ImageUrl = "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=80", UserId = systemUser.Id, IsApproved = true, ModerationStatus = PauMarket.API.Models.ListingModerationStatus.Approved },
+            new() { Title = "Nespresso Kahve Makinesi", Price = 1200, Condition = "Az Kullanılmış", Category = "Ev Eşyası", ImageUrl = "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=400&q=80", UserId = systemUser.Id, IsApproved = true, ModerationStatus = PauMarket.API.Models.ListingModerationStatus.Approved },
+            new() { Title = "Sony WH-1000XM5 Kulaklık", Price = 4200, Condition = "Sıfır", Category = "Elektronik", ImageUrl = "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&q=80", UserId = systemUser.Id, IsApproved = true, ModerationStatus = PauMarket.API.Models.ListingModerationStatus.Approved },
+            new() { Title = "Veri Yapıları ve Algoritmalar Notları", Price = 50, Condition = "Çok Kullanılmış", Category = "Not / Özet", ImageUrl = "https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?w=400&q=80", UserId = systemUser.Id, IsApproved = true, ModerationStatus = PauMarket.API.Models.ListingModerationStatus.Approved },
+            new() { Title = "Logitech MX Master 3 Mouse", Price = 1850, Condition = "Az Kullanılmış", Category = "Elektronik", ImageUrl = "https://images.unsplash.com/photo-1527814050087-3793815479db?w=400&q=80", UserId = systemUser.Id, IsApproved = true, ModerationStatus = PauMarket.API.Models.ListingModerationStatus.Approved },
+            new() { Title = "Trek Marlin 5 Dağ Bisikleti", Price = 6500, Condition = "Az Kullanılmış", Category = "Hobi", ImageUrl = "https://images.unsplash.com/photo-1485965120184-e220f721d03e?w=400&q=80", UserId = systemUser.Id, IsApproved = true, ModerationStatus = PauMarket.API.Models.ListingModerationStatus.Approved },
+            new() { Title = "iPad Pro 11\" + Apple Pencil", Price = 19000, Condition = "Sıfır", Category = "Elektronik", ImageUrl = "https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=400&q=80", UserId = systemUser.Id, IsApproved = true, ModerationStatus = PauMarket.API.Models.ListingModerationStatus.Approved },
+            new() { Title = "Thermos Stanley 1L", Price = 450, Condition = "Sıfır", Category = "Ev Eşyası", ImageUrl = "https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=400&q=80", UserId = systemUser.Id, IsApproved = true, ModerationStatus = PauMarket.API.Models.ListingModerationStatus.Approved },
+            new() { Title = "Fizik Olimpiyat Soruları Kitabı", Price = 90, Condition = "Az Kullanılmış", Category = "Ders Kitabı", ImageUrl = "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=400&q=80", UserId = systemUser.Id, IsApproved = true, ModerationStatus = PauMarket.API.Models.ListingModerationStatus.Approved },
+            new() { Title = "PlayStation 5 + 2 Kol", Price = 22000, Condition = "Az Kullanılmış", Category = "Hobi", ImageUrl = "https://images.unsplash.com/photo-1607853202273-797f1c22a38e?w=400&q=80", UserId = systemUser.Id, IsApproved = true, ModerationStatus = PauMarket.API.Models.ListingModerationStatus.Approved }
+        };
+
+        dbContext.Listings.AddRange(mockListings);
+        await dbContext.SaveChangesAsync();
+        Console.WriteLine("[SEED] 12 adet ilan başarıyla C# veritabanına eklendi!");
+    }
 }
 
 app.UseHttpsRedirection();
 app.UseCors("AllowReactApp");
+app.UseRateLimiter(); // Add UseRateLimiter middleware
 app.UseAuthentication();   // JWT doğrulama — UseAuthorization'dan önce olmalı
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<ChatHub>("/chathub");
 app.MapHealthChecks("/health");
 
 await app.RunAsync();
-

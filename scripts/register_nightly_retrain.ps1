@@ -26,7 +26,7 @@ Register-ScheduledTask `
     -Action $action `
     -Trigger $trigger `
     -Settings $settings `
-    -Description "PAU Market LightFM modelini her gece yeniden egitir ve FastAPI modelini yeniler." `
+    -Description "PAUMarket LightFM modelini her gece yeniden egitir ve FastAPI modelini yeniler." `
     -Force | Out-Null
 
 Write-Host "Scheduled task olusturuldu: $TaskName ($RunAt)"

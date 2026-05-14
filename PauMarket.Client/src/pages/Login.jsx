@@ -1,22 +1,34 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LogIn, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
+import { LogIn, AlertCircle, Loader2, CheckCircle2, Mail, LockKeyhole } from 'lucide-react';
 import AuthSplitLayout from '../layouts/AuthSplitLayout';
 import authService from '../services/authService';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
+
+const labelClass = 'mb-2 block text-sm font-black text-slate-700';
+const inputClass = 'w-full rounded-2xl border border-slate-200/80 bg-white/90 px-12 py-4 text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-cyan-500 focus:bg-white focus:ring-4 focus:ring-cyan-500/15 disabled:cursor-not-allowed disabled:opacity-60';
+const fieldIconClass = 'pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-cyan-600';
 
 const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
-    const navigate = useNavigate();
     const location = useLocation();
+    const navigate = useNavigate();
     const { login } = useAuth();
 
-    // Kayıt sonrası mı geliniyoruz?
-    const justRegistered = new URLSearchParams(location.search).get('registered') === 'true';
+    const searchParams = new URLSearchParams(location.search);
+    const justVerified = searchParams.get('verified') === 'true';
+    const verificationMessage = location.state?.verificationMessage
+        || 'E-posta adresin doğrulandı. Artık giriş yapabilirsin.';
+    const passwordResetMessage = location.state?.passwordResetMessage;
+    const redirectFromProtectedRoute = location.state?.from;
+    const redirectAfterLogin = location.state?.redirectAfterLogin
+        || (redirectFromProtectedRoute
+            ? `${redirectFromProtectedRoute.pathname || '/'}${redirectFromProtectedRoute.search || ''}`
+            : '/');
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -26,18 +38,26 @@ const Login = () => {
         try {
             const data = await authService.login(email, password);
             if (data.token) {
-                // AuthContext login fonksiyonu: token'i kaydet, user state'i set et
-                login(data.token);
-                // Kayıt sonrasıysa onboarding'e, değilse ana sayfaya
-                if (justRegistered) {
-                    navigate('/onboarding');
-                }
-                // Aksi hâlde AuthContext.login kendi içinde '/'je navigate ediyor
+                login(data.token, redirectAfterLogin);
             } else {
                 setError('Giriş başarısız. Lütfen bilgilerinizi kontrol edin.');
             }
         } catch (err) {
-            setError(err.response?.data?.error || err.response?.data?.message || 'Giriş yapılırken bir hata oluştu. E-posta adresinizi ve şifrenizi kontrol edin.');
+            const responseData = err.response?.data;
+            const responseCode = responseData?.code;
+            const responseError = responseData?.error || responseData?.message;
+
+            if (responseCode === 'EMAIL_NOT_VERIFIED') {
+                navigate('/verify-email', {
+                    state: {
+                        email,
+                        loginMessage: responseError
+                    }
+                });
+                return;
+            }
+
+            setError(responseError || 'Giriş yapılırken bir hata oluştu. E-posta adresinizi ve şifrenizi kontrol edin.');
         } finally {
             setIsLoading(false);
         }
@@ -45,34 +65,53 @@ const Login = () => {
 
     return (
         <AuthSplitLayout
-            title="Tekrar Hoş Geldiniz!"
-            subtitle="Üniversitemizin en büyük öğrenci pazarına yeniden katılın ve binlerce yeni ilanı keşfedin."
+            title="Kampüs pazarına tekrar hoş geldin."
+            subtitle="PAÜ hesabınla güvenle giriş yap, yeni ilanları yakala ve kampüs içinde hızlıca anlaş."
         >
             <motion.div
-                initial={{ opacity: 0, y: 30 }}
+                initial={{ opacity: 0, y: 24 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ type: "spring", stiffness: 260, damping: 20 }}
+                transition={{ type: 'spring', stiffness: 260, damping: 22 }}
             >
-                <div className="flex justify-center mb-6">
-                    <div className="bg-blue-50 p-4 rounded-full text-blue-600 shadow-inner">
+                <div className="mb-7 flex justify-center">
+                    <div className="relative flex h-16 w-16 items-center justify-center rounded-[1.4rem] bg-gradient-to-br from-cyan-100 to-amber-100 text-[#0f766e] shadow-[inset_0_1px_0_rgba(255,255,255,.8),0_18px_40px_rgba(15,118,110,.18)]">
+                        <span className="absolute -right-1 -top-1 h-4 w-4 rounded-full bg-amber-300 shadow-lg" />
                         <LogIn className="w-8 h-8" />
                     </div>
                 </div>
 
-                <h2 className="text-3xl font-extrabold text-center text-gray-900 mb-6">
-                    Giriş Yap
+                <p className="text-center text-xs font-black uppercase tracking-[0.28em] text-cyan-700">
+                    Güvenli oturum
+                </p>
+                <h2 className="mt-2 text-center text-3xl font-black tracking-tight text-slate-950">
+                    Hesabına giriş yap
                 </h2>
+                <p className="mx-auto mt-3 mb-7 max-w-sm text-center text-sm font-medium leading-6 text-slate-500">
+                    Üniversite e-postan ve şifrenle PAUMarket akışına kaldığın yerden devam et.
+                </p>
 
-                {/* Kayıt sonrası hoş geldin notu */}
-                {justRegistered && (
+                {justVerified && (
                     <motion.div
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl flex items-start gap-3 shadow-sm"
+                        className="mb-6 flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/90 p-4 shadow-sm"
                     >
-                        <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5 shrink-0" />
-                        <p className="text-sm text-green-800 font-medium">
-                            Hesabın oluşturuldu! 🎉 Lütfen e-postana gönderilen doğrulama kodunu kullanarak hesabını aktif et, ardından giriş yap.
+                        <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+                        <p className="text-sm font-bold leading-relaxed text-emerald-800">
+                            {verificationMessage}
+                        </p>
+                    </motion.div>
+                )}
+
+                {passwordResetMessage && (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="mb-6 flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/90 p-4 shadow-sm"
+                    >
+                        <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+                        <p className="text-sm font-bold leading-relaxed text-emerald-800">
+                            {passwordResetMessage}
                         </p>
                     </motion.div>
                 )}
@@ -81,71 +120,81 @@ const Login = () => {
                     <motion.div
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 shadow-sm"
+                        className="mb-6 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50/90 p-4 shadow-sm"
                     >
-                        <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
-                        <p className="text-sm text-red-700 font-medium leading-relaxed">{error}</p>
+                        <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-600" />
+                        <p className="text-sm font-bold leading-relaxed text-red-700">{error}</p>
                     </motion.div>
                 )}
 
                 <form className="space-y-6" onSubmit={handleLogin}>
                     <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="email">
+                        <label className={labelClass} htmlFor="email">
                             Üniversite E-Postası
                         </label>
-                        <input
-                            type="email"
-                            id="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            disabled={isLoading}
-                            placeholder="ornek@posta.pau.edu.tr"
-                            className="w-full px-5 py-3.5 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all text-gray-800 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
-                            required
-                        />
+                        <div className="group relative">
+                            <Mail className={fieldIconClass} />
+                            <input
+                                type="email"
+                                id="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                disabled={isLoading}
+                                placeholder="Okul e-posta adresini gir"
+                                className={inputClass}
+                                required
+                            />
+                        </div>
                     </div>
 
                     <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="password">
+                        <label className={labelClass} htmlFor="password">
                             Şifre
                         </label>
-                        <input
-                            type="password"
-                            id="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            disabled={isLoading}
-                            placeholder="••••••••"
-                            className="w-full px-5 py-3.5 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all text-gray-800 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
-                            required
-                        />
+                        <div className="group relative">
+                            <LockKeyhole className={fieldIconClass} />
+                            <input
+                                type="password"
+                                id="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                disabled={isLoading}
+                                placeholder="Şifreni gir"
+                                className={inputClass}
+                                required
+                            />
+                        </div>
                     </div>
 
                     <div className="flex items-center justify-end">
-                        <a href="#" className="text-sm text-blue-600 hover:text-blue-800 font-medium transition-colors">
-                            Şifremi Unuttum?
-                        </a>
+                        <Link
+                            to="/forgot-password"
+                            state={{ email }}
+                            className="text-sm font-black text-[#0f766e] transition-colors hover:text-[#115e59]"
+                        >
+                            Şifremi unuttum
+                        </Link>
                     </div>
 
                     <button
                         type="submit"
                         disabled={isLoading}
-                        className="w-full py-4 px-4 mt-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:translate-y-0 flex justify-center items-center gap-2"
+                        className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#0f766e] via-[#0e7490] to-[#164e63] px-4 py-4 font-black text-white shadow-[0_18px_36px_rgba(14,116,144,0.28)] transition-all hover:-translate-y-0.5 hover:shadow-[0_22px_46px_rgba(14,116,144,0.34)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0"
                     >
                         {isLoading ? (
                             <>
                                 <Loader2 className="w-5 h-5 animate-spin" />
-                                Giriş Yapılıyor...
+                                Giriş yapılıyor...
                             </>
                         ) : (
-                            'Giriş Yap'
+                            'Giriş yap'
                         )}
                     </button>
                 </form>
 
-                <div className="mt-8 text-center text-sm text-gray-500">
+                <div className="mt-8 rounded-2xl border border-slate-200/70 bg-slate-50/70 px-4 py-4 text-center text-sm font-semibold text-slate-500">
                     Hesabın yok mu?{' '}
-                    <Link to="/register" className="text-blue-600 hover:text-blue-800 font-bold transition-colors">
+                    <Link to="/register" className="font-black text-[#0f766e] transition-colors hover:text-[#115e59]">
                         Hemen kayıt ol
                     </Link>
                 </div>

@@ -9,9 +9,9 @@ public class DashboardService(PauMarketDbContext db) : IDashboardService
 {
     public async Task<DashboardSummaryDto> GetUserDashboardAsync(int userId)
     {
-        // 1. Kullanıcının aktif ilanlarının sayısı
+        // 1. Kullanıcının yayındaki ilanlarının sayısı
         int totalActiveListings = await db.Listings
-            .CountAsync(l => l.UserId == userId && l.IsActive);
+            .CountAsync(l => l.UserId == userId && !l.IsSold);
 
         // 2. Kullanıcının ilanlarına yapılan toplam tıklama/görüntüleme
         int totalViews = await db.UserViews

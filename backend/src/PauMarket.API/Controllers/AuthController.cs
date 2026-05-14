@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using PauMarket.API.DTOs;
 using PauMarket.API.Services;
 
@@ -9,19 +10,20 @@ namespace PauMarket.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
+[EnableRateLimiting("AuthRateLimit")]
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
+    private readonly IConfiguration _configuration;
 
-    public AuthController(IAuthService authService)
+    public AuthController(IAuthService authService, IConfiguration configuration)
     {
         _authService = authService;
+        _configuration = configuration;
     }
 
     /// <summary>
-    /// Yeni kullanıcı kaydeder.
-    /// E-posta ^[a-z]+\d{2}@posta\.pau\.edu\.tr$ formatına uymalıdır (örn: htogmus21@posta.pau.edu.tr).
-    /// Kayıt başarılıysa konsola 6 haneli doğrulama kodu yazılır (e-posta simülasyonu).
+    /// Yeni kullanıcı kaydeder ve doğrulama kodu üretir.
     /// </summary>
     [HttpPost("register")]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -34,7 +36,11 @@ public class AuthController : ControllerBase
         try
         {
             var message = await _authService.RegisterAsync(dto);
-            return Ok(new { message });
+            return Ok(new
+            {
+                message,
+                expiresInSeconds = GetVerificationCodeLifetimeSeconds()
+            });
         }
         catch (InvalidOperationException ex)
         {
@@ -44,7 +50,6 @@ public class AuthController : ControllerBase
 
     /// <summary>
     /// Kullanıcı girişini doğrular ve başarı durumunda JWT token döner.
-    /// E-posta henüz doğrulanmadıysa 403 Forbidden döner.
     /// </summary>
     [HttpPost("login")]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -66,32 +71,119 @@ public class AuthController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            // E-posta doğrulanmamış — 403 Forbidden ile hata mesajını döndür
-            return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message });
+            var code = ex.Message.Contains("doğrulanmadı", StringComparison.OrdinalIgnoreCase)
+                ? "EMAIL_NOT_VERIFIED"
+                : "LOGIN_BLOCKED";
+
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message, code });
         }
     }
 
     /// <summary>
     /// Kayıt sonrası gönderilen 6 haneli kodu doğrular ve hesabı aktif eder.
     /// </summary>
-    /// <param name="email">Doğrulanacak e-posta adresi</param>
-    /// <param name="token">6 haneli doğrulama kodu</param>
     [HttpPost("verify-email")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> VerifyEmail([FromQuery] string email, [FromQuery] string token)
+    public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailRequestDto dto)
     {
-        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(token))
-            return BadRequest(new { error = "E-posta ve doğrulama kodu zorunludur." });
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
 
         try
         {
-            var message = await _authService.VerifyEmailAsync(email, token);
+            var message = await _authService.VerifyEmailAsync(dto.Email, dto.Token);
             return Ok(new { message });
         }
         catch (InvalidOperationException ex)
         {
             return BadRequest(new { error = ex.Message });
         }
+    }
+
+    /// <summary>
+    /// Kullanıcı için yeni doğrulama kodu üretir ve tekrar gönderir.
+    /// </summary>
+    [HttpPost("resend-verification")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ResendVerification([FromBody] ResendVerificationRequestDto dto)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        try
+        {
+            var message = await _authService.ResendVerificationAsync(dto.Email);
+            return Ok(new
+            {
+                message,
+                expiresInSeconds = GetVerificationCodeLifetimeSeconds()
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Şifresini unutan kullanıcı için süreli sıfırlama kodu gönderir.
+    /// </summary>
+    [HttpPost("forgot-password")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequestDto dto)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        try
+        {
+            var message = await _authService.RequestPasswordResetAsync(dto);
+            return Ok(new
+            {
+                message,
+                expiresInSeconds = GetPasswordResetCodeLifetimeSeconds()
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Şifre sıfırlama kodunu doğrular ve yeni şifreyi kaydeder.
+    /// </summary>
+    [HttpPost("reset-password")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        try
+        {
+            var message = await _authService.ResetPasswordAsync(dto);
+            return Ok(new { message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    private int GetVerificationCodeLifetimeSeconds()
+    {
+        var seconds = _configuration.GetValue<int?>("EmailVerification:CodeLifetimeSeconds") ?? 120;
+        return seconds > 0 ? seconds : 120;
+    }
+
+    private int GetPasswordResetCodeLifetimeSeconds()
+    {
+        var seconds = _configuration.GetValue<int?>("PasswordReset:CodeLifetimeSeconds") ?? 600;
+        return seconds > 0 ? seconds : 600;
     }
 }

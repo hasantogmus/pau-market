@@ -4,6 +4,9 @@ namespace PauMarket.API.Services;
 
 public interface IMessageService
 {
+    /// <summary>Kullanıcının tüm konuşma özetlerini en yeni mesaj sırasıyla getirir.</summary>
+    Task<IEnumerable<MessageThreadDto>> GetInboxAsync(int currentUserId);
+
     /// <summary>Yeni bir mesaj oluşturur ve veritabanına kaydeder.</summary>
     Task<MessageResponseDto> SendMessageAsync(SendMessageDto dto, int senderId);
 
