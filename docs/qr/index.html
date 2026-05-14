@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PAUMarket | Demo ve İletişim</title>
+    <meta
+      name="description"
+      content="PAUMarket demo videosu, GitHub reposu ve proje ekibi iletişim bilgileri."
+    />
+    <script src="./config.js"></script>
+    <style>
+      :root {
+        --blue: #1557ff;
+        --blue-dark: #081b4d;
+        --blue-soft: #eaf2ff;
+        --ink: #0f172a;
+        --muted: #64748b;
+        --line: #dbe7ff;
+        --card: rgba(255, 255, 255, 0.86);
+        --shadow: 0 24px 70px rgba(15, 23, 42, 0.16);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at top left, rgba(21, 87, 255, 0.18), transparent 32rem),
+          linear-gradient(135deg, #f8fbff 0%, #eef5ff 48%, #ffffff 100%);
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .page {
+        width: min(1120px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 36px 0;
+      }
+
+      .hero {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 36px;
+        background: var(--card);
+        box-shadow: var(--shadow);
+      }
+
+      .hero::before,
+      .hero::after {
+        content: "";
+        position: absolute;
+        border-radius: 999px;
+        pointer-events: none;
+      }
+
+      .hero::before {
+        width: 320px;
+        height: 320px;
+        right: -120px;
+        top: -120px;
+        background: rgba(21, 87, 255, 0.16);
+      }
+
+      .hero::after {
+        width: 220px;
+        height: 220px;
+        left: -80px;
+        bottom: -90px;
+        border: 28px solid rgba(21, 87, 255, 0.08);
+      }
+
+      .hero-inner {
+        position: relative;
+        display: grid;
+        grid-template-columns: 1.1fr 0.9fr;
+        gap: 32px;
+        padding: 52px;
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        width: fit-content;
+        padding: 10px 14px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        color: var(--blue);
+        background: #fff;
+        font-weight: 900;
+      }
+
+      .logo-mark {
+        display: inline-grid;
+        width: 34px;
+        height: 34px;
+        place-items: center;
+        border-radius: 12px;
+        color: #fff;
+        background: linear-gradient(135deg, var(--blue), #4c2cff);
+        font-size: 14px;
+        letter-spacing: -0.08em;
+      }
+
+      h1 {
+        max-width: 720px;
+        margin: 22px 0 16px;
+        color: var(--blue-dark);
+        font-size: clamp(2.4rem, 6vw, 5rem);
+        line-height: 0.94;
+        letter-spacing: -0.07em;
+      }
+
+      .lead {
+        max-width: 620px;
+        margin: 0;
+        color: var(--muted);
+        font-size: clamp(1.05rem, 2.2vw, 1.35rem);
+        line-height: 1.65;
+      }
+
+      .actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+        margin-top: 30px;
+      }
+
+      .button {
+        display: flex;
+        min-height: 66px;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        border-radius: 22px;
+        border: 1px solid var(--line);
+        background: #fff;
+        box-shadow: 0 12px 26px rgba(15, 23, 42, 0.08);
+        font-weight: 900;
+        transition:
+          transform 160ms ease,
+          box-shadow 160ms ease,
+          border-color 160ms ease;
+      }
+
+      .button:hover {
+        transform: translateY(-2px);
+        border-color: rgba(21, 87, 255, 0.42);
+        box-shadow: 0 18px 34px rgba(15, 23, 42, 0.13);
+      }
+
+      .button.primary {
+        color: #fff;
+        border-color: transparent;
+        background: linear-gradient(135deg, var(--blue), #4a2eff);
+      }
+
+      .panel {
+        align-self: center;
+        border: 1px solid var(--line);
+        border-radius: 30px;
+        background: rgba(255, 255, 255, 0.72);
+        padding: 28px;
+      }
+
+      .panel-title {
+        margin: 0 0 18px;
+        color: var(--blue-dark);
+        font-size: 1.25rem;
+        font-weight: 950;
+      }
+
+      .info-list {
+        display: grid;
+        gap: 14px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .info-list li {
+        display: grid;
+        grid-template-columns: 44px 1fr;
+        gap: 12px;
+        align-items: center;
+        padding: 14px;
+        border-radius: 20px;
+        background: #fff;
+      }
+
+      .icon {
+        display: grid;
+        width: 44px;
+        height: 44px;
+        place-items: center;
+        border-radius: 16px;
+        color: var(--blue);
+        background: var(--blue-soft);
+        font-weight: 950;
+      }
+
+      .label {
+        display: block;
+        color: var(--muted);
+        font-size: 0.84rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+      }
+
+      .value {
+        display: block;
+        margin-top: 3px;
+        font-weight: 900;
+        word-break: break-word;
+      }
+
+      .footer {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 22px 8px 0;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+
+      @media (max-width: 860px) {
+        .hero-inner {
+          grid-template-columns: 1fr;
+          padding: 32px 22px;
+        }
+
+        .actions {
+          grid-template-columns: 1fr;
+        }
+
+        .panel {
+          padding: 20px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero" aria-labelledby="page-title">
+        <div class="hero-inner">
+          <div>
+            <a class="brand" href="https://github.com/hasantogmus/pau-market" id="brand-link">
+              <span class="logo-mark">PM</span>
+              <span>PAUMarket</span>
+            </a>
+            <h1 id="page-title">Kampüs içi akıllı ikinci el pazar yeri</h1>
+            <p class="lead">
+              PAÜ öğrencileri okul e-postasıyla doğrulanır, ilanları keşfeder,
+              mesajlaşır, anlaşma sürecini takip eder ve kişiselleştirilmiş önerilerle
+              kampüs içinde güvenli alışveriş yapar.
+            </p>
+
+            <div class="actions" aria-label="PAUMarket bağlantıları">
+              <a class="button primary" href="#" id="demo-link">Demo videosunu izle</a>
+              <a class="button" href="#" id="github-link">GitHub projesi</a>
+              <a class="button" href="#" id="hasan-mail">Hasan ile iletişim</a>
+              <a class="button" href="#" id="berke-mail">Berke ile iletişim</a>
+            </div>
+          </div>
+
+          <aside class="panel" aria-label="Proje özeti">
+            <p class="panel-title">Tek QR ile tüm proje bilgileri</p>
+            <ul class="info-list">
+              <li>
+                <span class="icon">1</span>
+                <span>
+                  <span class="label">Demo</span>
+                  <span class="value">Kısa proje videosu ve kullanıcı akışı</span>
+                </span>
+              </li>
+              <li>
+                <span class="icon">2</span>
+                <span>
+                  <span class="label">Kaynak kod</span>
+                  <span class="value">React, ASP.NET Core, SQL Server ve FastAPI</span>
+                </span>
+              </li>
+              <li>
+                <span class="icon">3</span>
+                <span>
+                  <span class="label">İletişim</span>
+                  <span class="value">Hasan Toğmuş ve Berke Çakıroğlu</span>
+                </span>
+              </li>
+            </ul>
+          </aside>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <span>PAUMarket Bitirme Projesi · WM - 6</span>
+        <span>Pamukkale Üniversitesi Bilgisayar Mühendisliği</span>
+      </footer>
+    </main>
+
+    <script>
+      const defaults = {
+        demoVideoUrl: "https://www.youtube.com/",
+        githubUrl: "https://github.com/hasantogmus/pau-market",
+        hasanEmail: "hasan.togmus76@gmail.com",
+        berkeEmail: "berke.cakiroglu@posta.pau.edu.tr",
+      };
+
+      const links = { ...defaults, ...(window.PAUMARKET_LINKS || {}) };
+
+      const setHref = (id, href) => {
+        const element = document.getElementById(id);
+        if (element) element.href = href;
+      };
+
+      const demoLink = document.getElementById("demo-link");
+      const isDemoPlaceholder = links.demoVideoUrl === defaults.demoVideoUrl;
+
+      setHref("brand-link", links.githubUrl);
+      setHref("demo-link", links.demoVideoUrl);
+      setHref("github-link", links.githubUrl);
+      setHref("hasan-mail", `mailto:${links.hasanEmail}?subject=PAUMarket%20Projesi`);
+      setHref("berke-mail", `mailto:${links.berkeEmail}?subject=PAUMarket%20Projesi`);
+
+      ["brand-link", "demo-link", "github-link"].forEach((id) => {
+        const element = document.getElementById(id);
+        if (element) {
+          element.target = "_blank";
+          element.rel = "noopener noreferrer";
+        }
+      });
+
+      if (demoLink && isDemoPlaceholder) {
+        demoLink.textContent = "Demo videosu eklenecek";
+        demoLink.href = "#";
+        demoLink.removeAttribute("target");
+        demoLink.removeAttribute("rel");
+        demoLink.setAttribute("aria-disabled", "true");
+        demoLink.addEventListener("click", (event) => event.preventDefault());
+      }
+    </script>
+  </body>
+</html>
