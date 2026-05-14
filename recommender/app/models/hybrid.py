@@ -74,8 +74,31 @@ class HybridLightFMModel:
               f"lr={LIGHTFM_LEARNING_RATE}, epochs={LIGHTFM_EPOCHS}")
 
         # ── Etkileşim matrisi ──
-        interactions = preprocessor.get_train_sparse_matrix()
-        print(f"   Etkileşim matrisi: {interactions.shape}, nnz={interactions.nnz:,}")
+        # LightFM WARP implicit feedback ile çalışır: interaction matrisi
+        # pozitif var/yok bilgisini, sample_weight ise PAÜ event gücünü taşır.
+        if hasattr(preprocessor, "get_train_lightfm_matrices"):
+            interactions, sample_weight = preprocessor.get_train_lightfm_matrices()
+        else:
+            weighted_interactions = preprocessor.get_train_sparse_matrix().tocoo()
+            interactions = coo_matrix(
+                (
+                    np.ones_like(weighted_interactions.data, dtype=np.float32),
+                    (weighted_interactions.row, weighted_interactions.col),
+                ),
+                shape=weighted_interactions.shape,
+            )
+            sample_weight = coo_matrix(
+                (
+                    weighted_interactions.data.astype(np.float32),
+                    (weighted_interactions.row, weighted_interactions.col),
+                ),
+                shape=weighted_interactions.shape,
+            )
+
+        print(
+            f"   Etkileşim matrisi: {interactions.shape}, nnz={interactions.nnz:,} "
+            f"(sample_weight aktif)"
+        )
 
         # ── Ürün özellik matrisi oluştur ──
         self.item_features = self._build_item_features(preprocessor)
@@ -94,6 +117,7 @@ class HybridLightFMModel:
             self.model.fit_partial(
                 interactions,
                 item_features=self.item_features,
+                sample_weight=sample_weight,
                 epochs=1,
                 num_threads=4,
             )
@@ -189,8 +213,9 @@ class HybridLightFMModel:
         # Tüm ürünler için skor hesapla
         item_ids = np.arange(self._n_items)
 
+        user_ids = np.full(item_ids.shape, user_idx, dtype=np.int32)
         scores = self.model.predict(
-            user_ids=user_idx,
+            user_ids=user_ids,
             item_ids=item_ids,
             item_features=self.item_features,
         )

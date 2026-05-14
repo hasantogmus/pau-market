@@ -38,6 +38,7 @@ class PauMarketPreprocessor:
     """
 
     REQUIRED_INTERACTION_COLUMNS = {"user_id", "listing_id", "event", "timestamp"}
+    HOLDOUT_ITEMS_PER_USER = 2
 
     def __init__(
         self,
@@ -55,6 +56,10 @@ class PauMarketPreprocessor:
         self.listings_df: pd.DataFrame | None = None
         self.train_df: pd.DataFrame | None = None
         self.test_df: pd.DataFrame | None = None
+        self.raw_event_count = 0
+        self.raw_train_count = 0
+        self.raw_test_count = 0
+        self.raw_event_distribution: dict = {}
 
         self.user_id_map: dict[int, int] = {}
         self.item_id_map: dict[int, int] = {}
@@ -72,7 +77,8 @@ class PauMarketPreprocessor:
         self._normalize_events()
         self._assign_weights()
         self._remove_duplicates()
-        self._time_based_split()
+        self._user_temporal_holdout()
+        self._aggregate_user_item_events()
         self._filter_sparse_users_items()
         self._create_id_maps()
         self._load_item_categories()
@@ -180,6 +186,111 @@ class PauMarketPreprocessor:
             f"Ham test: {len(self.test_df):,} etkileşim"
         )
 
+    def _user_temporal_holdout(self):
+        """
+        Her kullanıcının son farklı ilan etkileşimlerini test setine ayırır.
+
+        Global zaman split'i küçük pilot veride çoğu kullanıcının yalnızca train
+        veya yalnızca test tarafında kalmasına neden oluyordu. Bu split, aynı
+        kullanıcının geçmişinden öğrenip sonraki ilgi alanını ölçmeye daha uygun.
+        """
+        holdout_n = self.HOLDOUT_ITEMS_PER_USER
+        print(f"[6/8] Kullanıcı bazlı temporal holdout (son {holdout_n} farklı ilan test)...")
+
+        self.events_df = self.events_df.sort_values("timestamp").reset_index(drop=True)
+        self.raw_event_count = len(self.events_df)
+        self.raw_event_distribution = self.events_df["event"].value_counts().to_dict()
+
+        pair_history = (
+            self.events_df
+            .groupby(["user_id", "listing_id"], as_index=False)
+            .agg(timestamp=("timestamp", "max"))
+            .sort_values(["user_id", "timestamp", "listing_id"])
+        )
+
+        test_pairs: set[tuple[int, int]] = set()
+        for user_id, user_pairs in pair_history.groupby("user_id", sort=False):
+            if len(user_pairs) <= holdout_n + 1:
+                continue
+
+            for pair in user_pairs.tail(holdout_n).itertuples(index=False):
+                test_pairs.add((int(pair.user_id), int(pair.listing_id)))
+
+        if not test_pairs:
+            print("  → Yeterli kullanıcı geçmişi yok; güvenli global zaman split'e düşülüyor")
+            self._time_based_split()
+            self.raw_train_count = len(self.train_df)
+            self.raw_test_count = len(self.test_df)
+            return
+
+        pair_index = list(zip(self.events_df["user_id"], self.events_df["listing_id"]))
+        is_test_pair = pd.Series(
+            [(int(user_id), int(listing_id)) in test_pairs for user_id, listing_id in pair_index],
+            index=self.events_df.index,
+        )
+
+        self.train_df = self.events_df[~is_test_pair].copy()
+        self.test_df = self.events_df[is_test_pair].copy()
+        self.raw_train_count = len(self.train_df)
+        self.raw_test_count = len(self.test_df)
+
+        if self.train_df.empty:
+            raise ValueError(
+                "PAÜ Market export'u eğitim seti oluşturmak için yeterli değil. "
+                "Kullanıcı bazlı holdout sonrasında train tarafı boş kaldı."
+            )
+
+        print(
+            f"  → Ham train: {self.raw_train_count:,} event | "
+            f"Ham test: {self.raw_test_count:,} event | "
+            f"Test kullanıcı sayısı: {self.test_df['user_id'].nunique():,}"
+        )
+
+    def _aggregate_frame(self, frame: pd.DataFrame) -> pd.DataFrame:
+        if frame.empty:
+            return frame.copy()
+
+        # Aynı kullanıcı-ilan çiftindeki tekrarları tek gözleme indiriyoruz.
+        # En güçlü sinyal ağırlığı eğitimde korunur; temsil event'i de aynı
+        # mantıkla en yüksek ağırlık ve en güncel timestamp üzerinden seçilir.
+        representative_events = (
+            frame
+            .sort_values(
+                ["user_id", "listing_id", "weight", "timestamp"],
+                ascending=[True, True, False, False],
+            )
+            .drop_duplicates(subset=["user_id", "listing_id"], keep="first")
+            [["user_id", "listing_id", "event"]]
+        )
+
+        aggregated = (
+            frame
+            .groupby(["user_id", "listing_id"], as_index=False)
+            .agg(
+                weight=("weight", "max"),
+                timestamp=("timestamp", "max"),
+                raw_event_count=("event", "count"),
+            )
+            .merge(representative_events, on=["user_id", "listing_id"], how="left")
+        )
+
+        return aggregated[["user_id", "listing_id", "event", "timestamp", "weight", "raw_event_count"]]
+
+    def _aggregate_user_item_events(self):
+        print("[6/8] User-listing tekrarları max ağırlıkla tek gözleme indiriliyor...")
+
+        before_train = len(self.train_df)
+        before_test = len(self.test_df)
+
+        self.train_df = self._aggregate_frame(self.train_df)
+        self.test_df = self._aggregate_frame(self.test_df)
+        self.events_df = pd.concat([self.train_df, self.test_df], ignore_index=True)
+
+        print(
+            f"  → Train: {before_train:,} event → {len(self.train_df):,} user-listing çifti | "
+            f"Test: {before_test:,} event → {len(self.test_df):,} user-listing çifti"
+        )
+
     def _filter_sparse_users_items(self):
         print(
             "[7/8] Train tabanlı sparse filtreleme "
@@ -277,14 +388,21 @@ class PauMarketPreprocessor:
 
         self.stats = {
             "source": "paumarket",
+            "split_strategy": "user_temporal_holdout",
+            "holdout_items_per_user": self.HOLDOUT_ITEMS_PER_USER,
+            "aggregation_strategy": "max_weight_per_user_listing",
             "n_users": n_users,
             "n_items": n_items,
+            "n_raw_events": self.raw_event_count or n_interactions,
+            "n_raw_train": self.raw_train_count or len(self.train_df),
+            "n_raw_test": self.raw_test_count or len(self.test_df),
             "n_interactions": n_interactions,
             "n_observed_pairs": n_observed_pairs,
             "n_train": len(self.train_df),
             "n_test": len(self.test_df),
             "sparsity": sparsity,
             "n_categories": len(set(self.item_categories.values())),
+            "raw_event_distribution": self.raw_event_distribution,
             "event_distribution": self.events_df["event"].value_counts().to_dict(),
             "weight_distribution": self.events_df["weight"].value_counts().sort_index().to_dict(),
         }
@@ -294,12 +412,14 @@ class PauMarketPreprocessor:
         print("\n📊 PAÜ Market Veri Özeti:")
         print(f"   Kullanıcı sayısı    : {s['n_users']:,}")
         print(f"   İlan sayısı         : {s['n_items']:,}")
-        print(f"   Toplam etkileşim    : {s['n_interactions']:,}")
+        print(f"   Ham event sayısı    : {s['n_raw_events']:,}")
+        print(f"   Model gözlemi       : {s['n_interactions']:,}")
         print(f"   User-listing çifti  : {s['n_observed_pairs']:,}")
         print(f"   Train etkileşim     : {s['n_train']:,}")
         print(f"   Test etkileşim      : {s['n_test']:,}")
         print(f"   Seyreklik (sparsity): {s['sparsity']:.4%}")
         print(f"   Kategori sayısı     : {s['n_categories']}")
+        print(f"   Ham event dağılımı  : {s['raw_event_distribution']}")
         print(f"   Event dağılımı      : {s['event_distribution']}")
         print(f"   Ağırlık dağılımı    : {s['weight_distribution']}")
 
@@ -312,6 +432,29 @@ class PauMarketPreprocessor:
         data = self.train_df["weight"].values.astype(np.float32)
 
         return coo_matrix((data, (rows, cols)), shape=(n_users, n_items))
+
+    def get_train_lightfm_matrices(self) -> tuple[coo_matrix, coo_matrix]:
+        """
+        LightFM WARP için binary interaction ve ayrı sample_weight döndürür.
+
+        LightFM sıralama modelinde pozitif etkileşim var/yok matrisi binary
+        kalmalı; PAÜ event gücü ise sample_weight ile modele aktarılmalı.
+        """
+        n_users = len(self.user_id_map)
+        n_items = len(self.item_id_map)
+
+        rows = self.train_df["user_idx"].values
+        cols = self.train_df["item_idx"].values
+        weights = self.train_df["weight"].values.astype(np.float32)
+        positives = np.ones_like(weights, dtype=np.float32)
+
+        interactions = coo_matrix((positives, (rows, cols)), shape=(n_users, n_items))
+        sample_weight = coo_matrix((weights, (rows, cols)), shape=(n_users, n_items))
+
+        interactions.sum_duplicates()
+        sample_weight.sum_duplicates()
+
+        return interactions, sample_weight
 
     def get_test_sparse_matrix(self) -> coo_matrix:
         n_users = len(self.user_id_map)

@@ -1,0 +1,333 @@
+{
+  "collaborative": {
+    "k_5": {
+      "precision": 0.05,
+      "recall": 0.166667,
+      "ndcg": 0.105339,
+      "hit_rate": 0.25,
+      "mrr": 0.165214,
+      "n_users_evaluated": 12
+    },
+    "k_10": {
+      "precision": 0.05,
+      "recall": 0.291667,
+      "ndcg": 0.154784,
+      "hit_rate": 0.5,
+      "mrr": 0.165214,
+      "n_users_evaluated": 12
+    },
+    "k_20": {
+      "precision": 0.045833,
+      "recall": 0.541667,
+      "ndcg": 0.226403,
+      "hit_rate": 0.666667,
+      "mrr": 0.165214,
+      "n_users_evaluated": 12
+    },
+    "rmse": 1.772175,
+    "strong_signals_weight_gte_3": {
+      "k_5": {
+        "precision": 0.033333,
+        "recall": 0.166667,
+        "ndcg": 0.068127,
+        "hit_rate": 0.166667,
+        "mrr": 0.075532,
+        "n_users_evaluated": 12
+      },
+      "k_10": {
+        "precision": 0.033333,
+        "recall": 0.291667,
+        "ndcg": 0.110245,
+        "hit_rate": 0.333333,
+        "mrr": 0.075532,
+        "n_users_evaluated": 12
+      },
+      "k_20": {
+        "precision": 0.033333,
+        "recall": 0.541667,
+        "ndcg": 0.176116,
+        "hit_rate": 0.583333,
+        "mrr": 0.075532,
+        "n_users_evaluated": 12
+      }
+    },
+    "evaluation_time_seconds": 0.11
+  },
+  "hybrid_lightfm": {
+    "k_5": {
+      "precision": 0.15,
+      "recall": 0.416667,
+      "ndcg": 0.307267,
+      "hit_rate": 0.666667,
+      "mrr": 0.365215,
+      "n_users_evaluated": 12
+    },
+    "k_10": {
+      "precision": 0.116667,
+      "recall": 0.625,
+      "ndcg": 0.390676,
+      "hit_rate": 0.833333,
+      "mrr": 0.365215,
+      "n_users_evaluated": 12
+    },
+    "k_20": {
+      "precision": 0.075,
+      "recall": 0.833333,
+      "ndcg": 0.452242,
+      "hit_rate": 0.916667,
+      "mrr": 0.365215,
+      "n_users_evaluated": 12
+    },
+    "rmse": 3.960325,
+    "strong_signals_weight_gte_3": {
+      "k_5": {
+        "precision": 0.133333,
+        "recall": 0.5,
+        "ndcg": 0.333369,
+        "hit_rate": 0.583333,
+        "mrr": 0.350792,
+        "n_users_evaluated": 12
+      },
+      "k_10": {
+        "precision": 0.091667,
+        "recall": 0.666667,
+        "ndcg": 0.393942,
+        "hit_rate": 0.75,
+        "mrr": 0.350792,
+        "n_users_evaluated": 12
+      },
+      "k_20": {
+        "precision": 0.058333,
+        "recall": 0.875,
+        "ndcg": 0.452153,
+        "hit_rate": 0.916667,
+        "mrr": 0.350792,
+        "n_users_evaluated": 12
+      }
+    },
+    "evaluation_time_seconds": 0.08
+  },
+  "popularity_baseline": {
+    "k_5": {
+      "precision": 0.066667,
+      "recall": 0.208333,
+      "ndcg": 0.113437,
+      "hit_rate": 0.25,
+      "mrr": 0.117661,
+      "n_users_evaluated": 12
+    },
+    "k_10": {
+      "precision": 0.058333,
+      "recall": 0.333333,
+      "ndcg": 0.16062,
+      "hit_rate": 0.416667,
+      "mrr": 0.117661,
+      "n_users_evaluated": 12
+    },
+    "k_20": {
+      "precision": 0.0375,
+      "recall": 0.416667,
+      "ndcg": 0.186294,
+      "hit_rate": 0.583333,
+      "mrr": 0.117661,
+      "n_users_evaluated": 12
+    },
+    "strong_signals_weight_gte_3": {
+      "k_5": {
+        "precision": 0.05,
+        "recall": 0.208333,
+        "ndcg": 0.093671,
+        "hit_rate": 0.25,
+        "mrr": 0.080757,
+        "n_users_evaluated": 12
+      },
+      "k_10": {
+        "precision": 0.041667,
+        "recall": 0.291667,
+        "ndcg": 0.123822,
+        "hit_rate": 0.333333,
+        "mrr": 0.080757,
+        "n_users_evaluated": 12
+      },
+      "k_20": {
+        "precision": 0.029167,
+        "recall": 0.416667,
+        "ndcg": 0.157963,
+        "hit_rate": 0.5,
+        "mrr": 0.080757,
+        "n_users_evaluated": 12
+      }
+    },
+    "rmse": null,
+    "evaluation_time_seconds": 0
+  },
+  "comparison_table": [
+    {
+      "Model": "collaborative",
+      "Precision@5": 0.05,
+      "Recall@5": 0.166667,
+      "NDCG@5": 0.105339,
+      "HitRate@5": 0.25,
+      "StrongPrecision@5": 0.033333,
+      "StrongHitRate@5": 0.166667,
+      "PrecisionLiftVsPopularity@5": -0.250004,
+      "MRR": 0.165214,
+      "RMSE": 1.772175
+    },
+    {
+      "Model": "hybrid_lightfm",
+      "Precision@5": 0.15,
+      "Recall@5": 0.416667,
+      "NDCG@5": 0.307267,
+      "HitRate@5": 0.666667,
+      "StrongPrecision@5": 0.133333,
+      "StrongHitRate@5": 0.583333,
+      "PrecisionLiftVsPopularity@5": 1.249989,
+      "MRR": 0.365215,
+      "RMSE": 3.960325
+    },
+    {
+      "Model": "popularity_baseline",
+      "Precision@5": 0.066667,
+      "Recall@5": 0.208333,
+      "NDCG@5": 0.113437,
+      "HitRate@5": 0.25,
+      "StrongPrecision@5": 0.05,
+      "StrongHitRate@5": 0.25,
+      "PrecisionLiftVsPopularity@5": null,
+      "MRR": 0.117661,
+      "RMSE": null
+    }
+  ],
+  "content_based_benchmark": {
+    "category_precision_at_k": 0.93,
+    "n_samples": 500,
+    "k": 5,
+    "total_comparisons": 2500,
+    "correct_category_matches": 2325
+  },
+  "evaluation_scope": {
+    "warm_test_users": 12,
+    "cold_start_test_users": 0,
+    "ranking_models": [
+      "collaborative",
+      "hybrid_lightfm"
+    ],
+    "baseline_models": [
+      "popularity_baseline"
+    ],
+    "strong_signal_threshold": 3.0,
+    "content_based_in_live_ranking": false
+  },
+  "lift_vs_popularity": {
+    "collaborative": {
+      "precision_lift_at_5": -0.250004,
+      "hit_rate_lift_at_5": 0.0,
+      "baseline_precision_at_5": 0.066667,
+      "baseline_hit_rate_at_5": 0.25
+    },
+    "hybrid_lightfm": {
+      "precision_lift_at_5": 1.249989,
+      "hit_rate_lift_at_5": 1.666668,
+      "baseline_precision_at_5": 0.066667,
+      "baseline_hit_rate_at_5": 0.25
+    }
+  },
+  "k_values": [
+    5,
+    10,
+    20
+  ],
+  "primary_k": 5,
+  "dataset_summary": {
+    "source": "paumarket",
+    "interaction_source": "PAÜ Market",
+    "n_users": 12,
+    "n_items": 53,
+    "n_raw_events": 251,
+    "n_interactions": 132,
+    "n_observed_pairs": 132,
+    "n_train": 111,
+    "n_test": 21,
+    "n_raw_train": 176,
+    "n_raw_test": 75,
+    "train_ratio": 0.8409,
+    "test_ratio": 0.1591,
+    "sparsity": 0.792453,
+    "sparsity_percent": 79.2453,
+    "n_categories": 9,
+    "split_strategy": "user_temporal_holdout",
+    "aggregation_strategy": "max_weight_per_user_listing",
+    "event_distribution": {
+      "favorite": 66,
+      "view": 51,
+      "deal_accepted": 11,
+      "message": 3,
+      "deal_request": 1
+    },
+    "raw_event_distribution": {
+      "view": 123,
+      "favorite": 78,
+      "message": 25,
+      "deal_request": 13,
+      "deal_accepted": 12
+    },
+    "weight_distribution": {
+      "1.0": 51,
+      "2.0": 3,
+      "3.0": 66,
+      "4.0": 1,
+      "4.5": 11
+    }
+  },
+  "training_summary": {
+    "interaction_source": "PAÜ Market",
+    "data_sources": {
+      "content_based": "Mercari C2C (NLP)",
+      "collaborative": "PAÜ Market (CF)",
+      "hybrid": "PAÜ Market (Hybrid + Features)"
+    },
+    "cold_start_threshold": 5,
+    "evaluated_models": [
+      "collaborative",
+      "hybrid_lightfm",
+      "popularity_baseline"
+    ],
+    "benchmark_only_models": [
+      "content_based"
+    ],
+    "ranking_metrics": [
+      "precision@5",
+      "precision@10",
+      "precision@20",
+      "recall@5",
+      "recall@10",
+      "recall@20",
+      "ndcg@5",
+      "ndcg@10",
+      "ndcg@20"
+    ],
+    "strong_signal_metrics": [
+      "strong_precision@5",
+      "strong_precision@10",
+      "strong_precision@20",
+      "strong_hit_rate@5",
+      "strong_hit_rate@10",
+      "strong_hit_rate@20"
+    ],
+    "baseline": "popularity_baseline",
+    "rating_metric": "rmse"
+  },
+  "thesis_notes": [
+    "Precision, Recall, NDCG, HitRate and MRR evaluate the ranking quality of the generated recommendation list.",
+    "Ranking metrics are reported only for models that return the same PAÜ listing namespace used in production.",
+    "RMSE is reported only for models that can predict an explicit user-item score; content-based similarity does not receive a fake RMSE.",
+    "The Mercari content-based model is reported separately as a benchmark and is not mixed into PAÜ live ranking metrics.",
+    "This run uses PAÜ Market interaction exports, so event distribution and sparsity describe the real platform pilot data."
+  ],
+  "generated_at": "2026-05-14T00:40:06.569280+00:00",
+  "storage": {
+    "persisted": true,
+    "path": "/app/app/trained_models/evaluation_metrics.json"
+  }
+}
