@@ -74,3 +74,42 @@ Use ranking metrics first:
 
 Treat RMSE as secondary because LightFM WARP optimizes ranking, not exact rating prediction.
 
+## Simulation Scale Check
+
+The same metric protocol was also run on a clearly labelled PAUMarket simulation
+dataset. This run must not be presented as real user data; it is a scale and
+model-behaviour check.
+
+```text
+source                         = paumarket_simulation
+users                          = 250
+listings                       = 180
+raw_events                     = 12,425
+model_observations             = 4,939
+train_observations             = 4,439
+test_observations              = 500
+split_strategy                 = user_temporal_holdout
+aggregation_strategy           = max_weight_per_user_listing
+```
+
+Simulation results at K=5:
+
+| Model | Precision@5 | Recall@5 | NDCG@5 | HitRate@5 |
+| --- | ---: | ---: | ---: | ---: |
+| Popularity baseline | 0.013600 | 0.034000 | 0.027874 | 0.064000 |
+| SVD collaborative | 0.016000 | 0.040000 | 0.033406 | 0.080000 |
+| LightFM hybrid | 0.104800 | 0.262000 | 0.196566 | 0.452000 |
+
+Simulation lift vs popularity baseline:
+
+```text
+LightFM Precision@5 lift       = +670.5882%
+LightFM HitRate@5 lift         = +606.2500%
+```
+
+Poster-safe wording:
+
+> Pilot veri, sistemin gerçek PAUMarket akışında çalıştığını gösterir. Simülasyon
+> verisi ise aynı eğitim/değerlendirme pipeline'ının daha büyük kullanıcı, ilan
+> ve etkileşim hacminde de LightFM lehine anlamlı sonuç ürettiğini gösteren ölçek
+> testidir.

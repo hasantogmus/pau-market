@@ -281,6 +281,31 @@ hybrid_lightfm HitRate lift     = +166.6668%
 
 Önemli not: Bu koşuda LightFM metriği 12 warm test kullanıcısı üzerinde hesaplandı. Pilot veri hâlâ küçük olduğu için bu sonuçlar "nihai ürün başarısı" iddiası değil; gerçek PAUMarket etkileşimlerinden export -> train -> evaluate pipeline'ının çalıştığını ve LightFM'in popularity baseline'a göre daha iyi sıralama ürettiğini gösteren kanıttır. WARP tabanlı LightFM modeli ranking optimizasyonu yaptığı için posterde ana metrik olarak Precision@5, Recall@5, NDCG@5 ve HitRate@5 gösterilmeli; RMSE ikincil/yardımcı metrik olarak anlatılmalıdır.
 
+Simülasyon ölçek testi de aynı yeni protokolle ayrıca koşturuldu. Bu veri gerçek
+pilot veri değildir; sadece sistemin daha büyük kullanıcı/ilan/etkileşim hacminde
+nasıl davrandığını göstermek için kullanıldı.
+
+```text
+simulation_users                 = 250
+simulation_items                 = 180
+simulation_raw_events            = 12,425
+simulation_model_observations    = 4,939
+simulation_train                 = 4,439
+simulation_test                  = 500
+simulation_popularity P@5        = 0.013600
+simulation_popularity HitRate@5  = 0.064000
+simulation_lightfm Precision@5   = 0.104800
+simulation_lightfm Recall@5      = 0.262000
+simulation_lightfm NDCG@5        = 0.196566
+simulation_lightfm HitRate@5     = 0.452000
+simulation_lightfm P@5 lift      = +670.5882%
+simulation_lightfm HR@5 lift     = +606.2500%
+```
+
+Bu yüzden savunmada iki ayrı cümle kurulmalıdır: Pilot veri gerçek kullanıcı
+akışını doğrular; simülasyon veri ise aynı pipeline'ın ölçek büyüdüğünde de
+popülerlik baseline'ını geçtiğini gösterir.
+
 ## 13. Hocaya Gösterilebilecek Endpoint'ler
 
 Docker ayaktayken:
