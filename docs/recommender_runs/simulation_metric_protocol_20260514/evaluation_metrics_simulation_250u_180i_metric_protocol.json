@@ -1,0 +1,345 @@
+{
+  "collaborative": {
+    "k_5": {
+      "precision": 0.016,
+      "recall": 0.04,
+      "ndcg": 0.033406,
+      "hit_rate": 0.08,
+      "mrr": 0.05995,
+      "n_users_evaluated": 250
+    },
+    "k_10": {
+      "precision": 0.012,
+      "recall": 0.06,
+      "ndcg": 0.041295,
+      "hit_rate": 0.116,
+      "mrr": 0.05995,
+      "n_users_evaluated": 250
+    },
+    "k_20": {
+      "precision": 0.0132,
+      "recall": 0.132,
+      "ndcg": 0.063524,
+      "hit_rate": 0.252,
+      "mrr": 0.05995,
+      "n_users_evaluated": 250
+    },
+    "rmse": 0.867585,
+    "strong_signals_weight_gte_3": {
+      "k_5": {
+        "precision": 0.015261,
+        "recall": 0.042169,
+        "ndcg": 0.033433,
+        "hit_rate": 0.076305,
+        "mrr": 0.056575,
+        "n_users_evaluated": 249
+      },
+      "k_10": {
+        "precision": 0.010843,
+        "recall": 0.062249,
+        "ndcg": 0.040928,
+        "hit_rate": 0.104418,
+        "mrr": 0.056575,
+        "n_users_evaluated": 249
+      },
+      "k_20": {
+        "precision": 0.012249,
+        "recall": 0.136546,
+        "ndcg": 0.063164,
+        "hit_rate": 0.232932,
+        "mrr": 0.056575,
+        "n_users_evaluated": 249
+      }
+    },
+    "evaluation_time_seconds": 0.27
+  },
+  "hybrid_lightfm": {
+    "k_5": {
+      "precision": 0.1048,
+      "recall": 0.262,
+      "ndcg": 0.196566,
+      "hit_rate": 0.452,
+      "mrr": 0.281256,
+      "n_users_evaluated": 250
+    },
+    "k_10": {
+      "precision": 0.092,
+      "recall": 0.46,
+      "ndcg": 0.274673,
+      "hit_rate": 0.716,
+      "mrr": 0.281256,
+      "n_users_evaluated": 250
+    },
+    "k_20": {
+      "precision": 0.071,
+      "recall": 0.71,
+      "ndcg": 0.351517,
+      "hit_rate": 0.9,
+      "mrr": 0.281256,
+      "n_users_evaluated": 250
+    },
+    "rmse": 3.831836,
+    "strong_signals_weight_gte_3": {
+      "k_5": {
+        "precision": 0.097992,
+        "recall": 0.257028,
+        "ndcg": 0.191389,
+        "hit_rate": 0.425703,
+        "mrr": 0.268525,
+        "n_users_evaluated": 249
+      },
+      "k_10": {
+        "precision": 0.085542,
+        "recall": 0.447791,
+        "ndcg": 0.265392,
+        "hit_rate": 0.662651,
+        "mrr": 0.268525,
+        "n_users_evaluated": 249
+      },
+      "k_20": {
+        "precision": 0.066867,
+        "recall": 0.722892,
+        "ndcg": 0.345936,
+        "hit_rate": 0.883534,
+        "mrr": 0.268525,
+        "n_users_evaluated": 249
+      }
+    },
+    "evaluation_time_seconds": 0.22
+  },
+  "popularity_baseline": {
+    "k_5": {
+      "precision": 0.0136,
+      "recall": 0.034,
+      "ndcg": 0.027874,
+      "hit_rate": 0.064,
+      "mrr": 0.05046,
+      "n_users_evaluated": 250
+    },
+    "k_10": {
+      "precision": 0.012,
+      "recall": 0.06,
+      "ndcg": 0.038004,
+      "hit_rate": 0.108,
+      "mrr": 0.05046,
+      "n_users_evaluated": 250
+    },
+    "k_20": {
+      "precision": 0.012,
+      "recall": 0.12,
+      "ndcg": 0.056529,
+      "hit_rate": 0.216,
+      "mrr": 0.05046,
+      "n_users_evaluated": 250
+    },
+    "strong_signals_weight_gte_3": {
+      "k_5": {
+        "precision": 0.011245,
+        "recall": 0.034137,
+        "ndcg": 0.026266,
+        "hit_rate": 0.056225,
+        "mrr": 0.045575,
+        "n_users_evaluated": 249
+      },
+      "k_10": {
+        "precision": 0.010442,
+        "recall": 0.062249,
+        "ndcg": 0.036662,
+        "hit_rate": 0.100402,
+        "mrr": 0.045575,
+        "n_users_evaluated": 249
+      },
+      "k_20": {
+        "precision": 0.011044,
+        "recall": 0.120482,
+        "ndcg": 0.054646,
+        "hit_rate": 0.204819,
+        "mrr": 0.045575,
+        "n_users_evaluated": 249
+      }
+    },
+    "rmse": null,
+    "evaluation_time_seconds": 0
+  },
+  "comparison_table": [
+    {
+      "Model": "collaborative",
+      "Precision@5": 0.016,
+      "Recall@5": 0.04,
+      "NDCG@5": 0.033406,
+      "HitRate@5": 0.08,
+      "StrongPrecision@5": 0.015261,
+      "StrongHitRate@5": 0.076305,
+      "PrecisionLiftVsPopularity@5": 0.176471,
+      "MRR": 0.05995,
+      "RMSE": 0.867585
+    },
+    {
+      "Model": "hybrid_lightfm",
+      "Precision@5": 0.1048,
+      "Recall@5": 0.262,
+      "NDCG@5": 0.196566,
+      "HitRate@5": 0.452,
+      "StrongPrecision@5": 0.097992,
+      "StrongHitRate@5": 0.425703,
+      "PrecisionLiftVsPopularity@5": 6.705882,
+      "MRR": 0.281256,
+      "RMSE": 3.831836
+    },
+    {
+      "Model": "popularity_baseline",
+      "Precision@5": 0.0136,
+      "Recall@5": 0.034,
+      "NDCG@5": 0.027874,
+      "HitRate@5": 0.064,
+      "StrongPrecision@5": 0.011245,
+      "StrongHitRate@5": 0.056225,
+      "PrecisionLiftVsPopularity@5": null,
+      "MRR": 0.05046,
+      "RMSE": null
+    }
+  ],
+  "content_based_benchmark": {},
+  "evaluation_scope": {
+    "warm_test_users": 250,
+    "cold_start_test_users": 0,
+    "ranking_models": [
+      "collaborative",
+      "hybrid_lightfm"
+    ],
+    "baseline_models": [
+      "popularity_baseline"
+    ],
+    "strong_signal_threshold": 3.0,
+    "content_based_in_live_ranking": false
+  },
+  "lift_vs_popularity": {
+    "collaborative": {
+      "precision_lift_at_5": 0.176471,
+      "hit_rate_lift_at_5": 0.25,
+      "baseline_precision_at_5": 0.0136,
+      "baseline_hit_rate_at_5": 0.064
+    },
+    "hybrid_lightfm": {
+      "precision_lift_at_5": 6.705882,
+      "hit_rate_lift_at_5": 6.0625,
+      "baseline_precision_at_5": 0.0136,
+      "baseline_hit_rate_at_5": 0.064
+    }
+  },
+  "k_values": [
+    5,
+    10,
+    20
+  ],
+  "primary_k": 5,
+  "dataset_summary": {
+    "source": "paumarket",
+    "interaction_source": null,
+    "n_users": 250,
+    "n_items": 180,
+    "n_raw_events": 12425,
+    "n_interactions": 4939,
+    "n_observed_pairs": 4939,
+    "n_train": 4439,
+    "n_test": 500,
+    "n_raw_train": 10995,
+    "n_raw_test": 1430,
+    "train_ratio": 0.8988,
+    "test_ratio": 0.1012,
+    "sparsity": 0.890244,
+    "sparsity_percent": 89.0244,
+    "n_categories": 8,
+    "split_strategy": "user_temporal_holdout",
+    "aggregation_strategy": "max_weight_per_user_listing",
+    "event_distribution": {
+      "favorite": 3340,
+      "deal_request": 692,
+      "view": 462,
+      "deal_accepted": 193,
+      "message": 167,
+      "purchase": 85
+    },
+    "raw_event_distribution": {
+      "view": 4939,
+      "favorite": 4230,
+      "message": 2169,
+      "deal_request": 794,
+      "deal_accepted": 208,
+      "purchase": 85
+    },
+    "weight_distribution": {
+      "1.0": 462,
+      "2.0": 167,
+      "3.0": 3340,
+      "4.0": 692,
+      "4.5": 193,
+      "5.0": 85
+    }
+  },
+  "training_summary": {
+    "interaction_source": null,
+    "data_sources": {},
+    "cold_start_threshold": 5,
+    "evaluated_models": [
+      "collaborative",
+      "hybrid_lightfm",
+      "popularity_baseline"
+    ],
+    "benchmark_only_models": [],
+    "ranking_metrics": [
+      "precision@5",
+      "precision@10",
+      "precision@20",
+      "recall@5",
+      "recall@10",
+      "recall@20",
+      "ndcg@5",
+      "ndcg@10",
+      "ndcg@20"
+    ],
+    "strong_signal_metrics": [
+      "strong_precision@5",
+      "strong_precision@10",
+      "strong_precision@20",
+      "strong_hit_rate@5",
+      "strong_hit_rate@10",
+      "strong_hit_rate@20"
+    ],
+    "baseline": "popularity_baseline",
+    "rating_metric": "rmse"
+  },
+  "thesis_notes": [
+    "Precision, Recall, NDCG, HitRate and MRR evaluate the ranking quality of the generated recommendation list.",
+    "Ranking metrics are reported only for models that return the same PAÜ listing namespace used in production.",
+    "RMSE is reported only for models that can predict an explicit user-item score; content-based similarity does not receive a fake RMSE.",
+    "The Mercari content-based model is reported separately as a benchmark and is not mixed into PAÜ live ranking metrics.",
+    "This run uses PAÜ Market interaction exports, so event distribution and sparsity describe the real platform pilot data."
+  ],
+  "generated_at": "2026-05-14T03:44:39.640312+00:00",
+  "run_label": "simulation_250u_180i_metric_protocol",
+  "training_stats": {
+    "content_based": {
+      "model": "Content-Based (ATLANILDI — Mercari verisi yok)"
+    },
+    "collaborative": {
+      "model": "Surprise SVD",
+      "n_factors": 50,
+      "n_epochs": 20,
+      "n_users": 250,
+      "n_items": 180,
+      "n_ratings": 4439
+    },
+    "hybrid_lightfm": {
+      "model": "LightFM Hybrid (WARP)",
+      "no_components": 64,
+      "learning_rate": 0.05,
+      "epochs": 30,
+      "n_users": 250,
+      "n_items": 180,
+      "n_interactions": 4439,
+      "n_item_features": 188
+    },
+    "cold_start_threshold": 5
+  }
+}
