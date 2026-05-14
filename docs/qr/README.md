@@ -1,6 +1,6 @@
 # PAUMarket QR Landing Page
 
-Bu klasör, posterdeki QR kodun yönleneceği küçük tanıtım sayfasını içerir.
+Bu klasör, posterdeki QR kodun yönleneceği küçük tanıtım ve iletişim sayfasını içerir.
 
 ## Yayina alma
 
@@ -13,10 +13,7 @@ https://hasantogmus.github.io/pau-market/qr/
 
 ## Linkleri guncelleme
 
-Demo videosu YouTube'a yüklendikten sonra `config.js` içindeki
-`demoVideoUrl` alanını liste dışı YouTube linkiyle değiştir.
-
-Berke'nin e-posta adresi farklıysa `berkeEmail` alanını güncelle.
+GitHub veya iletişim bilgileri değişirse `config.js` içindeki alanları güncelle.
 
 Poster QR kodu için önerilen hedef link:
 

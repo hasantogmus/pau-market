@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>PAUMarket | Demo ve İletişim</title>
+    <title>PAUMarket | Tanıtım ve İletişim</title>
     <meta
       name="description"
-      content="PAUMarket demo videosu, GitHub reposu ve proje ekibi iletişim bilgileri."
+      content="PAUMarket proje tanıtımı, GitHub reposu ve proje ekibi iletişim bilgileri."
     />
     <script src="./config.js"></script>
     <style>
@@ -133,7 +133,7 @@
 
       .actions {
         display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 14px;
         margin-top: 30px;
       }
@@ -271,8 +271,7 @@
             </p>
 
             <div class="actions" aria-label="PAUMarket bağlantıları">
-              <a class="button primary" href="#" id="demo-link">Demo videosunu izle</a>
-              <a class="button" href="#" id="github-link">GitHub projesi</a>
+              <a class="button primary" href="#" id="github-link">GitHub projesi</a>
               <a class="button" href="#" id="hasan-mail">Hasan ile iletişim</a>
               <a class="button" href="#" id="berke-mail">Berke ile iletişim</a>
             </div>
@@ -282,24 +281,24 @@
             <p class="panel-title">Tek QR ile tüm proje bilgileri</p>
             <ul class="info-list">
               <li>
-                <span class="icon">1</span>
-                <span>
-                  <span class="label">Demo</span>
-                  <span class="value">Kısa proje videosu ve kullanıcı akışı</span>
-                </span>
-              </li>
-              <li>
-                <span class="icon">2</span>
+                <span class="icon">G</span>
                 <span>
                   <span class="label">Kaynak kod</span>
-                  <span class="value">React, ASP.NET Core, SQL Server ve FastAPI</span>
+                  <span class="value">github.com/hasantogmus/pau-market</span>
                 </span>
               </li>
               <li>
-                <span class="icon">3</span>
+                <span class="icon">H</span>
                 <span>
-                  <span class="label">İletişim</span>
-                  <span class="value">Hasan Toğmuş ve Berke Çakıroğlu</span>
+                  <span class="label">Hasan Toğmuş</span>
+                  <span class="value">hasan.togmus76@gmail.com</span>
+                </span>
+              </li>
+              <li>
+                <span class="icon">B</span>
+                <span>
+                  <span class="label">Berke Çakıroğlu</span>
+                  <span class="value">bcakiroglu21@posta.pau.edu.tr</span>
                 </span>
               </li>
             </ul>
@@ -315,10 +314,9 @@
 
     <script>
       const defaults = {
-        demoVideoUrl: "https://www.youtube.com/",
         githubUrl: "https://github.com/hasantogmus/pau-market",
         hasanEmail: "hasan.togmus76@gmail.com",
-        berkeEmail: "berke.cakiroglu@posta.pau.edu.tr",
+        berkeEmail: "bcakiroglu21@posta.pau.edu.tr",
       };
 
       const links = { ...defaults, ...(window.PAUMARKET_LINKS || {}) };
@@ -328,31 +326,18 @@
         if (element) element.href = href;
       };
 
-      const demoLink = document.getElementById("demo-link");
-      const isDemoPlaceholder = links.demoVideoUrl === defaults.demoVideoUrl;
-
       setHref("brand-link", links.githubUrl);
-      setHref("demo-link", links.demoVideoUrl);
       setHref("github-link", links.githubUrl);
       setHref("hasan-mail", `mailto:${links.hasanEmail}?subject=PAUMarket%20Projesi`);
       setHref("berke-mail", `mailto:${links.berkeEmail}?subject=PAUMarket%20Projesi`);
 
-      ["brand-link", "demo-link", "github-link"].forEach((id) => {
+      ["brand-link", "github-link"].forEach((id) => {
         const element = document.getElementById(id);
         if (element) {
           element.target = "_blank";
           element.rel = "noopener noreferrer";
         }
       });
-
-      if (demoLink && isDemoPlaceholder) {
-        demoLink.textContent = "Demo videosu eklenecek";
-        demoLink.href = "#";
-        demoLink.removeAttribute("target");
-        demoLink.removeAttribute("rel");
-        demoLink.setAttribute("aria-disabled", "true");
-        demoLink.addEventListener("click", (event) => event.preventDefault());
-      }
     </script>
   </body>
 </html>
